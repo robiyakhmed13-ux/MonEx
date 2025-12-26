@@ -2,3 +2,6 @@ project_id = "dvomgnudbwkdcavihebw"
 
 [functions.scan-receipt]
 verify_jwt = false
+
+[functions.parse-voice]
+verify_jwt = false

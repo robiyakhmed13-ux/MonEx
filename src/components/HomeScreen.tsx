@@ -1,14 +1,29 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { formatUZS, clamp } from "@/lib/storage";
+import { formatUZS, clamp, todayISO } from "@/lib/storage";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
   const { 
     t, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
-    limits, monthSpentByCategory, getCat, catLabel, 
+    limits, monthSpentByCategory, getCat, catLabel, addTransaction,
     transactions, setActiveScreen, syncFromRemote, useRemote
   } = useApp();
+  
+  // Quick add handler
+  const handleQuickAdd = useCallback(async (categoryId: string, amount: number) => {
+    const cat = getCat(categoryId);
+    const now = new Date();
+    await addTransaction({
+      type: "expense",
+      amount: -Math.abs(amount),
+      categoryId,
+      description: cat.uz || cat.en,
+      date: todayISO(),
+      time: now.toISOString().slice(11, 16),
+      source: "quick",
+    });
+  }, [getCat, addTransaction]);
   
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
@@ -141,29 +156,32 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         <h2 className="text-title-3 text-foreground mb-3">{t.quickAdd}</h2>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {[
-            { emoji: "☕", label: "Coffee", amount: 15000 },
-            { emoji: "🍽️", label: "Lunch", amount: 35000 },
-            { emoji: "🚕", label: "Transport", amount: 20000 },
-            { emoji: "🛒", label: "Shopping", amount: 100000 },
-          ].map((item, i) => (
-            <motion.button
-              key={i}
-              whileTap={{ scale: 0.95 }}
-              onClick={onAddExpense}
-              className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card'}`}
-            >
-              <span className="text-2xl block mb-2">{item.emoji}</span>
-              <p className="text-body-sm font-medium text-foreground">{item.label}</p>
-              <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
-            </motion.button>
-          ))}
+            { emoji: "☕", labelKey: "coffee", categoryId: "coffee", amount: 15000 },
+            { emoji: "🍽️", labelKey: "lunch", categoryId: "restaurants", amount: 35000 },
+            { emoji: "🚕", labelKey: "transport", categoryId: "taxi", amount: 20000 },
+            { emoji: "🛒", labelKey: "shopping", categoryId: "shopping", amount: 100000 },
+          ].map((item, i) => {
+            const cat = getCat(item.categoryId);
+            return (
+              <motion.button
+                key={i}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleQuickAdd(item.categoryId, item.amount)}
+                className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card'}`}
+              >
+                <span className="text-2xl block mb-2">{item.emoji}</span>
+                <p className="text-body-sm font-medium text-foreground">{catLabel(cat)}</p>
+                <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
+              </motion.button>
+            );
+          })}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={onAddExpense}
             className="min-w-[90px] p-4 rounded-2xl border-2 border-dashed border-border bg-secondary flex flex-col items-center justify-center"
           >
             <span className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-primary text-xl mb-2">+</span>
-            <p className="text-body-sm font-medium text-muted-foreground">Custom</p>
+            <p className="text-body-sm font-medium text-muted-foreground">{t.add}</p>
           </motion.button>
         </div>
       </section>

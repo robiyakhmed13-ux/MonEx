@@ -1,0 +1,103 @@
+import React, { useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useApp } from "@/context/AppContext";
+import { supabase } from "@/integrations/supabase/client";
+import { todayISO } from "@/lib/storage";
+
+interface VoiceInputProps {
+  onTransactionParsed: (data: { type: "expense" | "income"; categoryId: string; amount: number; description: string }) => void;
+}
+
+export const VoiceInput: React.FC<VoiceInputProps> = ({ onTransactionParsed }) => {
+  const { t, lang, showToast } = useApp();
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const startListening = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      showToast("Speech recognition not supported", false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+
+    recognition.lang = lang === 'ru' ? 'ru-RU' : lang === 'uz' ? 'uz-UZ' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = async (event: any) => {
+      const text = event.results[0][0].transcript;
+      console.log("Voice input:", text);
+      setIsProcessing(true);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('parse-voice', {
+          body: { text, lang },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        if (data?.type && data?.categoryId && data?.amount) {
+          onTransactionParsed({
+            type: data.type,
+            categoryId: data.categoryId,
+            amount: data.amount,
+            description: data.description || data.categoryId,
+          });
+          showToast("✓", true);
+        } else {
+          showToast(t.scanError || "Could not parse", false);
+        }
+      } catch (err) {
+        console.error("Voice parse error:", err);
+        showToast(t.scanError || "Error", false);
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      showToast("Voice error", false);
+    };
+
+    recognition.start();
+  }, [lang, showToast, onTransactionParsed, t]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
+
+  return (
+    <motion.button
+      whileTap={{ scale: 0.9 }}
+      onClick={isListening ? stopListening : startListening}
+      disabled={isProcessing}
+      className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-button transition-all ${
+        isListening 
+          ? 'bg-expense animate-pulse' 
+          : isProcessing 
+          ? 'bg-muted' 
+          : 'bg-primary'
+      } text-primary-foreground`}
+    >
+      {isProcessing ? (
+        <span className="text-xl animate-spin">⏳</span>
+      ) : isListening ? (
+        <span className="text-2xl">🎤</span>
+      ) : (
+        <span className="text-2xl">🎙️</span>
+      )}
+    </motion.button>
+  );
+};
+
+export default VoiceInput;
