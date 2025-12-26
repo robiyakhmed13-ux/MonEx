@@ -52,6 +52,8 @@ interface AppState {
   setQuickAdds: (presets: QuickAddPreset[]) => void;
   onboardingComplete: boolean;
   setOnboardingComplete: (complete: boolean) => void;
+  reminderDays: number;
+  setReminderDays: (days: number) => void;
   syncFromRemote: () => Promise<void>;
 }
 
@@ -81,6 +83,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currency, setCurrencyState] = useState<string>(() => safeJSON.get("hamyon_currency", "UZS"));
   const [quickAdds, setQuickAddsState] = useState<QuickAddPreset[]>(() => safeJSON.get("hamyon_quickAdds", []));
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => Boolean(safeJSON.get("hamyon_onboarding", false)));
+  const [reminderDays, setReminderDaysState] = useState<number>(() => safeJSON.get("hamyon_reminderDays", 3));
   
   const setTheme = useCallback((newTheme: "light" | "dark" | "system") => {
     setThemeState(newTheme);
@@ -101,6 +104,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setOnboardingComplete = useCallback((complete: boolean) => {
     setOnboardingCompleteState(complete);
     safeJSON.set("hamyon_onboarding", complete);
+  }, []);
+  
+  const setReminderDays = useCallback((days: number) => {
+    setReminderDaysState(days);
+    safeJSON.set("hamyon_reminderDays", days);
   }, []);
   
   useEffect(() => {
@@ -353,7 +361,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addLimit, updateLimit, deleteLimit,
     addGoal, updateGoal, deleteGoal, depositToGoal,
     theme, setTheme, currency, setCurrency, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
-    syncFromRemote,
+    reminderDays, setReminderDays, syncFromRemote,
   };
   
   return (

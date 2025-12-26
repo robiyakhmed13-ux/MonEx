@@ -6,7 +6,7 @@ import { safeJSON, uid } from "@/lib/storage";
 export const useSmartNotifications = () => {
   const { 
     transactions, limits, goals, monthSpentByCategory, getCat, catLabel, lang, t,
-    weekSpend, monthSpend
+    weekSpend, monthSpend, reminderDays
   } = useApp();
   
   const [notifications, setNotifications] = useState<SmartNotification[]>(() => 
@@ -162,10 +162,10 @@ export const useSmartNotifications = () => {
       const nextBilling = new Date(sub.nextBillingDate);
       const daysUntil = Math.ceil((nextBilling.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Check if within reminder window (default 3 days if not set)
-      const reminderDays = sub.reminderDays || 3;
+      // Check if within reminder window (use global setting or subscription-specific)
+      const effectiveReminderDays = sub.reminderDays || reminderDays;
       
-      if (daysUntil >= 0 && daysUntil <= reminderDays) {
+      if (daysUntil >= 0 && daysUntil <= effectiveReminderDays) {
         const daysText = daysUntil === 0 
           ? (lang === "ru" ? "сегодня" : lang === "uz" ? "bugun" : "today")
           : daysUntil === 1 
@@ -186,7 +186,7 @@ export const useSmartNotifications = () => {
         });
       }
     });
-  }, [getSubscriptions, lang, addNotification]);
+  }, [getSubscriptions, lang, addNotification, reminderDays]);
   
   // Check recurring bill reminders
   useEffect(() => {
@@ -197,8 +197,8 @@ export const useSmartNotifications = () => {
       const nextDate = new Date(rec.nextDate);
       const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Remind 3 days before
-      if (daysUntil >= 0 && daysUntil <= 3) {
+      // Use global reminder days setting
+      if (daysUntil >= 0 && daysUntil <= reminderDays) {
         const daysText = daysUntil === 0 
           ? (lang === "ru" ? "сегодня" : lang === "uz" ? "bugun" : "today")
           : daysUntil === 1 
@@ -221,7 +221,7 @@ export const useSmartNotifications = () => {
         });
       }
     });
-  }, [getRecurring, lang, getCat, addNotification]);
+  }, [getRecurring, lang, getCat, addNotification, reminderDays]);
   
   // Unread count
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
