@@ -64,6 +64,8 @@ interface AppState {
   // Theme & Preferences
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
+  currency: string;
+  setCurrency: (currency: string) => void;
   quickAdds: QuickAddPreset[];
   setQuickAdds: (presets: QuickAddPreset[]) => void;
   onboardingComplete: boolean;
@@ -101,6 +103,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // Theme & Preferences
   const [theme, setThemeState] = useState<"light" | "dark" | "system">(() => safeJSON.get("hamyon_theme", "light") as any);
+  const [currency, setCurrencyState] = useState<string>(() => safeJSON.get("hamyon_currency", "UZS"));
   const [quickAdds, setQuickAddsState] = useState<QuickAddPreset[]>(() => safeJSON.get("hamyon_quickAdds", []));
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => Boolean(safeJSON.get("hamyon_onboarding", false)));
   
@@ -113,6 +116,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setQuickAdds = useCallback((presets: QuickAddPreset[]) => {
     setQuickAddsState(presets);
     safeJSON.set("hamyon_quickAdds", presets);
+  }, []);
+  
+  const setCurrency = useCallback((c: string) => {
+    setCurrencyState(c);
+    safeJSON.set("hamyon_currency", c);
   }, []);
   
   const setOnboardingComplete = useCallback((complete: boolean) => {
@@ -380,7 +388,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTransaction, updateTransaction, deleteTransaction,
     addLimit, updateLimit, deleteLimit,
     addGoal, updateGoal, deleteGoal, depositToGoal,
-    theme, setTheme, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
+    theme, setTheme, currency, setCurrency, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
     syncFromRemote,
   };
   
