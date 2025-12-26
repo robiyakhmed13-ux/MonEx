@@ -26,17 +26,22 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     document.documentElement.classList.toggle("dark", theme === "dark");
   };
 
-  const toggleQuickAdd = (categoryId: string, emoji: string, defaultAmount: number) => {
+  const toggleQuickAdd = (categoryId: string, emoji: string) => {
     const exists = quickAdds.find(q => q.categoryId === categoryId);
     if (exists) {
       setQuickAdds(quickAdds.filter(q => q.categoryId !== categoryId));
+      if (editingPreset?.categoryId === categoryId) {
+        setEditingPreset(null);
+      }
     } else {
+      // Add with 0 amount and open editor immediately
       setQuickAdds([...quickAdds, { 
         id: categoryId, 
         categoryId, 
         emoji, 
-        amount: defaultAmount 
+        amount: 0 
       }]);
+      setEditingPreset({ categoryId, amount: '' });
     }
   };
 
@@ -243,11 +248,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
         {allCats.expense.map((cat, i) => {
           const isSelected = quickAdds.some(q => q.categoryId === cat.id);
           const preset = quickAdds.find(q => q.categoryId === cat.id);
-          const defaultAmounts: Record<string, number> = {
-            coffee: 15000, restaurants: 35000, taxi: 20000, shopping: 100000,
-            food: 50000, transport: 10000, bills: 200000, health: 100000,
-            entertainment: 50000, education: 100000, fuel: 150000
-          };
           
           return (
             <motion.div
@@ -260,19 +260,21 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   if (!isSelected) {
-                    toggleQuickAdd(cat.id, cat.emoji, defaultAmounts[cat.id] || 50000);
+                    toggleQuickAdd(cat.id, cat.emoji);
                   } else if (editingPreset?.categoryId !== cat.id) {
-                    setEditingPreset({ categoryId: cat.id, amount: String(preset?.amount || 50000) });
+                    setEditingPreset({ categoryId: cat.id, amount: String(preset?.amount || '') });
+                  } else {
+                    // Toggle off when clicking again
+                    toggleQuickAdd(cat.id, cat.emoji);
                   }
                 }}
-                onDoubleClick={() => toggleQuickAdd(cat.id, cat.emoji, defaultAmounts[cat.id] || 50000)}
                 className={`w-full p-4 rounded-2xl flex flex-col items-center gap-2 transition-all relative ${
                   isSelected
                     ? "bg-primary/10 border-2 border-primary"
                     : "bg-secondary border-2 border-transparent"
                 }`}
               >
-                {isSelected && (
+                {isSelected && preset && preset.amount > 0 && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -283,14 +285,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                 )}
                 <span className="text-2xl">{cat.emoji}</span>
                 <span className="text-xs font-medium text-foreground">{catLabel(cat)}</span>
-                {isSelected && preset && (
+                {isSelected && preset && preset.amount > 0 && (
                   <span className="text-xs text-primary font-semibold">
                     {formatUZS(preset.amount)}
                   </span>
                 )}
               </motion.button>
               
-              {/* Amount editor */}
+              {/* Amount editor - shows immediately when selected */}
               {editingPreset?.categoryId === cat.id && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
@@ -302,11 +304,21 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                     inputMode="numeric"
                     value={editingPreset.amount}
                     onChange={(e) => setEditingPreset({ ...editingPreset, amount: e.target.value.replace(/\D/g, '') })}
+                    placeholder={lang === "ru" ? "Сумма" : lang === "uz" ? "Summa" : "Amount"}
                     className="flex-1 px-3 py-2 text-sm rounded-lg bg-card border border-border focus:border-primary focus:outline-none"
                     autoFocus
                   />
                   <button
-                    onClick={() => updatePresetAmount(cat.id, Number(editingPreset.amount) || 50000)}
+                    onClick={() => {
+                      const amount = Number(editingPreset.amount);
+                      if (amount > 0) {
+                        updatePresetAmount(cat.id, amount);
+                      } else {
+                        // Remove if no amount entered
+                        setQuickAdds(quickAdds.filter(q => q.categoryId !== cat.id));
+                        setEditingPreset(null);
+                      }
+                    }}
                     className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold"
                   >
                     ✓
