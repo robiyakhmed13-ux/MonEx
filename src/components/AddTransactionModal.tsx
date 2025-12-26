@@ -2,6 +2,7 @@ import React, { useState, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { todayISO } from "@/lib/storage";
+import { ReceiptScanner } from "./ReceiptScanner";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -22,6 +23,16 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
   const [description, setDescription] = useState(existingTx?.description || "");
   const [categoryId, setCategoryId] = useState(existingTx?.categoryId || allCats[type][0]?.id || "food");
   const [date, setDate] = useState(existingTx?.date || todayISO());
+  const [showScanner, setShowScanner] = useState(false);
+
+  // Handle receipt scan result
+  const handleScanComplete = useCallback((data: { amount?: number; description?: string; categoryId?: string; date?: string }) => {
+    if (data.amount) setAmount(String(data.amount));
+    if (data.description) setDescription(data.description);
+    if (data.categoryId) setCategoryId(data.categoryId);
+    if (data.date) setDate(data.date);
+    setType("expense"); // Receipts are typically expenses
+  }, []);
   
   const cats = allCats[type] || [];
   
@@ -77,7 +88,15 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
   if (!isOpen) return null;
   
   return (
-    <AnimatePresence>
+    <>
+      {/* Receipt Scanner Modal */}
+      <ReceiptScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanComplete={handleScanComplete}
+      />
+      
+      <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -101,9 +120,21 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
             <h2 className="text-title-1 text-foreground">
               {editId ? t.editTransaction : t.addTransaction}
             </h2>
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Scan Receipt Button */}
+              {!editId && (
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="h-10 px-4 rounded-full bg-gradient-to-r from-primary/10 to-accent flex items-center gap-2 text-primary font-medium text-sm hover:from-primary/20 transition-all"
+                >
+                  <span>📷</span>
+                  <span className="hidden sm:inline">{t.scan || "Scan"}</span>
+                </button>
+              )}
+              <button onClick={onClose} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+                ✕
+              </button>
+            </div>
           </div>
           
           {/* Type Selector */}
@@ -203,6 +234,7 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    </>
   );
 });
 
