@@ -45,6 +45,14 @@ export interface QuickAddPreset {
   emoji: string;
   categoryId: string;
   amount: number;
+  label?: string;
+}
+
+export interface UserPreferences {
+  theme: "light" | "dark" | "system";
+  currency: string;
+  quickAdds: QuickAddPreset[];
+  onboardingComplete: boolean;
 }
 
 export interface TelegramUser {

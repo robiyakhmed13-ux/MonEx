@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from "react";
 import { I18N, DEFAULT_CATEGORIES, LangKey, Translation, Category, CategoryType } from "@/lib/constants";
 import { safeJSON, uid, todayISO, startOfWeekISO, monthPrefix, formatUZS, clamp, sb } from "@/lib/storage";
-import { Transaction, Limit, Goal, TelegramUser, ScreenType } from "@/types";
+import { Transaction, Limit, Goal, TelegramUser, ScreenType, QuickAddPreset } from "@/types";
 
 interface AppState {
   lang: LangKey;
@@ -61,6 +61,14 @@ interface AppState {
   deleteGoal: (id: string) => void;
   depositToGoal: (goalId: string, delta: number) => void;
   
+  // Theme & Preferences
+  theme: "light" | "dark" | "system";
+  setTheme: (theme: "light" | "dark" | "system") => void;
+  quickAdds: QuickAddPreset[];
+  setQuickAdds: (presets: QuickAddPreset[]) => void;
+  onboardingComplete: boolean;
+  setOnboardingComplete: (complete: boolean) => void;
+  
   syncFromRemote: () => Promise<void>;
 }
 
@@ -90,6 +98,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [limits, setLimits] = useState<Limit[]>(() => safeJSON.get("hamyon_limits", []));
   const [goals, setGoals] = useState<Goal[]>(() => safeJSON.get("hamyon_goals", []));
   const [categories, setCategories] = useState(() => safeJSON.get("hamyon_categories", DEFAULT_CATEGORIES));
+  
+  // Theme & Preferences
+  const [theme, setThemeState] = useState<"light" | "dark" | "system">(() => safeJSON.get("hamyon_theme", "light") as any);
+  const [quickAdds, setQuickAddsState] = useState<QuickAddPreset[]>(() => safeJSON.get("hamyon_quickAdds", []));
+  const [onboardingComplete, setOnboardingCompleteState] = useState(() => Boolean(safeJSON.get("hamyon_onboarding", false)));
+  
+  const setTheme = useCallback((t: "light" | "dark" | "system") => {
+    setThemeState(t);
+    safeJSON.set("hamyon_theme", t);
+    document.documentElement.classList.toggle("dark", t === "dark");
+  }, []);
+  
+  const setQuickAdds = useCallback((presets: QuickAddPreset[]) => {
+    setQuickAddsState(presets);
+    safeJSON.set("hamyon_quickAdds", presets);
+  }, []);
+  
+  const setOnboardingComplete = useCallback((complete: boolean) => {
+    setOnboardingCompleteState(complete);
+    safeJSON.set("hamyon_onboarding", complete);
+  }, []);
+  
+  // Apply theme on mount
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, []);
   
   // UI State
   const [activeScreen, setActiveScreen] = useState<ScreenType>("home");
@@ -346,6 +380,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addTransaction, updateTransaction, deleteTransaction,
     addLimit, updateLimit, deleteLimit,
     addGoal, updateGoal, deleteGoal, depositToGoal,
+    theme, setTheme, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
     syncFromRemote,
   };
   

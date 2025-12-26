@@ -2,13 +2,14 @@ import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { LANGS, LangKey } from "@/lib/constants";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const SettingsScreen = memo(() => {
   const { 
-    t, lang, setLang, tgUser, 
+    t, lang, setLang,
     dataMode, setDataMode, useRemote, syncFromRemote, 
     setActiveScreen, setBalance, setTransactions, setLimits, setGoals, 
-    categories, setCategories
+    categories, setCategories, theme, setTheme, setOnboardingComplete
   } = useApp();
   
   const [resetOpen, setResetOpen] = useState(false);
