@@ -1,14 +1,82 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { formatUZS, clamp, todayISO } from "@/lib/storage";
+import { formatUZS, clamp, todayISO, startOfWeekISO } from "@/lib/storage";
+import { VoiceInput } from "./VoiceInput";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
   const { 
-    t, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
+    t, lang, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
     limits, monthSpentByCategory, getCat, catLabel, addTransaction,
-    transactions, setActiveScreen, syncFromRemote, useRemote
+    transactions, setActiveScreen, syncFromRemote, allCats
   } = useApp();
+  
+  // Calculate last week's spending for comparison
+  const { lastWeekSpend, weekChange, topSpendingCategory, smartTip } = useMemo(() => {
+    const today = new Date();
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    
+    const lastWeekStartStr = lastWeekStart.toISOString().slice(0, 10);
+    const lastWeekEndStr = lastWeekEnd.toISOString().slice(0, 10);
+    
+    let lastWeek = 0;
+    const categorySpend: Record<string, number> = {};
+    
+    transactions.forEach(tx => {
+      if (tx.amount < 0) {
+        // Last week
+        if (tx.date >= lastWeekStartStr && tx.date <= lastWeekEndStr) {
+          lastWeek += Math.abs(tx.amount);
+        }
+        // Category tracking for this month
+        const month = new Date().toISOString().slice(0, 7);
+        if (tx.date.startsWith(month)) {
+          categorySpend[tx.categoryId] = (categorySpend[tx.categoryId] || 0) + Math.abs(tx.amount);
+        }
+      }
+    });
+    
+    const change = lastWeek > 0 ? ((weekSpend - lastWeek) / lastWeek) * 100 : 0;
+    
+    // Find top spending category
+    let topCat = "";
+    let topAmount = 0;
+    Object.entries(categorySpend).forEach(([id, amount]) => {
+      if (amount > topAmount) {
+        topCat = id;
+        topAmount = amount;
+      }
+    });
+    
+    // Generate smart tip
+    let tip = "";
+    if (change > 20) {
+      tip = lang === "ru" ? "Расходы выше обычного. Попробуйте сократить траты" : 
+            lang === "uz" ? "Xarajatlar odatdagidan yuqori. Kamroq sarflang" :
+            "Spending is higher than usual. Try to cut back";
+    } else if (change < -10) {
+      tip = lang === "ru" ? "Отлично! Вы экономите больше обычного 🎉" :
+            lang === "uz" ? "Ajoyib! Siz odatdagidan ko'proq tejayapsiz 🎉" :
+            "Great job! You're saving more than usual 🎉";
+    } else if (topCat && topAmount > monthSpend * 0.4) {
+      const cat = getCat(topCat);
+      tip = lang === "ru" ? `${cat.emoji} ${catLabel(cat)} составляет 40%+ расходов` :
+            lang === "uz" ? `${cat.emoji} ${catLabel(cat)} xarajatlarning 40%+` :
+            `${cat.emoji} ${catLabel(cat)} is 40%+ of your spending`;
+    } else {
+      tip = lang === "ru" ? "Продолжайте отслеживать расходы!" :
+            lang === "uz" ? "Xarajatlarni kuzatishda davom eting!" :
+            "Keep tracking your spending!";
+    }
+    
+    return { lastWeekSpend: lastWeek, weekChange: change, topSpendingCategory: topCat, smartTip: tip };
+  }, [transactions, weekSpend, monthSpend, getCat, catLabel, lang]);
   
   // Quick add handler
   const handleQuickAdd = useCallback(async (categoryId: string, amount: number) => {
@@ -25,33 +93,61 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     });
   }, [getCat, addTransaction]);
   
+  // Voice input handler
+  const handleVoiceTransaction = useCallback(async (data: { type: "expense" | "income"; categoryId: string; amount: number; description: string }) => {
+    const now = new Date();
+    await addTransaction({
+      type: data.type,
+      amount: data.type === "expense" ? -Math.abs(data.amount) : Math.abs(data.amount),
+      categoryId: data.categoryId,
+      description: data.description,
+      date: todayISO(),
+      time: now.toISOString().slice(11, 16),
+      source: "voice",
+    });
+  }, [addTransaction]);
+  
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
+          <motion.div 
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-blue-600 text-primary-foreground flex items-center justify-center font-bold text-lg"
+            animate={{ scale: [1, 1.02, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
             {(tgUser?.first_name || "U").charAt(0)}
-          </div>
+          </motion.div>
           <div>
             <p className="text-body-sm text-muted-foreground">{t.hello}</p>
             <p className="font-semibold text-foreground">{tgUser?.first_name || "User"}</p>
           </div>
         </div>
-        <motion.button 
-          whileTap={{ scale: 0.95 }}
-          onClick={syncFromRemote}
-          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
-        >
-          <span className="text-lg">🔄</span>
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {/* Voice Input Button */}
+          <VoiceInput onTransactionParsed={handleVoiceTransaction} />
+          <motion.button 
+            whileTap={{ scale: 0.95 }}
+            onClick={syncFromRemote}
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
+          >
+            <motion.span 
+              className="text-lg"
+              whileHover={{ rotate: 180 }}
+              transition={{ duration: 0.3 }}
+            >
+              🔄
+            </motion.span>
+          </motion.button>
+        </div>
       </header>
       
       {/* Balance Card */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="card-elevated-lg p-6 mb-6"
+        className="card-elevated-lg p-6 mb-4"
       >
         <p className="text-body-sm text-muted-foreground mb-1">{t.balance}</p>
         <div className="flex items-baseline gap-2 mb-4">
@@ -61,18 +157,30 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         
         {/* Today's summary */}
         <div className="flex gap-4">
-          <div className="flex-1 p-3 rounded-xl bg-red-50">
+          <div className="flex-1 p-3 rounded-xl bg-red-50 dark:bg-red-950/30">
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-6 h-6 rounded-full bg-expense/20 flex items-center justify-center text-xs">↓</span>
+              <motion.span 
+                className="w-6 h-6 rounded-full bg-expense/20 flex items-center justify-center text-xs text-expense"
+                animate={{ y: [0, -2, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                ↓
+              </motion.span>
               <span className="text-caption text-muted-foreground">{t.expenses}</span>
             </div>
             <p className="text-title-3 amount-expense">
               {todayExp ? `-${formatUZS(todayExp)}` : "0"}
             </p>
           </div>
-          <div className="flex-1 p-3 rounded-xl bg-green-50">
+          <div className="flex-1 p-3 rounded-xl bg-green-50 dark:bg-green-950/30">
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-6 h-6 rounded-full bg-income/20 flex items-center justify-center text-xs">↑</span>
+              <motion.span 
+                className="w-6 h-6 rounded-full bg-income/20 flex items-center justify-center text-xs text-income"
+                animate={{ y: [0, -2, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+              >
+                ↑
+              </motion.span>
               <span className="text-caption text-muted-foreground">{t.income}</span>
             </div>
             <p className="text-title-3 amount-income">
@@ -82,22 +190,112 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
       </motion.div>
       
+      {/* Smart Insights Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-accent to-primary/5 border border-primary/20"
+      >
+        <div className="flex items-start gap-3">
+          <motion.div 
+            className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center"
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            <span className="text-xl">💡</span>
+          </motion.div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-semibold text-foreground">
+                {t.weekSpending}
+              </span>
+              {weekChange !== 0 && (
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    weekChange > 0 
+                      ? 'bg-expense/20 text-expense' 
+                      : 'bg-income/20 text-income'
+                  }`}
+                >
+                  {weekChange > 0 ? '↑' : '↓'} {Math.abs(weekChange).toFixed(0)}%
+                </motion.span>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-foreground mb-1">
+              {formatUZS(weekSpend)} <span className="text-sm font-normal text-muted-foreground">UZS</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {smartTip}
+            </p>
+          </div>
+        </div>
+        
+        {/* Mini comparison bars */}
+        <div className="mt-3 pt-3 border-t border-primary/10">
+          <div className="flex items-center gap-3 text-xs">
+            <div className="flex-1">
+              <div className="flex justify-between mb-1">
+                <span className="text-muted-foreground">{t.week}</span>
+                <span className="font-medium text-foreground">{formatUZS(weekSpend)}</span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-primary rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((weekSpend / (Math.max(weekSpend, lastWeekSpend) || 1)) * 100, 100)}%` }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between mb-1">
+                <span className="text-muted-foreground">{lang === "ru" ? "Прош." : lang === "uz" ? "O'tgan" : "Last"}</span>
+                <span className="font-medium text-muted-foreground">{formatUZS(lastWeekSpend)}</span>
+              </div>
+              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <motion.div 
+                  className="h-full bg-muted-foreground/50 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((lastWeekSpend / (Math.max(weekSpend, lastWeekSpend) || 1)) * 100, 100)}%` }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      
       {/* Quick Actions */}
       <div className="flex gap-3 mb-6">
         <motion.button
           whileTap={{ scale: 0.97 }}
+          whileHover={{ scale: 1.02 }}
           onClick={onAddExpense}
-          className="flex-1 quick-action"
+          className="flex-1 quick-action group"
         >
-          <span className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-expense text-xl">↓</span>
+          <motion.span 
+            className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center text-expense text-xl"
+            whileHover={{ y: -2 }}
+          >
+            ↓
+          </motion.span>
           <span className="text-body-sm font-medium text-foreground">{t.addExpense}</span>
         </motion.button>
         <motion.button
           whileTap={{ scale: 0.97 }}
+          whileHover={{ scale: 1.02 }}
           onClick={onAddIncome}
-          className="flex-1 quick-action"
+          className="flex-1 quick-action group"
         >
-          <span className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-income text-xl">↑</span>
+          <motion.span 
+            className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-950/50 flex items-center justify-center text-income text-xl"
+            whileHover={{ y: -2 }}
+          >
+            ↑
+          </motion.span>
           <span className="text-body-sm font-medium text-foreground">{t.addIncome}</span>
         </motion.button>
       </div>
@@ -115,36 +313,48 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             </button>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-            {limits.slice(0, 4).map((lim) => {
+            {limits.slice(0, 4).map((lim, index) => {
               const cat = getCat(lim.categoryId);
               const spent = monthSpentByCategory(lim.categoryId);
               const pct = lim.amount ? Math.round((spent / lim.amount) * 100) : 0;
               const isOver = pct >= 100;
               
               return (
-                <div key={lim.id} className="min-w-[100px] flex flex-col items-center">
+                <motion.div 
+                  key={lim.id} 
+                  className="min-w-[100px] flex flex-col items-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
                   <div className="relative mb-2">
-                    <div 
+                    <motion.div 
                       className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
                       style={{ 
                         background: `conic-gradient(${isOver ? 'hsl(var(--expense))' : cat.color} ${clamp(pct, 0, 100)}%, hsl(var(--secondary)) 0%)`,
                       }}
+                      animate={isOver ? { scale: [1, 1.05, 1] } : {}}
+                      transition={{ duration: 0.5, repeat: isOver ? Infinity : 0, repeatDelay: 1 }}
                     >
                       <div className="w-12 h-12 rounded-full bg-card flex items-center justify-center">
                         {cat.emoji}
                       </div>
-                    </div>
+                    </motion.div>
                     {isOver && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-expense rounded-full flex items-center justify-center">
-                        <span className="text-2xs text-white">!</span>
-                      </div>
+                      <motion.div 
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-expense rounded-full flex items-center justify-center"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                      >
+                        <span className="text-2xs text-white font-bold">!</span>
+                      </motion.div>
                     )}
                   </div>
                   <p className="text-body-sm font-medium text-foreground text-center">{catLabel(cat)}</p>
                   <p className="text-caption text-muted-foreground">
-                    ${formatUZS(spent)} / ${formatUZS(lim.amount)}
+                    {formatUZS(spent)} / {formatUZS(lim.amount)}
                   </p>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -156,20 +366,30 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         <h2 className="text-title-3 text-foreground mb-3">{t.quickAdd}</h2>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {[
-            { emoji: "☕", labelKey: "coffee", categoryId: "coffee", amount: 15000 },
-            { emoji: "🍽️", labelKey: "lunch", categoryId: "restaurants", amount: 35000 },
-            { emoji: "🚕", labelKey: "transport", categoryId: "taxi", amount: 20000 },
-            { emoji: "🛒", labelKey: "shopping", categoryId: "shopping", amount: 100000 },
+            { emoji: "☕", categoryId: "coffee", amount: 15000 },
+            { emoji: "🍽️", categoryId: "restaurants", amount: 35000 },
+            { emoji: "🚕", categoryId: "taxi", amount: 20000 },
+            { emoji: "🛒", categoryId: "shopping", amount: 100000 },
           ].map((item, i) => {
             const cat = getCat(item.categoryId);
             return (
               <motion.button
                 key={i}
                 whileTap={{ scale: 0.95 }}
+                whileHover={{ y: -4 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => handleQuickAdd(item.categoryId, item.amount)}
-                className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card'}`}
+                className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card hover:border-primary/50'}`}
               >
-                <span className="text-2xl block mb-2">{item.emoji}</span>
+                <motion.span 
+                  className="text-2xl block mb-2"
+                  whileHover={{ scale: 1.2, rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {item.emoji}
+                </motion.span>
                 <p className="text-body-sm font-medium text-foreground">{catLabel(cat)}</p>
                 <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
               </motion.button>
@@ -177,10 +397,20 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           })}
           <motion.button
             whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -4 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
             onClick={onAddExpense}
-            className="min-w-[90px] p-4 rounded-2xl border-2 border-dashed border-border bg-secondary flex flex-col items-center justify-center"
+            className="min-w-[90px] p-4 rounded-2xl border-2 border-dashed border-border bg-secondary flex flex-col items-center justify-center hover:border-primary/50"
           >
-            <span className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-primary text-xl mb-2">+</span>
+            <motion.span 
+              className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-primary text-xl mb-2"
+              whileHover={{ rotate: 90 }}
+              transition={{ duration: 0.2 }}
+            >
+              +
+            </motion.span>
             <p className="text-body-sm font-medium text-muted-foreground">{t.add}</p>
           </motion.button>
         </div>
@@ -199,26 +429,40 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
         
         {transactions.length === 0 ? (
-          <div className="card-elevated p-8 text-center">
-            <span className="text-5xl block mb-3">💳</span>
+          <motion.div 
+            className="card-elevated p-8 text-center"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <motion.span 
+              className="text-5xl block mb-3"
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              💳
+            </motion.span>
             <p className="text-muted-foreground">{t.empty}</p>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-2">
-            {transactions.slice(0, 5).map((tx) => {
+            {transactions.slice(0, 5).map((tx, index) => {
               const cat = getCat(tx.categoryId);
               return (
                 <motion.div 
                   key={tx.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   whileTap={{ scale: 0.99 }}
                   className="list-item"
                 >
-                  <div 
+                  <motion.div 
                     className="category-icon"
                     style={{ backgroundColor: `${cat.color}20` }}
+                    whileHover={{ scale: 1.1 }}
                   >
                     {cat.emoji}
-                  </div>
+                  </motion.div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{tx.description}</p>
                     <p className="text-caption text-muted-foreground">{tx.date}</p>
