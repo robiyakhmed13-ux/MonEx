@@ -11,7 +11,9 @@ interface OnboardingFlowProps {
 }
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
-  const { t, lang, allCats, getCat, catLabel, setLang, setCurrency } = useApp();
+  const appContext = useApp();
+  const { t, lang, allCats, getCat, catLabel, setLang } = appContext;
+  const setCurrencyFn = appContext.setCurrency;
   const [step, setStep] = useState(0);
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark" | "system">("light");
   const [selectedLang, setSelectedLang] = useState(lang);
@@ -52,7 +54,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     localStorage.setItem("hamyon_currency", selectedCurrency);
     localStorage.setItem("hamyon_onboarding", "complete");
     setLang(selectedLang);
-    setCurrency(selectedCurrency);
+    setCurrencyFn(selectedCurrency);
     onComplete();
   };
 
