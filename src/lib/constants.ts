@@ -68,6 +68,23 @@ export const I18N = {
     spent: "Sarflangan",
     remaining: "Qolgan",
     viewAll: "Hammasini ko'rish",
+    // Receipt scanner
+    scan: "Skaner",
+    scanReceipt: "Chekni skanerlash",
+    receiptScanned: "Chek skanerlandi!",
+    scanError: "Chekni o'qib bo'lmadi",
+    aiPowered: "AI skanerlash",
+    scanInfo: "Chekni suratga oling va AI avtomatik ravishda summa, sana va kategoriyani aniqlaydi.",
+    takePhoto: "Suratga olish",
+    chooseImage: "Rasm tanlash",
+    scanTips: "Eng yaxshi natija uchun:",
+    tipFlat: "Chekni tekis joyga qo'ying",
+    tipLight: "Yaxshi yorug'lik, soya bo'lmasin",
+    tipClear: "Butun chekni aniq oling",
+    analyzing: "Chek tahlil qilinmoqda...",
+    aiProcessing: "AI tranzaksiya ma'lumotlarini ajratmoqda",
+    tryAgain: "Qayta urinish",
+    enterManually: "Qo'lda kiritish",
   },
   ru: {
     appName: "Hamyon",
@@ -137,6 +154,23 @@ export const I18N = {
     spent: "Потрачено",
     remaining: "Осталось",
     viewAll: "Смотреть все",
+    // Receipt scanner
+    scan: "Скан",
+    scanReceipt: "Сканировать чек",
+    receiptScanned: "Чек отсканирован!",
+    scanError: "Не удалось прочитать чек",
+    aiPowered: "AI-сканирование",
+    scanInfo: "Сфотографируйте чек, и AI автоматически определит сумму, дату и категорию.",
+    takePhoto: "Сделать фото",
+    chooseImage: "Выбрать фото",
+    scanTips: "Для лучших результатов:",
+    tipFlat: "Положите чек на ровную поверхность",
+    tipLight: "Хорошее освещение, без теней",
+    tipClear: "Снимите весь чек целиком",
+    analyzing: "Анализ чека...",
+    aiProcessing: "AI извлекает данные транзакции",
+    tryAgain: "Попробовать снова",
+    enterManually: "Ввести вручную",
   },
   en: {
     appName: "Hamyon",
@@ -206,6 +240,23 @@ export const I18N = {
     spent: "Spent",
     remaining: "Remaining",
     viewAll: "View all",
+    // Receipt scanner
+    scan: "Scan",
+    scanReceipt: "Scan Receipt",
+    receiptScanned: "Receipt scanned!",
+    scanError: "Could not read receipt",
+    aiPowered: "AI-Powered Scanning",
+    scanInfo: "Take a photo of your receipt and AI will automatically extract the amount, date, and category.",
+    takePhoto: "Take Photo",
+    chooseImage: "Choose Image",
+    scanTips: "Tips for best results:",
+    tipFlat: "Place receipt on flat surface",
+    tipLight: "Good lighting, no shadows",
+    tipClear: "Capture entire receipt clearly",
+    analyzing: "Analyzing receipt...",
+    aiProcessing: "AI is extracting transaction details",
+    tryAgain: "Try Again",
+    enterManually: "Enter Manually",
   },
 };
 
@@ -216,6 +267,8 @@ export const LANGS = [
 ];
 
 export type LangKey = "uz" | "ru" | "en";
+
+// Add new translation keys for receipt scanner
 export type Translation = typeof I18N.en;
 
 // Default categories with colors matching Revolut's clean style
