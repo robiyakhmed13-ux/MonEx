@@ -184,16 +184,85 @@ export interface NetWorthSnapshot {
   };
 }
 
+// Investment Tracking
+export interface Investment {
+  id: string;
+  symbol: string;
+  name: string;
+  type: "stock" | "crypto" | "etf" | "mutual_fund";
+  quantity: number;
+  purchasePrice: number;
+  purchaseDate: string;
+  currentPrice?: number;
+  currency: string;
+}
+
+export interface InvestmentPortfolio {
+  investments: Investment[];
+  totalValue: number;
+  totalGain: number;
+  totalGainPercent: number;
+  lastUpdated: string;
+}
+
+// Budget Envelopes
+export interface BudgetEnvelope {
+  id: string;
+  name: string;
+  emoji: string;
+  allocated: number;
+  spent: number;
+  categoryIds: string[];
+  color: string;
+  period: "weekly" | "monthly";
+}
+
+// Cash Flow Forecast
+export interface CashFlowForecast {
+  date: string;
+  projectedBalance: number;
+  inflows: number;
+  outflows: number;
+  events: CashFlowEvent[];
+}
+
+export interface CashFlowEvent {
+  id: string;
+  type: "income" | "expense" | "bill" | "subscription";
+  name: string;
+  amount: number;
+  date: string;
+}
+
+// Debt Repayment Strategy
+export interface DebtPayoffPlan {
+  strategy: "snowball" | "avalanche";
+  debts: DebtItem[];
+  monthlyPayment: number;
+  totalInterestSaved: number;
+  payoffDate: string;
+  schedule: DebtPaymentSchedule[];
+}
+
+export interface DebtPaymentSchedule {
+  month: string;
+  payments: Array<{
+    debtId: string;
+    payment: number;
+    remaining: number;
+  }>;
+}
+
 // Smart Notifications
 export interface SmartNotification {
   id: string;
-  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning" | "subscription_reminder";
+  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning" | "subscription_reminder" | "investment_alert";
   title: string;
   message: string;
   severity: "info" | "warning" | "critical";
   createdAt: string;
   read: boolean;
-  actionType?: "view_limit" | "view_goal" | "view_transaction" | "view_debt" | "view_subscription";
+  actionType?: "view_limit" | "view_goal" | "view_transaction" | "view_debt" | "view_subscription" | "view_investment";
   actionData?: string;
 }
 
@@ -212,4 +281,8 @@ export type ScreenType =
   | "reports"
   | "subscriptions"
   | "bill-split"
-  | "net-worth";
+  | "net-worth"
+  | "investments"
+  | "envelopes"
+  | "cash-flow"
+  | "debt-payoff";
