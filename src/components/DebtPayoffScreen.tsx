@@ -4,13 +4,22 @@ import { useApp } from "@/context/AppContext";
 import { DebtItem } from "@/types";
 import { safeJSON } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
-import { TrendingDown, Calendar, Target, Zap, Snowflake } from "lucide-react";
+import { TrendingDown, Calendar, Target, Zap, Snowflake, Plus, X, Trash2 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, BarChart, Bar } from "recharts";
 
 export const DebtPayoffScreen = memo(() => {
-  const { lang, currency, setActiveScreen } = useApp();
+  const { lang, currency, setActiveScreen, showToast } = useApp();
   const [debts, setDebts] = useState<DebtItem[]>(() => safeJSON.get("hamyon_debts", []));
   const [strategy, setStrategy] = useState<"snowball" | "avalanche">("avalanche");
   const [extraPayment, setExtraPayment] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formLender, setFormLender] = useState("");
+  const [formAmount, setFormAmount] = useState("");
+  const [formInterest, setFormInterest] = useState("");
+  const [formMinPayment, setFormMinPayment] = useState("");
 
   const t = {
     title: lang === "ru" ? "План погашения долга" : lang === "uz" ? "Qarzni to'lash rejasi" : "Debt Payoff Plan",
@@ -26,25 +35,67 @@ export const DebtPayoffScreen = memo(() => {
     interestSaved: lang === "ru" ? "Экономия на %" : lang === "uz" ? "% bo'yicha tejash" : "Interest Saved",
     order: lang === "ru" ? "Порядок погашения" : lang === "uz" ? "To'lash tartibi" : "Payoff Order",
     noDebts: lang === "ru" ? "Нет долгов" : lang === "uz" ? "Qarzlar yo'q" : "No debts",
-    addDebts: lang === "ru" ? "Добавьте долги в разделе Qarz" : lang === "uz" ? "Qarz bo'limiga qarz qo'shing" : "Add debts in Debt section",
+    addDebts: lang === "ru" ? "Добавьте долги для симуляции" : lang === "uz" ? "Simulyatsiya uchun qarz qo'shing" : "Add debts for simulation",
     remaining: lang === "ru" ? "Остаток" : lang === "uz" ? "Qoldiq" : "Remaining",
     rate: lang === "ru" ? "Ставка" : lang === "uz" ? "Stavka" : "Rate",
     monthlyMin: lang === "ru" ? "Мин. платёж" : lang === "uz" ? "Min. to'lov" : "Min. Payment",
+    timeline: lang === "ru" ? "График погашения" : lang === "uz" ? "To'lash jadvali" : "Payoff Timeline",
+    addDebt: lang === "ru" ? "Добавить долг" : lang === "uz" ? "Qarz qo'shish" : "Add Debt",
+    debtName: lang === "ru" ? "Название долга" : lang === "uz" ? "Qarz nomi" : "Debt Name",
+    lender: lang === "ru" ? "Кредитор" : lang === "uz" ? "Kreditor" : "Lender",
+    balance: lang === "ru" ? "Остаток долга" : lang === "uz" ? "Qarz qoldig'i" : "Balance",
+    interestRate: lang === "ru" ? "Ставка (%)" : lang === "uz" ? "Foiz stavkasi" : "Interest Rate (%)",
+    minPayment: lang === "ru" ? "Мин. платёж" : lang === "uz" ? "Min. to'lov" : "Min. Payment",
+    save: lang === "ru" ? "Сохранить" : lang === "uz" ? "Saqlash" : "Save",
+    months: lang === "ru" ? "мес" : lang === "uz" ? "oy" : "mo",
+  };
+
+  const saveDebts = (newDebts: DebtItem[]) => {
+    setDebts(newDebts);
+    safeJSON.set("hamyon_debts", newDebts);
+  };
+
+  const handleAddDebt = () => {
+    if (!formName || !formAmount || !formInterest || !formMinPayment) return;
+    
+    const newDebt: DebtItem = {
+      id: Date.now().toString(),
+      name: formName,
+      lender: formLender || formName,
+      totalAmount: parseFloat(formAmount),
+      remainingAmount: parseFloat(formAmount),
+      interestRate: parseFloat(formInterest),
+      monthlyPayment: parseFloat(formMinPayment),
+      startDate: new Date().toISOString().slice(0, 10),
+      type: "loan",
+    };
+    
+    saveDebts([...debts, newDebt]);
+    setShowAddModal(false);
+    setFormName("");
+    setFormLender("");
+    setFormAmount("");
+    setFormInterest("");
+    setFormMinPayment("");
+    showToast("✓", true);
+  };
+
+  const handleDeleteDebt = (id: string) => {
+    saveDebts(debts.filter(d => d.id !== id));
+    showToast("✓", true);
   };
 
   // Sort debts by strategy
   const sortedDebts = useMemo(() => {
     const debtsCopy = [...debts];
     if (strategy === "snowball") {
-      // Smallest balance first
       return debtsCopy.sort((a, b) => a.remainingAmount - b.remainingAmount);
     } else {
-      // Highest interest rate first
       return debtsCopy.sort((a, b) => b.interestRate - a.interestRate);
     }
   }, [debts, strategy]);
 
-  // Calculate payoff schedule
+  // Calculate payoff schedule with timeline data
   const payoffPlan = useMemo(() => {
     if (debts.length === 0) return null;
 
@@ -52,7 +103,6 @@ export const DebtPayoffScreen = memo(() => {
     const totalMinPayment = debts.reduce((sum, d) => sum + d.monthlyPayment, 0);
     const totalMonthlyBudget = totalMinPayment + extra;
     
-    // Simulate payoff
     let debtBalances = sortedDebts.map(d => ({
       ...d,
       balance: d.remainingAmount,
@@ -62,22 +112,27 @@ export const DebtPayoffScreen = memo(() => {
     
     let month = 0;
     let totalInterestPaid = 0;
-    const maxMonths = 360; // 30 years max
+    const maxMonths = 360;
+    const timelineData: Array<{ month: number; totalBalance: number; label: string }> = [];
+    
+    // Record initial state
+    timelineData.push({
+      month: 0,
+      totalBalance: debtBalances.reduce((s, d) => s + d.balance, 0),
+      label: "0",
+    });
     
     while (debtBalances.some(d => !d.paidOff) && month < maxMonths) {
       month++;
       let availableBudget = totalMonthlyBudget;
       
-      // First, make minimum payments on all debts
       debtBalances.forEach(d => {
         if (d.paidOff) return;
         
-        // Add interest
         const monthlyInterest = (d.interestRate / 100 / 12) * d.balance;
         d.balance += monthlyInterest;
         totalInterestPaid += monthlyInterest;
         
-        // Make minimum payment
         const payment = Math.min(d.monthlyPayment, d.balance);
         d.balance -= payment;
         availableBudget -= payment;
@@ -89,7 +144,6 @@ export const DebtPayoffScreen = memo(() => {
         }
       });
       
-      // Apply extra payment to first unpaid debt (according to strategy)
       for (const d of debtBalances) {
         if (d.paidOff || availableBudget <= 0) continue;
         
@@ -102,11 +156,28 @@ export const DebtPayoffScreen = memo(() => {
           d.paidOff = true;
           d.payoffMonth = month;
         }
-        break; // Only apply extra to first debt
+        break;
+      }
+      
+      // Record monthly progress (every month for short periods, every 3 months for long)
+      if (month <= 12 || month % 3 === 0) {
+        timelineData.push({
+          month,
+          totalBalance: Math.max(0, debtBalances.reduce((s, d) => s + d.balance, 0)),
+          label: month.toString(),
+        });
       }
     }
     
-    // Calculate interest without extra payments
+    // Ensure final point
+    if (timelineData[timelineData.length - 1]?.month !== month) {
+      timelineData.push({
+        month,
+        totalBalance: 0,
+        label: month.toString(),
+      });
+    }
+    
     let baselineInterest = 0;
     debts.forEach(d => {
       const months = Math.ceil(d.remainingAmount / d.monthlyPayment);
@@ -123,6 +194,7 @@ export const DebtPayoffScreen = memo(() => {
       payoffDate: payoffDate.toISOString().slice(0, 7),
       interestSaved,
       totalInterestPaid,
+      timelineData,
     };
   }, [sortedDebts, extraPayment, debts]);
 
@@ -131,9 +203,18 @@ export const DebtPayoffScreen = memo(() => {
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
       {/* Header */}
-      <header className="flex items-center gap-3 mb-6">
-        <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
-        <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
+      <header className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
+          <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
+        </div>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowAddModal(true)}
+          className="p-2 rounded-full bg-primary text-primary-foreground"
+        >
+          <Plus className="w-5 h-5" />
+        </motion.button>
       </header>
 
       {debts.length === 0 ? (
@@ -142,10 +223,10 @@ export const DebtPayoffScreen = memo(() => {
           <p className="mb-2">{t.noDebts}</p>
           <p className="text-sm">{t.addDebts}</p>
           <button
-            onClick={() => setActiveScreen("debt-assessment")}
+            onClick={() => setShowAddModal(true)}
             className="mt-4 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium"
           >
-            {lang === "ru" ? "Добавить долги" : lang === "uz" ? "Qarz qo'shish" : "Add Debts"}
+            {t.addDebt}
           </button>
         </div>
       ) : (
@@ -183,7 +264,7 @@ export const DebtPayoffScreen = memo(() => {
             </div>
           </section>
 
-          {/* Extra Payment */}
+          {/* Extra Payment Input */}
           <section className="mb-6">
             <label className="block text-sm font-medium text-foreground mb-2">{t.extraPayment}</label>
             <div className="flex items-center gap-3">
@@ -233,6 +314,56 @@ export const DebtPayoffScreen = memo(() => {
             </div>
           )}
 
+          {/* Payoff Timeline Chart */}
+          {payoffPlan && payoffPlan.timelineData.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="p-4 rounded-2xl bg-card border border-border mb-6"
+            >
+              <h3 className="text-sm font-semibold text-foreground mb-3">{t.timeline}</h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={payoffPlan.timelineData}>
+                    <defs>
+                      <linearGradient id="debtGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--expense))" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="hsl(var(--expense))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="label" 
+                      axisLine={false} 
+                      tickLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis hide />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        padding: '8px 12px',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number) => [formatCurrency(value, currency), t.remaining]}
+                      labelFormatter={(label) => `${label} ${t.months}`}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="totalBalance"
+                      stroke="hsl(var(--expense))"
+                      strokeWidth={2}
+                      fill="url(#debtGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+          )}
+
           {/* Payoff Order */}
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-3">{t.order}</h2>
@@ -257,12 +388,18 @@ export const DebtPayoffScreen = memo(() => {
                       <p className="font-bold text-foreground">{formatCurrency(debt.remainingAmount, currency)}</p>
                       <p className="text-sm text-muted-foreground">{debt.interestRate}% {t.rate}</p>
                     </div>
+                    <button
+                      onClick={() => handleDeleteDebt(debt.id)}
+                      className="p-2 rounded-lg bg-destructive/10 text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                   {debt.payoffMonth > 0 && (
                     <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
                       <span className="text-muted-foreground">{t.monthlyMin}: {formatCurrency(debt.monthlyPayment, currency)}</span>
                       <span className="text-income font-medium">
-                        {lang === "ru" ? "Погашен через" : lang === "uz" ? "To'lanadi" : "Paid off in"} {debt.payoffMonth} {lang === "ru" ? "мес" : lang === "uz" ? "oy" : "mo"}
+                        {lang === "ru" ? "Погашен через" : lang === "uz" ? "To'lanadi" : "Paid off in"} {debt.payoffMonth} {t.months}
                       </span>
                     </div>
                   )}
@@ -271,6 +408,98 @@ export const DebtPayoffScreen = memo(() => {
             </div>
           </section>
         </>
+      )}
+
+      {/* Add Debt Modal */}
+      {showAddModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={() => setShowAddModal(false)}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-background rounded-t-3xl p-6 w-full max-w-lg"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">{t.addDebt}</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">{t.debtName}</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
+                  placeholder="Credit Card, Auto Loan..."
+                  className="w-full p-3 rounded-xl bg-secondary border border-border text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">{t.lender}</label>
+                <input
+                  type="text"
+                  value={formLender}
+                  onChange={e => setFormLender(e.target.value)}
+                  placeholder="Bank, Company..."
+                  className="w-full p-3 rounded-xl bg-secondary border border-border text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">{t.balance}</label>
+                <input
+                  type="number"
+                  value={formAmount}
+                  onChange={e => setFormAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full p-3 rounded-xl bg-secondary border border-border text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">{t.interestRate}</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formInterest}
+                    onChange={e => setFormInterest(e.target.value)}
+                    placeholder="15"
+                    className="w-full p-3 rounded-xl bg-secondary border border-border text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">{t.minPayment}</label>
+                  <input
+                    type="number"
+                    value={formMinPayment}
+                    onChange={e => setFormMinPayment(e.target.value)}
+                    placeholder="0"
+                    className="w-full p-3 rounded-xl bg-secondary border border-border text-foreground"
+                  />
+                </div>
+              </div>
+
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={handleAddDebt}
+                disabled={!formName || !formAmount || !formInterest || !formMinPayment}
+                className="w-full p-4 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-50"
+              >
+                {t.save}
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

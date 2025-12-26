@@ -100,6 +100,8 @@ export const I18N = {
     voiceHint: "Masalan: 'taksi 20000'",
     listening: "Eshitilmoqda...",
     processing: "Qayta ishlanmoqda...",
+    accounts: "Hisoblar",
+    reports: "Hisobotlar",
   },
   ru: {
     appName: "Hamyon",
@@ -201,6 +203,8 @@ export const I18N = {
     voiceHint: "Например: 'такси 20000'",
     listening: "Слушаю...",
     processing: "Обработка...",
+    accounts: "Счета",
+    reports: "Отчёты",
   },
   en: {
     appName: "Hamyon",
@@ -302,6 +306,8 @@ export const I18N = {
     voiceHint: "e.g. 'taxi 20000'",
     listening: "Listening...",
     processing: "Processing...",
+    accounts: "Accounts",
+    reports: "Reports",
   },
 };
 
