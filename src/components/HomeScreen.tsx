@@ -477,6 +477,20 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
               {lang === "ru" ? "Капитал" : lang === "uz" ? "Boylik" : "Worth"}
             </span>
           </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("reports")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">📑</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Отчёты" : lang === "uz" ? "Hisobotlar" : "Reports"}
+            </span>
+          </motion.button>
+        </div>
+      </section>
+      
       {/* Recent Transactions */}
       <section>
         <div className="flex items-center justify-between mb-4">
