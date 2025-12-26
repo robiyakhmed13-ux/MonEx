@@ -447,17 +447,36 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           <motion.button
             whileTap={{ scale: 0.95 }}
             whileHover={{ y: -2 }}
-            onClick={() => setActiveScreen("reports")}
-            className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex flex-col items-center gap-2"
+            onClick={() => setActiveScreen("subscriptions")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">📑</span>
+            <span className="text-2xl">📺</span>
             <span className="text-xs font-medium text-foreground">
-              {lang === "ru" ? "Отчёты" : lang === "uz" ? "Hisobotlar" : "Reports"}
+              {lang === "ru" ? "Подписки" : lang === "uz" ? "Obunalar" : "Subs"}
             </span>
           </motion.button>
-        </div>
-      </section>
-      
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("bill-split")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border border-teal-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">👥</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Делить" : lang === "uz" ? "Bo'lish" : "Split"}
+            </span>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("net-worth")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-blue-500/10 border border-indigo-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">📈</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Капитал" : lang === "uz" ? "Boylik" : "Worth"}
+            </span>
+          </motion.button>
       {/* Recent Transactions */}
       <section>
         <div className="flex items-center justify-between mb-4">
