@@ -1,67 +1,49 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from "react";
-import { I18N, DEFAULT_CATEGORIES, LangKey, Translation, Category, CategoryType } from "@/lib/constants";
-import { safeJSON, uid, todayISO, startOfWeekISO, monthPrefix, formatUZS, clamp, sb } from "@/lib/storage";
+import { I18N, DEFAULT_CATEGORIES, LangKey, Translation, Category } from "@/lib/constants";
+import { safeJSON, uid, todayISO, startOfWeekISO, monthPrefix, clamp, sb } from "@/lib/storage";
 import { Transaction, Limit, Goal, TelegramUser, ScreenType, QuickAddPreset } from "@/types";
 
 interface AppState {
   lang: LangKey;
   t: Translation;
   setLang: (l: LangKey) => void;
-  
   tgUser: TelegramUser | null;
-  
   balance: number;
   setBalance: React.Dispatch<React.SetStateAction<number>>;
-  
   transactions: Transaction[];
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
-  
   limits: Limit[];
   setLimits: React.Dispatch<React.SetStateAction<Limit[]>>;
-  
   goals: Goal[];
   setGoals: React.Dispatch<React.SetStateAction<Goal[]>>;
-  
   categories: typeof DEFAULT_CATEGORIES;
   setCategories: React.Dispatch<React.SetStateAction<typeof DEFAULT_CATEGORIES>>;
-  
   allCats: { expense: Category[]; income: Category[]; debt: Category[] };
   getCat: (id: string) => Category;
   catLabel: (cat: Category) => string;
-  
   dataMode: string;
   setDataMode: (mode: string) => void;
   useRemote: boolean;
   remoteOk: boolean;
-  
   activeScreen: ScreenType;
   setActiveScreen: (screen: ScreenType) => void;
-  
   showToast: (msg: string, ok?: boolean) => void;
-  
-  // Derived data
   todayExp: number;
   todayInc: number;
   weekSpend: number;
   monthSpend: number;
   topCats: Array<{ categoryId: string; spent: number; cat: Category }>;
   monthSpentByCategory: (categoryId: string) => number;
-  
-  // CRUD
   addTransaction: (tx: Omit<Transaction, "id">) => Promise<void>;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => Promise<void>;
-  
   addLimit: (limit: Omit<Limit, "id">) => void;
   updateLimit: (id: string, updates: Partial<Limit>) => void;
   deleteLimit: (id: string) => void;
-  
   addGoal: (goal: Omit<Goal, "id">) => void;
   updateGoal: (id: string, updates: Partial<Goal>) => void;
   deleteGoal: (id: string) => void;
   depositToGoal: (goalId: string, delta: number) => void;
-  
-  // Theme & Preferences
   theme: "light" | "dark" | "system";
   setTheme: (theme: "light" | "dark" | "system") => void;
   currency: string;
@@ -70,7 +52,6 @@ interface AppState {
   setQuickAdds: (presets: QuickAddPreset[]) => void;
   onboardingComplete: boolean;
   setOnboardingComplete: (complete: boolean) => void;
-  
   syncFromRemote: () => Promise<void>;
 }
 
@@ -83,34 +64,33 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Language
   const [lang, setLang] = useState<LangKey>(() => safeJSON.get("hamyon_lang", "uz") as LangKey);
   const t = I18N[lang] || I18N.uz;
   
-  // User
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
-  
-  // Data mode
   const [remoteOk, setRemoteOk] = useState(false);
   const [dataMode, setDataMode] = useState(() => safeJSON.get("hamyon_dataMode", "auto"));
   
-  // Core data
   const [balance, setBalance] = useState(() => safeJSON.get("hamyon_balance", 0));
   const [transactions, setTransactions] = useState<Transaction[]>(() => safeJSON.get("hamyon_transactions", []));
   const [limits, setLimits] = useState<Limit[]>(() => safeJSON.get("hamyon_limits", []));
   const [goals, setGoals] = useState<Goal[]>(() => safeJSON.get("hamyon_goals", []));
   const [categories, setCategories] = useState(() => safeJSON.get("hamyon_categories", DEFAULT_CATEGORIES));
   
-  // Theme & Preferences
-  const [theme, setThemeState] = useState<"light" | "dark" | "system">(() => safeJSON.get("hamyon_theme", "light") as any);
+  const [theme, setThemeState] = useState<"light" | "dark" | "system">(() => safeJSON.get("hamyon_theme", "light") as "light" | "dark" | "system");
   const [currency, setCurrencyState] = useState<string>(() => safeJSON.get("hamyon_currency", "UZS"));
   const [quickAdds, setQuickAddsState] = useState<QuickAddPreset[]>(() => safeJSON.get("hamyon_quickAdds", []));
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => Boolean(safeJSON.get("hamyon_onboarding", false)));
   
-  const setTheme = useCallback((t: "light" | "dark" | "system") => {
-    setThemeState(t);
-    safeJSON.set("hamyon_theme", t);
-    document.documentElement.classList.toggle("dark", t === "dark");
+  const setTheme = useCallback((newTheme: "light" | "dark" | "system") => {
+    setThemeState(newTheme);
+    safeJSON.set("hamyon_theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  }, []);
+  
+  const setCurrency = useCallback((newCurrency: string) => {
+    setCurrencyState(newCurrency);
+    safeJSON.set("hamyon_currency", newCurrency);
   }, []);
   
   const setQuickAdds = useCallback((presets: QuickAddPreset[]) => {
@@ -118,22 +98,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     safeJSON.set("hamyon_quickAdds", presets);
   }, []);
   
-  const setCurrency = useCallback((c: string) => {
-    setCurrencyState(c);
-    safeJSON.set("hamyon_currency", c);
-  }, []);
-  
   const setOnboardingComplete = useCallback((complete: boolean) => {
     setOnboardingCompleteState(complete);
     safeJSON.set("hamyon_onboarding", complete);
   }, []);
   
-  // Apply theme on mount
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, []);
   
-  // UI State
   const [activeScreen, setActiveScreen] = useState<ScreenType>("home");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,7 +117,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
   
-  // Telegram init
   useEffect(() => {
     let u: TelegramUser | null = null;
     if (window.Telegram?.WebApp) {
@@ -163,7 +135,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTgUser(u);
   }, []);
   
-  // Persist to localStorage
   useEffect(() => safeJSON.set("hamyon_lang", lang), [lang]);
   useEffect(() => safeJSON.set("hamyon_dataMode", dataMode), [dataMode]);
   useEffect(() => safeJSON.set("hamyon_balance", balance), [balance]);
@@ -172,7 +143,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => safeJSON.set("hamyon_goals", goals), [goals]);
   useEffect(() => safeJSON.set("hamyon_categories", categories), [categories]);
   
-  // Supabase check
   useEffect(() => {
     (async () => {
       if (!sb.enabled()) {
@@ -194,7 +164,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return remoteOk && sb.enabled();
   }, [dataMode, remoteOk]);
   
-  // Category helpers
   const allCats = useMemo(() => {
     const c = categories || DEFAULT_CATEGORIES;
     return {
@@ -211,10 +180,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const catLabel = useCallback((cat: Category) => (lang === "uz" ? cat.uz : lang === "ru" ? cat.ru : cat.en), [lang]);
   
-  // Derived stats
   const today = todayISO();
   const weekStart = startOfWeekISO();
-  const month = monthPrefix();
+  const month = today.slice(0, 7);
   
   const txToday = useMemo(() => transactions.filter((x) => x.date === today), [transactions, today]);
   const txWeek = useMemo(() => transactions.filter((x) => x.date >= weekStart), [transactions, weekStart]);
@@ -243,7 +211,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .reduce((s, x) => s + Math.abs(x.amount), 0);
   }, [txMonth]);
   
-  // CRUD: Transactions
   const addTransaction = useCallback(async (txData: Omit<Transaction, "id">) => {
     const tx: Transaction = { ...txData, id: uid() };
     setTransactions((prev) => [tx, ...prev]);
@@ -272,7 +239,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [transactions, showToast]);
   
-  // CRUD: Limits
   const addLimit = useCallback((limitData: Omit<Limit, "id">) => {
     setLimits((prev) => [{ ...limitData, id: uid() }, ...prev]);
     showToast("✓", true);
@@ -288,7 +254,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast("✓", true);
   }, [showToast]);
   
-  // CRUD: Goals
   const addGoal = useCallback((goalData: Omit<Goal, "id">) => {
     setGoals((prev) => [{ ...goalData, id: uid() }, ...prev]);
     showToast("✓", true);
@@ -310,7 +275,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast("✓", true);
   }, [showToast]);
   
-  // Sync
   const syncFromRemote = useCallback(async () => {
     if (!tgUser?.id || !useRemote) {
       showToast(t.syncFail, false);
@@ -395,8 +359,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   return (
     <AppContext.Provider value={value}>
       {children}
-      
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 inset-x-4 z-[200] flex justify-center animate-fade-in">
           <div className={`px-6 py-3 rounded-2xl font-semibold flex items-center gap-2 shadow-elevated ${toast.ok ? 'bg-success text-white' : 'bg-destructive text-white'}`}>
@@ -409,7 +371,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   );
 };
 
-// Telegram types for window
 declare global {
   interface Window {
     Telegram?: {
