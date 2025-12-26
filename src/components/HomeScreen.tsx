@@ -8,7 +8,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
   const { 
     t, lang, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
     limits, monthSpentByCategory, getCat, catLabel, addTransaction,
-    transactions, setActiveScreen, syncFromRemote, allCats
+    transactions, setActiveScreen, syncFromRemote, allCats, quickAdds
   } = useApp();
   
   // Calculate last week's spending for comparison
@@ -365,12 +365,12 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
       <section className="mb-6">
         <h2 className="text-title-3 text-foreground mb-3">{t.quickAdd}</h2>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {[
-            { emoji: "☕", categoryId: "coffee", amount: 15000 },
-            { emoji: "🍽️", categoryId: "restaurants", amount: 35000 },
-            { emoji: "🚕", categoryId: "taxi", amount: 20000 },
-            { emoji: "🛒", categoryId: "shopping", amount: 100000 },
-          ].map((item, i) => {
+          {(quickAdds.length > 0 ? quickAdds : [
+            { id: "coffee", emoji: "☕", categoryId: "coffee", amount: 15000 },
+            { id: "restaurants", emoji: "🍽️", categoryId: "restaurants", amount: 35000 },
+            { id: "taxi", emoji: "🚕", categoryId: "taxi", amount: 20000 },
+            { id: "shopping", emoji: "🛒", categoryId: "shopping", amount: 100000 },
+          ]).map((item, i) => {
             const cat = getCat(item.categoryId);
             return (
               <motion.button

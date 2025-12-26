@@ -3,6 +3,7 @@ import { useApp } from "@/context/AppContext";
 import { BottomNav } from "@/components/BottomNav";
 import { HomeScreen } from "@/components/HomeScreen";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
 
 // Lazy load screens for better performance
 const TransactionsScreen = lazy(() => import("@/components/TransactionsScreen").then(m => ({ default: m.TransactionsScreen })));
@@ -19,7 +20,7 @@ const LoadingFallback = () => (
 );
 
 const HamyonApp: React.FC = () => {
-  const { activeScreen } = useApp();
+  const { activeScreen, onboardingComplete, setOnboardingComplete } = useApp();
   
   // Modal states
   const [showAddTx, setShowAddTx] = useState(false);
@@ -47,6 +48,10 @@ const HamyonApp: React.FC = () => {
     setShowAddTx(false);
     setEditTxId(null);
   };
+  // Show onboarding for new users
+  if (!onboardingComplete) {
+    return <OnboardingFlow onComplete={() => setOnboardingComplete(true)} />;
+  }
   
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
