@@ -5,8 +5,8 @@ import { ScreenType } from "@/types";
 
 const NAV_ITEMS: Array<{ screen: ScreenType; label: (t: any) => string; icon: string }> = [
   { screen: "home", label: (t) => t.home, icon: "🏠" },
-  { screen: "transactions", label: (t) => t.transactions, icon: "📊" },
-  { screen: "limits", label: (t) => t.limits, icon: "🎯" },
+  { screen: "transactions", label: (t) => t.transactions, icon: "📋" },
+  { screen: "analytics", label: (t) => t.analytics, icon: "📊" },
   { screen: "settings", label: (t) => t.settings, icon: "⚙️" },
 ];
 
