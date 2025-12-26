@@ -8,6 +8,8 @@ import { AddTransactionModal } from "@/components/AddTransactionModal";
 const TransactionsScreen = lazy(() => import("@/components/TransactionsScreen").then(m => ({ default: m.TransactionsScreen })));
 const AnalyticsScreen = lazy(() => import("@/components/AnalyticsScreen"));
 const LimitsScreen = lazy(() => import("@/components/LimitsScreen").then(m => ({ default: m.LimitsScreen })));
+const GoalsScreen = lazy(() => import("@/components/GoalsScreen"));
+const RecurringScreen = lazy(() => import("@/components/RecurringScreen"));
 const SettingsScreen = lazy(() => import("@/components/SettingsScreen").then(m => ({ default: m.SettingsScreen })));
 
 const LoadingFallback = () => (
@@ -59,6 +61,8 @@ const HamyonAppContent: React.FC = () => {
         )}
         {activeScreen === "analytics" && <AnalyticsScreen />}
         {activeScreen === "limits" && <LimitsScreen />}
+        {activeScreen === "goals" && <GoalsScreen />}
+        {activeScreen === "recurring" && <RecurringScreen />}
         {activeScreen === "settings" && <SettingsScreen />}
       </Suspense>
       
