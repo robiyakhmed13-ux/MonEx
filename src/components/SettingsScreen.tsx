@@ -11,7 +11,8 @@ export const SettingsScreen = memo(() => {
     dataMode, setDataMode, useRemote, syncFromRemote, 
     setActiveScreen, setBalance, setTransactions, setLimits, setGoals, 
     categories, setCategories, theme, setTheme, setOnboardingComplete,
-    transactions, allCats, catLabel, currency, setCurrency
+    transactions, allCats, catLabel, currency, setCurrency,
+    reminderDays, setReminderDays
   } = useApp();
   
   const [resetOpen, setResetOpen] = useState(false);
@@ -115,6 +116,34 @@ export const SettingsScreen = memo(() => {
               >
                 <span className="text-lg">{c.flag}</span>
                 <span className="text-sm">{c.code}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Notification Timing */}
+        <div className="card-elevated p-4 mb-4">
+          <h3 className="text-title-3 text-foreground mb-2">
+            {lang === "ru" ? "Напоминания" : lang === "uz" ? "Eslatmalar" : "Reminders"}
+          </h3>
+          <p className="text-caption text-muted-foreground mb-4">
+            {lang === "ru" ? "За сколько дней напоминать о счетах" : lang === "uz" ? "Hisoblar haqida necha kun oldin eslatish" : "How many days before bills to remind"}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 3, 7].map((days) => (
+              <button
+                key={days}
+                onClick={() => setReminderDays(days)}
+                className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
+                  reminderDays === days
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                <span className="text-lg">🔔</span>
+                <span className="text-sm">
+                  {days} {lang === "ru" ? (days === 1 ? "день" : "дней") : lang === "uz" ? "kun" : (days === 1 ? "day" : "days")}
+                </span>
               </button>
             ))}
           </div>
