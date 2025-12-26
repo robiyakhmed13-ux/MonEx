@@ -9,13 +9,13 @@ export const useSmartNotifications = () => {
     weekSpend, monthSpend
   } = useApp();
   
-  // Get subscriptions and recurring transactions
-  const subscriptions = useMemo(() => safeJSON.get<Subscription[]>("hamyon_subscriptions", []), []);
-  const recurring = useMemo(() => safeJSON.get<RecurringTransaction[]>("hamyon_recurring", []), []);
-  
   const [notifications, setNotifications] = useState<SmartNotification[]>(() => 
     safeJSON.get("hamyon_notifications", [])
   );
+  
+  // Get subscriptions and recurring transactions - read inside effects to avoid hook ordering issues
+  const getSubscriptions = useCallback(() => safeJSON.get<Subscription[]>("hamyon_subscriptions", []), []);
+  const getRecurring = useCallback(() => safeJSON.get<RecurringTransaction[]>("hamyon_recurring", []), []);
   
   // Save notifications to storage
   useEffect(() => {
@@ -156,7 +156,7 @@ export const useSmartNotifications = () => {
   // Check subscription reminders (bills due within reminderDays)
   useEffect(() => {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const subscriptions = getSubscriptions();
     
     subscriptions.filter(sub => sub.active).forEach(sub => {
       const nextBilling = new Date(sub.nextBillingDate);
@@ -186,11 +186,12 @@ export const useSmartNotifications = () => {
         });
       }
     });
-  }, [subscriptions, lang, addNotification]);
+  }, [getSubscriptions, lang, addNotification]);
   
   // Check recurring bill reminders
   useEffect(() => {
     const today = new Date();
+    const recurring = getRecurring();
     
     recurring.filter(rec => rec.active && rec.type === "expense").forEach(rec => {
       const nextDate = new Date(rec.nextDate);
@@ -220,7 +221,7 @@ export const useSmartNotifications = () => {
         });
       }
     });
-  }, [recurring, lang, getCat, addNotification]);
+  }, [getRecurring, lang, getCat, addNotification]);
   
   // Unread count
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
