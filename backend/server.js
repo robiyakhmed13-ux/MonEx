@@ -8,11 +8,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
-const MINI_APP_URL = process.env.MINI_APP_URL || 'https://your-lovable-app.lovable.app';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'https://your-app.vercel.app';
+
+// API Keys for AI features
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Increased for image uploads
 
 // In-memory storage (replace with database in production)
 const users = new Map();
@@ -23,13 +27,264 @@ let bot;
 if (BOT_TOKEN) {
   bot = new TelegramBot(BOT_TOKEN);
   
-  // Set webhook if URL provided
   if (WEBHOOK_URL) {
     bot.setWebHook(`${WEBHOOK_URL}/webhook`);
   }
 }
 
-// Telegram Bot Commands
+// =====================================================
+// AI ENDPOINTS (Receipt Scanning & Voice Parsing)
+// =====================================================
+
+const RECEIPT_SYSTEM_PROMPT = `You are a receipt scanner AI. Analyze the receipt image and extract the following information in JSON format:
+
+{
+  "total": number (the final total amount in the local currency, just the number),
+  "vendor": string (the store/business name),
+  "date": string (date in YYYY-MM-DD format, use today's date if not visible),
+  "category": string (one of: food, restaurants, coffee, transport, taxi, fuel, bills, shopping, health, education, entertainment, other),
+  "items": [
+    { "name": string, "price": number }
+  ],
+  "currency": string (detected currency code like UZS, USD, RUB, etc.)
+}
+
+Important rules:
+1. Extract the TOTAL/GRAND TOTAL amount, not subtotals
+2. If multiple prices exist, use the final/largest amount
+3. For category, analyze the vendor name and items to determine the best fit
+4. Always return valid JSON
+5. If you cannot read the receipt clearly, return: {"error": "Could not read receipt", "total": 0}`;
+
+const VOICE_SYSTEM_PROMPT = `You are a voice command parser for a finance app. Parse the user's voice command to extract:
+1. Transaction type (expense or income)
+2. Category (from the list below)
+3. Amount (numeric value)
+4. Description (optional, use category name if not provided)
+
+Categories for expenses: food, restaurants, coffee, transport, taxi, fuel, bills, shopping, health, education, entertainment, other
+Categories for income: salary, freelance, bonus, other_income
+
+Return JSON format:
+{
+  "type": "expense" | "income",
+  "categoryId": "category_id",
+  "amount": number,
+  "description": "optional description or category name"
+}
+
+If you can't parse the command, return: { "error": "Could not understand command" }`;
+
+// Receipt Scanning Endpoint
+app.post('/api/scan-receipt', async (req, res) => {
+  try {
+    const { image, mimeType, userId } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API key not configured" });
+    }
+
+    console.log(`Processing receipt scan for user: ${userId}`);
+
+    const imageUrl = image.startsWith('data:') 
+      ? image 
+      : `data:${mimeType || 'image/jpeg'};base64,${image}`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: RECEIPT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Please analyze this receipt and extract the transaction details." },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI error: ${response.status} - ${errorText}`);
+      return res.status(500).json({ error: "Failed to process receipt" });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return res.status(500).json({ error: "No response from AI" });
+    }
+
+    let parsedReceipt;
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        content.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, content];
+      parsedReceipt = JSON.parse((jsonMatch[1] || content).trim());
+    } catch (parseError) {
+      const amountMatch = content.match(/(\d+[\d\s,.]*)/);
+      parsedReceipt = {
+        total: amountMatch ? parseFloat(amountMatch[1].replace(/\s/g, '').replace(',', '.')) : 0,
+        vendor: "Unknown",
+        category: "other",
+        error: "Partial extraction"
+      };
+    }
+
+    res.json({
+      total: parsedReceipt.total || 0,
+      amount: parsedReceipt.total || 0,
+      vendor: parsedReceipt.vendor || "Unknown",
+      description: parsedReceipt.vendor || parsedReceipt.items?.[0]?.name || "Receipt",
+      category: parsedReceipt.category || "other",
+      date: parsedReceipt.date || new Date().toISOString().slice(0, 10),
+      items: parsedReceipt.items || [],
+      currency: parsedReceipt.currency || "UZS",
+    });
+
+  } catch (error) {
+    console.error("Error in scan-receipt:", error);
+    res.status(500).json({ error: error.message || "Unknown error" });
+  }
+});
+
+// Voice Parsing Endpoint
+app.post('/api/parse-voice', async (req, res) => {
+  try {
+    const { text, lang } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({ error: "No text provided" });
+    }
+
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API key not configured" });
+    }
+
+    console.log(`Parsing voice command: "${text}" (lang: ${lang})`);
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: VOICE_SYSTEM_PROMPT },
+          { role: "user", content: `Parse this voice command (language: ${lang || 'en'}): "${text}"` }
+        ],
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI error: ${response.status} - ${errorText}`);
+      return res.status(500).json({ error: "Failed to process command" });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return res.status(500).json({ error: "No response from AI" });
+    }
+
+    let parsed;
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        content.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, content];
+      parsed = JSON.parse((jsonMatch[1] || content).trim());
+    } catch {
+      return res.status(400).json({ error: "Could not parse command" });
+    }
+
+    res.json(parsed);
+
+  } catch (error) {
+    console.error("Error in parse-voice:", error);
+    res.status(500).json({ error: error.message || "Unknown error" });
+  }
+});
+
+// Stock Price Endpoint
+app.post('/api/get-stock-price', async (req, res) => {
+  try {
+    const { symbol, type } = req.body;
+    
+    if (!symbol) {
+      return res.status(400).json({ error: 'Symbol is required' });
+    }
+
+    if (!ALPHA_VANTAGE_API_KEY) {
+      return res.status(500).json({ error: 'Alpha Vantage API key not configured' });
+    }
+
+    let url;
+    if (type === 'crypto') {
+      url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${symbol}&to_currency=USD&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    } else {
+      url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    }
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    let price = null;
+    let change = 0;
+    let changePercent = 0;
+
+    if (type === 'crypto' && data['Realtime Currency Exchange Rate']) {
+      price = parseFloat(data['Realtime Currency Exchange Rate']['5. Exchange Rate']);
+    } else if (data['Global Quote']) {
+      const quote = data['Global Quote'];
+      price = parseFloat(quote['05. price']);
+      change = parseFloat(quote['09. change']);
+      changePercent = parseFloat(quote['10. change percent']?.replace('%', ''));
+    }
+
+    if (price === null) {
+      if (data['Note'] || data['Information']) {
+        return res.status(429).json({ error: 'API rate limit reached. Please try again later.' });
+      }
+      return res.status(404).json({ error: 'Could not fetch price for symbol: ' + symbol });
+    }
+
+    res.json({ 
+      symbol, 
+      price, 
+      change, 
+      changePercent,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching stock price:', error);
+    res.status(500).json({ error: error.message || 'Unknown error' });
+  }
+});
+
+// =====================================================
+// TELEGRAM BOT (Existing functionality)
+// =====================================================
+
 const COMMANDS = {
   uz: {
     start: "Salom! 👋 Men Hamyon botiman - moliyaviy yordamchingiz.\n\n💰 Xarajatlaringizni kuzatish uchun quyidagi buyruqlardan foydalaning:",
@@ -57,7 +312,6 @@ const COMMANDS = {
   },
 };
 
-// Category detection
 const CATEGORY_KEYWORDS = {
   taxi: ['taksi', 'taxi', 'такси', 'uber', 'yandex', 'bolt'],
   food: ['ovqat', 'food', 'еда', 'продукты', 'oziq', 'market'],
@@ -90,14 +344,12 @@ function getT(userId) {
   return COMMANDS[getUserLang(userId)] || COMMANDS.uz;
 }
 
-// Bot message handler
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const text = msg.text || '';
   const t = getT(userId);
   
-  // Ensure user exists
   if (!users.has(userId)) {
     users.set(userId, {
       id: userId,
@@ -111,7 +363,6 @@ async function handleMessage(msg) {
     transactions.set(userId, []);
   }
   
-  // Commands
   if (text.startsWith('/start')) {
     const keyboard = {
       reply_markup: {
@@ -166,7 +417,6 @@ async function handleMessage(msg) {
     return;
   }
   
-  // Parse transaction from message
   const match = text.match(/^(-?\d+(?:\s*\d+)*)\s*(.*)$/);
   if (match) {
     const amount = parseInt(match[1].replace(/\s/g, ''));
@@ -201,7 +451,6 @@ async function handleMessage(msg) {
   }
 }
 
-// Callback query handler
 async function handleCallback(query) {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
@@ -230,14 +479,14 @@ async function handleCallback(query) {
   await bot.answerCallbackQuery(query.id);
 }
 
-// === API Routes ===
+// =====================================================
+// API ROUTES
+// =====================================================
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Telegram webhook
 app.post('/webhook', async (req, res) => {
   try {
     const update = req.body;
@@ -251,11 +500,10 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
   } catch (error) {
     console.error('Webhook error:', error);
-    res.sendStatus(200); // Always return 200 to Telegram
+    res.sendStatus(200);
   }
 });
 
-// Set webhook
 app.get('/setWebhook', async (req, res) => {
   if (!WEBHOOK_URL || !bot) {
     return res.status(400).json({ error: 'WEBHOOK_URL or BOT_TOKEN not set' });
@@ -268,8 +516,6 @@ app.get('/setWebhook', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// === User API ===
 
 app.get('/api/user/:telegramId', (req, res) => {
   const userId = parseInt(req.params.telegramId);
@@ -308,8 +554,6 @@ app.post('/api/user', (req, res) => {
   
   res.json(user);
 });
-
-// === Transactions API ===
 
 app.get('/api/transactions/:userId', (req, res) => {
   const userId = parseInt(req.params.userId);
@@ -376,8 +620,6 @@ app.delete('/api/transaction/:id', (req, res) => {
   res.json({ success: true, deleted });
 });
 
-// === Stats API ===
-
 app.get('/api/stats/:userId', (req, res) => {
   const userId = parseInt(req.params.userId);
   const userTx = transactions.get(userId) || [];
@@ -389,7 +631,6 @@ app.get('/api/stats/:userId', (req, res) => {
   const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
   const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
   
-  // Category breakdown
   const categories = {};
   monthTx.filter(tx => tx.amount < 0).forEach(tx => {
     categories[tx.categoryId] = (categories[tx.categoryId] || 0) + Math.abs(tx.amount);
