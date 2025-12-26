@@ -123,6 +123,19 @@ export interface MonthlyReport {
   topExpenses: Transaction[];
 }
 
+// Smart Notifications
+export interface SmartNotification {
+  id: string;
+  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning";
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "critical";
+  createdAt: string;
+  read: boolean;
+  actionType?: "view_limit" | "view_goal" | "view_transaction" | "view_debt";
+  actionData?: string;
+}
+
 export type ScreenType = 
   | "home" 
   | "transactions" 
