@@ -1,5 +1,5 @@
 import React, { useState, lazy, Suspense } from "react";
-import { AppProvider, useApp } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import { BottomNav } from "@/components/BottomNav";
 import { HomeScreen } from "@/components/HomeScreen";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
@@ -18,7 +18,7 @@ const LoadingFallback = () => (
   </div>
 );
 
-const HamyonAppContent: React.FC = () => {
+const HamyonApp: React.FC = () => {
   const { activeScreen } = useApp();
   
   // Modal states
@@ -79,11 +79,5 @@ const HamyonAppContent: React.FC = () => {
     </div>
   );
 };
-
-const HamyonApp: React.FC = () => (
-  <AppProvider>
-    <HamyonAppContent />
-  </AppProvider>
-);
 
 export default HamyonApp;
