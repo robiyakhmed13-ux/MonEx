@@ -5,6 +5,11 @@ import { ThemeToggle } from "./ThemeToggle";
 import { QuickAddPreset } from "@/types";
 import { formatUZS } from "@/lib/storage";
 import { CURRENCIES } from "@/lib/exportData";
+import { DEFAULT_CATEGORIES, Category } from "@/lib/constants";
+import { Palette, Check } from "lucide-react";
+
+const CATEGORY_EMOJIS = ["🍔", "🍽️", "☕", "🚗", "🚕", "⛽", "💡", "🛍️", "💊", "📚", "🎬", "📦", "🏠", "✈️", "🎮", "💻", "🎵", "📱", "🎁", "🍕", "🥗", "🍺", "🎨", "⚽", "🏋️"];
+const CATEGORY_COLORS = ["#FF6B6B", "#FF8787", "#D4A574", "#4DABF7", "#FFD43B", "#FAB005", "#12B886", "#BE4BDB", "#F06595", "#9775FA", "#51CF66", "#40C057", "#339AF0", "#845EF7", "#868E96"];
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -20,6 +25,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   const [selectedCurrency, setSelectedCurrency] = useState("UZS");
   const [quickAdds, setQuickAdds] = useState<QuickAddPreset[]>([]);
   const [editingPreset, setEditingPreset] = useState<{ categoryId: string; amount: string } | null>(null);
+  const [customCategories, setCustomCategories] = useState(() => JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)));
+  const [editingCategory, setEditingCategory] = useState<{ id: string; field: 'emoji' | 'color' } | null>(null);
 
   const handleThemeChange = (theme: "light" | "dark" | "system") => {
     setSelectedTheme(theme);
@@ -52,11 +59,32 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     setEditingPreset(null);
   };
 
+  const updateCategoryEmoji = (categoryId: string, emoji: string) => {
+    setCustomCategories((prev: typeof DEFAULT_CATEGORIES) => ({
+      ...prev,
+      expense: prev.expense.map((c: Category) => c.id === categoryId ? { ...c, emoji } : c),
+      income: prev.income.map((c: Category) => c.id === categoryId ? { ...c, emoji } : c),
+      debt: prev.debt.map((c: Category) => c.id === categoryId ? { ...c, emoji } : c),
+    }));
+    setEditingCategory(null);
+  };
+
+  const updateCategoryColor = (categoryId: string, color: string) => {
+    setCustomCategories((prev: typeof DEFAULT_CATEGORIES) => ({
+      ...prev,
+      expense: prev.expense.map((c: Category) => c.id === categoryId ? { ...c, color } : c),
+      income: prev.income.map((c: Category) => c.id === categoryId ? { ...c, color } : c),
+      debt: prev.debt.map((c: Category) => c.id === categoryId ? { ...c, color } : c),
+    }));
+    setEditingCategory(null);
+  };
+
   const handleComplete = () => {
     // Save preferences
     localStorage.setItem("hamyon_theme", selectedTheme);
     localStorage.setItem("hamyon_quickAdds", JSON.stringify(quickAdds));
     localStorage.setItem("hamyon_currency", selectedCurrency);
+    localStorage.setItem("hamyon_categories", JSON.stringify(customCategories));
     localStorage.setItem("hamyon_onboarding", "complete");
     setLang(selectedLang);
     setCurrencyFn(selectedCurrency);
@@ -245,7 +273,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       </motion.div>
       
       <div className="grid grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pb-4">
-        {allCats.expense.map((cat, i) => {
+        {customCategories.expense.map((cat: Category, i: number) => {
           const isSelected = quickAdds.some(q => q.categoryId === cat.id);
           const preset = quickAdds.find(q => q.categoryId === cat.id);
           
@@ -284,7 +312,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
                   </motion.div>
                 )}
                 <span className="text-2xl">{cat.emoji}</span>
-                <span className="text-xs font-medium text-foreground">{catLabel(cat)}</span>
+                <span className="text-xs font-medium text-foreground">{lang === "uz" ? cat.uz : lang === "ru" ? cat.ru : cat.en}</span>
                 {isSelected && preset && preset.amount > 0 && (
                   <span className="text-xs text-primary font-semibold">
                     {formatUZS(preset.amount)}
@@ -343,7 +371,121 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       )}
     </motion.div>,
 
-    // Step 4: Ready
+    // Step 4: Category Customization
+    <motion.div key="categories">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="text-center mb-6"
+      >
+        <span className="text-6xl block mb-4">🎨</span>
+        <h2 className="text-2xl font-bold text-foreground mb-2">
+          {lang === "ru" ? "Настройте категории" :
+           lang === "uz" ? "Kategoriyalarni sozlang" :
+           "Customize Categories"}
+        </h2>
+        <p className="text-muted-foreground">
+          {lang === "ru" ? "Измените иконки и цвета по своему вкусу" :
+           lang === "uz" ? "O'zingizga yoqqan belgi va ranglarni tanlang" :
+           "Change icons and colors to your preference"}
+        </p>
+      </motion.div>
+      
+      <div className="space-y-3 max-h-[50vh] overflow-y-auto pb-4">
+        {customCategories.expense.map((cat: Category, i: number) => (
+          <motion.div
+            key={cat.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="p-3 rounded-xl bg-secondary flex items-center gap-3"
+          >
+            {/* Emoji selector */}
+            <div className="relative">
+              <button
+                onClick={() => setEditingCategory(
+                  editingCategory?.id === cat.id && editingCategory?.field === 'emoji' 
+                    ? null 
+                    : { id: cat.id, field: 'emoji' }
+                )}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-card border-2 border-border hover:border-primary transition-colors"
+              >
+                {cat.emoji}
+              </button>
+              
+              {editingCategory?.id === cat.id && editingCategory?.field === 'emoji' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="absolute top-14 left-0 z-50 p-2 bg-card rounded-xl shadow-lg border border-border grid grid-cols-5 gap-1 w-48"
+                >
+                  {CATEGORY_EMOJIS.map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => updateCategoryEmoji(cat.id, emoji)}
+                      className={`p-2 rounded-lg text-lg hover:bg-secondary ${cat.emoji === emoji ? 'bg-primary/20 ring-2 ring-primary' : ''}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
+            
+            {/* Category name */}
+            <div className="flex-1">
+              <p className="font-medium text-foreground">
+                {lang === "uz" ? cat.uz : lang === "ru" ? cat.ru : cat.en}
+              </p>
+            </div>
+            
+            {/* Color selector */}
+            <div className="relative">
+              <button
+                onClick={() => setEditingCategory(
+                  editingCategory?.id === cat.id && editingCategory?.field === 'color' 
+                    ? null 
+                    : { id: cat.id, field: 'color' }
+                )}
+                className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-border hover:border-primary transition-colors"
+                style={{ backgroundColor: cat.color }}
+              >
+                <Palette className="w-4 h-4 text-white drop-shadow-md" />
+              </button>
+              
+              {editingCategory?.id === cat.id && editingCategory?.field === 'color' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="absolute top-14 right-0 z-50 p-2 bg-card rounded-xl shadow-lg border border-border grid grid-cols-5 gap-1 w-40"
+                >
+                  {CATEGORY_COLORS.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => updateCategoryColor(cat.id, color)}
+                      className={`w-6 h-6 rounded-lg ${cat.color === color ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center text-sm text-muted-foreground mt-4"
+      >
+        {lang === "ru" ? "Нажмите на иконку или цвет для изменения" :
+         lang === "uz" ? "O'zgartirish uchun belgi yoki rangni bosing" :
+         "Tap icon or color to change"}
+      </motion.p>
+    </motion.div>,
+
+    // Step 5: Ready
     <motion.div key="ready" className="text-center">
       <motion.div
         initial={{ scale: 0 }}
