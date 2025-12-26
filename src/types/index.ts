@@ -1,6 +1,6 @@
 export interface Transaction {
   id: string;
-  type: "expense" | "income" | "debt";
+  type: "expense" | "income" | "debt" | "transfer";
   amount: number;
   description: string;
   categoryId: string;
@@ -9,6 +9,8 @@ export interface Transaction {
   source?: string;
   remote?: boolean;
   recurringId?: string;
+  accountId?: string;
+  toAccountId?: string; // For transfers
 }
 
 export interface Limit {
@@ -38,6 +40,7 @@ export interface RecurringTransaction {
   nextDate: string;
   active: boolean;
   emoji?: string;
+  accountId?: string;
 }
 
 export interface QuickAddPreset {
@@ -62,6 +65,64 @@ export interface TelegramUser {
   username?: string;
 }
 
+// Multi-account support
+export interface Account {
+  id: string;
+  name: string;
+  type: "bank" | "wallet" | "cash" | "card" | "savings";
+  balance: number;
+  currency: string;
+  emoji: string;
+  color: string;
+  isDefault?: boolean;
+}
+
+export interface Transfer {
+  id: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  date: string;
+  description?: string;
+}
+
+// Debt Assessment
+export interface DebtItem {
+  id: string;
+  name: string;
+  totalAmount: number;
+  remainingAmount: number;
+  monthlyPayment: number;
+  interestRate: number;
+  startDate: string;
+  endDate?: string;
+  type: "loan" | "credit_card" | "mortgage" | "personal";
+  lender: string;
+}
+
+export interface DebtAssessment {
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  existingDebts: DebtItem[];
+  newLoanAmount: number;
+  newLoanMonthlyPayment: number;
+  debtToIncomeRatio: number;
+  canAfford: boolean;
+  recommendations: string[];
+}
+
+// Financial Reports
+export interface MonthlyReport {
+  month: string;
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  netSavings: number;
+  categoryBreakdown: Array<{ categoryId: string; amount: number; percentage: number }>;
+  dailySpending: Array<{ date: string; amount: number }>;
+  topExpenses: Transaction[];
+}
+
 export type ScreenType = 
   | "home" 
   | "transactions" 
@@ -71,4 +132,7 @@ export type ScreenType =
   | "debts" 
   | "analytics" 
   | "recurring"
-  | "settings";
+  | "settings"
+  | "accounts"
+  | "debt-assessment"
+  | "reports";

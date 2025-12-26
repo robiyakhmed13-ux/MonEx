@@ -17,8 +17,14 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
   // Find existing transaction if editing
   const existingTx = editId ? transactions.find((tx) => tx.id === editId) : null;
   
+  // Filter out transfer type for the modal - only expense, income, debt
+  const getInitialType = (): "expense" | "income" | "debt" => {
+    if (existingTx?.type === "transfer") return "expense";
+    return existingTx?.type || initialType;
+  };
+  
   // Local state to prevent re-renders - this is key to fixing the keyboard issue
-  const [type, setType] = useState<"expense" | "income" | "debt">(existingTx?.type || initialType);
+  const [type, setType] = useState<"expense" | "income" | "debt">(getInitialType());
   const [amount, setAmount] = useState(existingTx ? String(Math.abs(existingTx.amount)) : "");
   const [description, setDescription] = useState(existingTx?.description || "");
   const [categoryId, setCategoryId] = useState(existingTx?.categoryId || allCats[type][0]?.id || "food");
