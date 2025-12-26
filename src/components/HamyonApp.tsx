@@ -22,6 +22,10 @@ const DebtAssessmentScreen = lazy(() => import("@/components/DebtAssessmentScree
 const SubscriptionsScreen = lazy(() => import("@/components/SubscriptionsScreen").then(m => ({ default: m.SubscriptionsScreen })));
 const BillSplitScreen = lazy(() => import("@/components/BillSplitScreen").then(m => ({ default: m.BillSplitScreen })));
 const NetWorthScreen = lazy(() => import("@/components/NetWorthScreen").then(m => ({ default: m.NetWorthScreen })));
+const InvestmentsScreen = lazy(() => import("@/components/InvestmentsScreen").then(m => ({ default: m.InvestmentsScreen })));
+const CashFlowScreen = lazy(() => import("@/components/CashFlowScreen").then(m => ({ default: m.CashFlowScreen })));
+const EnvelopesScreen = lazy(() => import("@/components/EnvelopesScreen").then(m => ({ default: m.EnvelopesScreen })));
+const DebtPayoffScreen = lazy(() => import("@/components/DebtPayoffScreen").then(m => ({ default: m.DebtPayoffScreen })));
 
 const LoadingFallback = () => (
   <div className="screen-container flex items-center justify-center">
@@ -106,6 +110,10 @@ const HamyonApp: React.FC = () => {
         {activeScreen === "subscriptions" && <SubscriptionsScreen />}
         {activeScreen === "bill-split" && <BillSplitScreen />}
         {activeScreen === "net-worth" && <NetWorthScreen />}
+        {activeScreen === "investments" && <InvestmentsScreen />}
+        {activeScreen === "cash-flow" && <CashFlowScreen />}
+        {activeScreen === "envelopes" && <EnvelopesScreen />}
+        {activeScreen === "debt-payoff" && <DebtPayoffScreen />}
       </Suspense>
       
       {/* Bottom Navigation */}
