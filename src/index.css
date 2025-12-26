@@ -1,96 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Revolut-inspired Design System - Clean White Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* Core Background Colors */
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+    
+    /* Card Surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 222 47% 11%;
+    
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Revolut Blue */
+    --primary: 217 91% 47%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Soft Gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+    
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    
+    /* Accent */
+    --accent: 217 91% 97%;
+    --accent-foreground: 217 91% 47%;
+    
+    /* Destructive - Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Success - Green */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 47%;
+    
+    /* Radius */
+    --radius: 1rem;
+    
+    /* Custom Tokens */
+    --surface-elevated: 0 0% 100%;
+    --surface-sunken: 220 14% 96%;
+    --text-primary: 222 47% 11%;
+    --text-secondary: 220 9% 46%;
+    --text-tertiary: 220 9% 66%;
+    --expense: 0 84% 60%;
+    --income: 160 84% 39%;
+    --progress-bg: 220 14% 92%;
+    
+    /* Shadows as CSS vars (for reuse) */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.03);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.03);
+    
+    /* Safe areas for mobile */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 7%;
     --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
     --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 160 64% 29%;
+    --success-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+    --surface-elevated: 222 47% 13%;
+    --surface-sunken: 222 47% 5%;
+    --text-primary: 210 40% 98%;
+    --text-secondary: 215 20% 65%;
+    --text-tertiary: 215 20% 45%;
+    --progress-bg: 217 33% 20%;
   }
 }
 
@@ -98,8 +114,202 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
+  
+  html, body, #root {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent iOS zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+    touch-action: manipulation;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 100px;
+  }
+}
 
-  body {
-    @apply bg-background text-foreground;
+@layer components {
+  /* Revolut-style card with elevation */
+  .card-elevated {
+    @apply bg-card rounded-2xl;
+    box-shadow: var(--shadow-md);
+  }
+  
+  .card-elevated-lg {
+    @apply bg-card rounded-3xl;
+    box-shadow: var(--shadow-lg);
+  }
+  
+  /* Glass effect for overlays */
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl;
+    box-shadow: var(--shadow-xl);
+  }
+  
+  /* Safe area padding */
+  .safe-top {
+    padding-top: calc(var(--safe-area-top) + 0.5rem);
+  }
+  
+  .safe-bottom {
+    padding-bottom: calc(var(--safe-area-bottom) + 1rem);
+  }
+  
+  /* Input styles */
+  .input-clean {
+    @apply w-full px-4 py-4 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground;
+    @apply border-2 border-transparent transition-all duration-200;
+    @apply focus:outline-none focus:border-primary focus:bg-card;
+  }
+  
+  /* Button presets */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground font-semibold px-6 py-4 rounded-xl;
+    @apply transition-all duration-200 active:scale-[0.98];
+    box-shadow: 0 4px 14px 0 hsl(var(--primary) / 0.25);
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground font-medium px-6 py-4 rounded-xl;
+    @apply transition-all duration-200 active:scale-[0.98];
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent text-foreground font-medium px-4 py-2 rounded-lg;
+    @apply transition-colors duration-200 hover:bg-secondary;
+  }
+  
+  /* Chip/Badge */
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold;
+    @apply bg-secondary text-secondary-foreground;
+  }
+  
+  .chip-primary {
+    @apply bg-accent text-accent-foreground;
+  }
+  
+  /* Progress bar */
+  .progress-bar {
+    @apply h-2 rounded-full bg-[hsl(var(--progress-bg))] overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+  }
+  
+  /* Bottom navigation */
+  .bottom-nav {
+    @apply fixed bottom-0 inset-x-0 z-50;
+    padding-bottom: var(--safe-area-bottom);
+  }
+  
+  .bottom-nav-inner {
+    @apply mx-auto max-w-lg bg-card/95 backdrop-blur-xl;
+    @apply border-t border-border;
+    box-shadow: 0 -4px 20px rgb(0 0 0 / 0.05);
+  }
+  
+  /* Screen container */
+  .screen-container {
+    @apply fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain;
+  }
+  
+  /* Animated list item */
+  .list-item {
+    @apply flex items-center gap-4 p-4 bg-card rounded-2xl;
+    @apply transition-all duration-200;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .list-item:active {
+    @apply scale-[0.99] bg-secondary;
+  }
+  
+  /* Category icon wrapper */
+  .category-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center text-xl;
+    @apply transition-transform duration-200;
+  }
+  
+  /* Amount display */
+  .amount-expense {
+    color: hsl(var(--expense));
+  }
+  
+  .amount-income {
+    color: hsl(var(--income));
+  }
+  
+  /* Quick action button */
+  .quick-action {
+    @apply flex flex-col items-center gap-2 p-4 rounded-2xl bg-card;
+    @apply transition-all duration-200 active:scale-[0.97];
+    box-shadow: var(--shadow-sm);
+  }
+  
+  /* Modal overlay */
+  .modal-overlay {
+    @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm;
+  }
+  
+  .modal-content {
+    @apply bg-card rounded-t-3xl p-6;
+    box-shadow: var(--shadow-xl);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-secondary animate-pulse rounded-lg;
+  }
+}
+
+@layer utilities {
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 60%) 100%);
+  }
+}
+
+/* Framer motion compatibility */
+@supports (animation-timeline: scroll()) {
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
