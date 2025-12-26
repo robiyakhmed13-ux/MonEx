@@ -6,6 +6,7 @@ import { AddTransactionModal } from "@/components/AddTransactionModal";
 
 // Lazy load screens for better performance
 const TransactionsScreen = lazy(() => import("@/components/TransactionsScreen").then(m => ({ default: m.TransactionsScreen })));
+const AnalyticsScreen = lazy(() => import("@/components/AnalyticsScreen"));
 const LimitsScreen = lazy(() => import("@/components/LimitsScreen").then(m => ({ default: m.LimitsScreen })));
 const SettingsScreen = lazy(() => import("@/components/SettingsScreen").then(m => ({ default: m.SettingsScreen })));
 
@@ -56,6 +57,7 @@ const HamyonAppContent: React.FC = () => {
         {activeScreen === "transactions" && (
           <TransactionsScreen onEditTransaction={openEditTransaction} />
         )}
+        {activeScreen === "analytics" && <AnalyticsScreen />}
         {activeScreen === "limits" && <LimitsScreen />}
         {activeScreen === "settings" && <SettingsScreen />}
       </Suspense>
