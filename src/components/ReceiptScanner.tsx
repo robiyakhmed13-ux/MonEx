@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ParsedReceipt {
   amount?: number;
@@ -16,9 +17,6 @@ interface ReceiptScannerProps {
   onClose: () => void;
   isOpen: boolean;
 }
-
-// Configure your Telegram bot backend URL here
-const BOT_API_URL = import.meta.env.VITE_BOT_API_URL || "";
 
 export const ReceiptScanner = memo(({ onScanComplete, onClose, isOpen }: ReceiptScannerProps) => {
   const { t, tgUser, showToast, allCats } = useApp();
@@ -48,24 +46,23 @@ export const ReceiptScanner = memo(({ onScanComplete, onClose, isOpen }: Receipt
         r.readAsDataURL(file);
       });
 
-      // Send to your Telegram bot backend for OpenAI processing
-      const response = await fetch(`${BOT_API_URL}/api/scan-receipt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      // Call the Supabase edge function for receipt scanning
+      const { data: result, error: funcError } = await supabase.functions.invoke('scan-receipt', {
+        body: {
           image: base64,
           userId: tgUser?.id,
           mimeType: file.type,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to process receipt");
+      if (funcError) {
+        console.error("Edge function error:", funcError);
+        throw new Error(funcError.message || "Failed to process receipt");
       }
 
-      const result = await response.json();
+      if (result?.error) {
+        throw new Error(result.error);
+      }
       
       // Map the AI response to our transaction format
       const parsed: ParsedReceipt = {
