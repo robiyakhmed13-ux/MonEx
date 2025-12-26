@@ -5,13 +5,12 @@ import { CashFlowForecast, CashFlowEvent, Subscription, RecurringTransaction } f
 import { safeJSON } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
 import { TrendingUp, TrendingDown, Calendar, AlertTriangle } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, ComposedChart, Bar, Line } from "recharts";
 
 export const CashFlowScreen = memo(() => {
   const { lang, currency, setActiveScreen, balance, transactions } = useApp();
   const [forecastDays, setForecastDays] = useState(30);
   
-  // Get recurring transactions and subscriptions
   const recurring = useMemo(() => safeJSON.get<RecurringTransaction[]>("hamyon_recurring", []), []);
   const subscriptions = useMemo(() => safeJSON.get<Subscription[]>("hamyon_subscriptions", []), []);
 
@@ -24,6 +23,11 @@ export const CashFlowScreen = memo(() => {
     warning: lang === "ru" ? "Низкий баланс" : lang === "uz" ? "Past balans" : "Low Balance",
     upcoming: lang === "ru" ? "Предстоящие" : lang === "uz" ? "Kelayotgan" : "Upcoming",
     noData: lang === "ru" ? "Добавьте регулярные транзакции" : lang === "uz" ? "Muntazam tranzaksiyalar qo'shing" : "Add recurring transactions",
+    dailyChart: lang === "ru" ? "Ежедневный баланс" : lang === "uz" ? "Kunlik balans" : "Daily Balance",
+    flowChart: lang === "ru" ? "Приход / Расход" : lang === "uz" ? "Kirim / Chiqim" : "In / Out",
+    totalIn: lang === "ru" ? "Всего поступлений" : lang === "uz" ? "Jami kirimlar" : "Total Inflows",
+    totalOut: lang === "ru" ? "Всего расходов" : lang === "uz" ? "Jami chiqimlar" : "Total Outflows",
+    netChange: lang === "ru" ? "Чистое изменение" : lang === "uz" ? "Sof o'zgarish" : "Net Change",
   };
 
   // Generate forecast data
@@ -43,7 +47,6 @@ export const CashFlowScreen = memo(() => {
       let outflows = 0;
       const events: CashFlowEvent[] = [];
       
-      // Check recurring transactions
       recurring.forEach(rec => {
         if (!rec.active) return;
         
@@ -76,7 +79,6 @@ export const CashFlowScreen = memo(() => {
         }
       });
       
-      // Check subscriptions
       subscriptions.forEach(sub => {
         if (!sub.active) return;
         if (sub.nextBillingDate === dateStr) {
@@ -105,20 +107,45 @@ export const CashFlowScreen = memo(() => {
     return data;
   }, [balance, recurring, subscriptions, forecastDays]);
 
-  // Find low balance warnings
   const lowBalanceWarnings = useMemo(() => {
     return forecast.filter(f => f.projectedBalance < 0);
   }, [forecast]);
 
-  // Chart data
-  const chartData = useMemo(() => {
-    return forecast.map(f => ({
+  // Chart data for daily balance
+  const dailyChartData = useMemo(() => {
+    return forecast.map((f, i) => ({
+      day: i,
       date: f.date.slice(5),
       balance: f.projectedBalance,
+      inflows: f.inflows,
+      outflows: f.outflows,
     }));
   }, [forecast]);
 
-  // Upcoming events (next 7 days)
+  // Aggregated flow data for bar chart (weekly buckets for 30+ days)
+  const flowChartData = useMemo(() => {
+    if (forecastDays <= 14) {
+      // Daily bars for short periods
+      return forecast.slice(1).map(f => ({
+        label: f.date.slice(8),
+        inflows: f.inflows,
+        outflows: f.outflows,
+      })).filter(d => d.inflows > 0 || d.outflows > 0);
+    } else {
+      // Weekly aggregation for longer periods
+      const weeks: Array<{ label: string; inflows: number; outflows: number }> = [];
+      for (let i = 0; i < forecast.length; i += 7) {
+        const weekData = forecast.slice(i, i + 7);
+        weeks.push({
+          label: `W${Math.floor(i / 7) + 1}`,
+          inflows: weekData.reduce((s, d) => s + d.inflows, 0),
+          outflows: weekData.reduce((s, d) => s + d.outflows, 0),
+        });
+      }
+      return weeks;
+    }
+  }, [forecast, forecastDays]);
+
   const upcomingEvents = useMemo(() => {
     const events: CashFlowEvent[] = [];
     forecast.slice(1, 8).forEach(f => {
@@ -127,10 +154,10 @@ export const CashFlowScreen = memo(() => {
     return events;
   }, [forecast]);
 
-  const minBalance = Math.min(...forecast.map(f => f.projectedBalance));
-  const maxBalance = Math.max(...forecast.map(f => f.projectedBalance));
   const endBalance = forecast[forecast.length - 1]?.projectedBalance || balance;
   const balanceChange = endBalance - balance;
+  const totalInflows = forecast.reduce((s, f) => s + f.inflows, 0);
+  const totalOutflows = forecast.reduce((s, f) => s + f.outflows, 0);
 
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
@@ -142,7 +169,7 @@ export const CashFlowScreen = memo(() => {
 
       {/* Forecast Period Selector */}
       <div className="flex gap-2 mb-6">
-        {[7, 14, 30, 90].map(days => (
+        {[7, 14, 30, 60, 90].map(days => (
           <button
             key={days}
             onClick={() => setForecastDays(days)}
@@ -178,7 +205,6 @@ export const CashFlowScreen = memo(() => {
           </motion.div>
         </div>
 
-        {/* Low Balance Warning */}
         {lowBalanceWarnings.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -196,17 +222,50 @@ export const CashFlowScreen = memo(() => {
         )}
       </motion.div>
 
-      {/* Forecast Chart */}
-      {chartData.length > 1 && (
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-3 rounded-xl bg-income/10 border border-income/20"
+        >
+          <p className="text-xs text-muted-foreground">{t.totalIn}</p>
+          <p className="text-lg font-bold text-income">+{formatCurrency(totalInflows, currency)}</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="p-3 rounded-xl bg-expense/10 border border-expense/20"
+        >
+          <p className="text-xs text-muted-foreground">{t.totalOut}</p>
+          <p className="text-lg font-bold text-expense">-{formatCurrency(totalOutflows, currency)}</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="p-3 rounded-xl bg-primary/10 border border-primary/20"
+        >
+          <p className="text-xs text-muted-foreground">{t.netChange}</p>
+          <p className={`text-lg font-bold ${balanceChange >= 0 ? 'text-income' : 'text-expense'}`}>
+            {balanceChange >= 0 ? '+' : ''}{formatCurrency(balanceChange, currency)}
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Daily Balance Chart */}
+      {dailyChartData.length > 1 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="p-4 rounded-2xl bg-card border border-border mb-6"
         >
+          <h3 className="text-sm font-semibold text-foreground mb-3">{t.dailyChart}</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={dailyChartData}>
                 <defs>
                   <linearGradient id="cashFlowGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -240,6 +299,45 @@ export const CashFlowScreen = memo(() => {
                   fill="url(#cashFlowGradient)"
                 />
               </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Inflow/Outflow Chart */}
+      {flowChartData.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="p-4 rounded-2xl bg-card border border-border mb-6"
+        >
+          <h3 className="text-sm font-semibold text-foreground mb-3">{t.flowChart}</h3>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={flowChartData}>
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '12px',
+                    padding: '8px 12px',
+                  }}
+                  formatter={(value: number, name: string) => [
+                    formatCurrency(value, currency),
+                    name === 'inflows' ? t.inflows : t.outflows
+                  ]}
+                />
+                <Bar dataKey="inflows" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="outflows" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
