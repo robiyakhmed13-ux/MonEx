@@ -4,16 +4,18 @@ import { useApp } from "@/context/AppContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { QuickAddPreset } from "@/types";
 import { formatUZS } from "@/lib/storage";
+import { CURRENCIES } from "@/lib/exportData";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
-  const { t, lang, allCats, getCat, catLabel, setLang } = useApp();
+  const { t, lang, allCats, getCat, catLabel, setLang, setCurrency } = useApp();
   const [step, setStep] = useState(0);
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark" | "system">("light");
   const [selectedLang, setSelectedLang] = useState(lang);
+  const [selectedCurrency, setSelectedCurrency] = useState("UZS");
   const [quickAdds, setQuickAdds] = useState<QuickAddPreset[]>([]);
   const [editingPreset, setEditingPreset] = useState<{ categoryId: string; amount: string } | null>(null);
 
@@ -47,13 +49,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     // Save preferences
     localStorage.setItem("hamyon_theme", selectedTheme);
     localStorage.setItem("hamyon_quickAdds", JSON.stringify(quickAdds));
+    localStorage.setItem("hamyon_currency", selectedCurrency);
     localStorage.setItem("hamyon_onboarding", "complete");
     setLang(selectedLang);
+    setCurrency(selectedCurrency);
     onComplete();
   };
 
   const steps = [
-    // Step 0: Welcome
+    // Step 0: Welcome & Language
     <motion.div key="welcome" className="text-center">
       <motion.div
         initial={{ scale: 0 }}
@@ -107,7 +111,62 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       </div>
     </motion.div>,
 
-    // Step 1: Theme
+    // Step 1: Currency Selection
+    <motion.div key="currency" className="text-center">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="mb-6"
+      >
+        <span className="text-6xl block mb-4">💱</span>
+        <h2 className="text-2xl font-bold text-foreground mb-2">
+          {lang === "ru" ? "Выберите валюту" :
+           lang === "uz" ? "Valyutani tanlang" :
+           "Choose your currency"}
+        </h2>
+        <p className="text-muted-foreground">
+          {lang === "ru" ? "Основная валюта для учёта" :
+           lang === "uz" ? "Hisobotlar uchun asosiy valyuta" :
+           "Primary currency for tracking"}
+        </p>
+      </motion.div>
+      
+      <div className="space-y-3">
+        {CURRENCIES.map((c, i) => (
+          <motion.button
+            key={c.code}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setSelectedCurrency(c.code)}
+            className={`w-full py-4 px-6 rounded-2xl flex items-center gap-4 transition-all ${
+              selectedCurrency === c.code
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-foreground"
+            }`}
+          >
+            <span className="text-2xl">{c.flag}</span>
+            <div className="flex-1 text-left">
+              <p className="font-semibold">{c.code}</p>
+              <p className={`text-sm ${selectedCurrency === c.code ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{c.name}</p>
+            </div>
+            <span className="text-xl font-bold">{c.symbol}</span>
+            {selectedCurrency === c.code && (
+              <motion.span 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="text-xl"
+              >
+                ✓
+              </motion.span>
+            )}
+          </motion.button>
+        ))}
+      </div>
+    </motion.div>,
+
+    // Step 2: Theme
     <motion.div key="theme" className="text-center">
       <motion.div
         initial={{ y: 20, opacity: 0 }}
@@ -142,7 +201,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
           </div>
           <div className="text-left">
             <p className="text-sm text-muted-foreground">Balance</p>
-            <p className="font-bold text-foreground">1,250,000 UZS</p>
+            <p className="font-bold text-foreground">1,250,000 {selectedCurrency}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -158,7 +217,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       </motion.div>
     </motion.div>,
 
-    // Step 2: Quick Add Setup
+    // Step 3: Quick Add Setup
     <motion.div key="quickadd">
       <motion.div
         initial={{ y: 20, opacity: 0 }}
@@ -270,7 +329,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       )}
     </motion.div>,
 
-    // Step 3: Ready
+    // Step 4: Ready
     <motion.div key="ready" className="text-center">
       <motion.div
         initial={{ scale: 0 }}
@@ -299,6 +358,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       
       {/* Summary */}
       <div className="space-y-3 text-left">
+        <div className="p-4 rounded-2xl bg-secondary flex items-center gap-4">
+          <span className="text-2xl">💱</span>
+          <div>
+            <p className="font-medium text-foreground">
+              {lang === "ru" ? "Валюта" : lang === "uz" ? "Valyuta" : "Currency"}
+            </p>
+            <p className="text-sm text-muted-foreground">{selectedCurrency}</p>
+          </div>
+        </div>
         <div className="p-4 rounded-2xl bg-secondary flex items-center gap-4">
           <span className="text-2xl">{selectedTheme === "dark" ? "🌙" : "☀️"}</span>
           <div>
