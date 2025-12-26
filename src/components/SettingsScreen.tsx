@@ -44,9 +44,6 @@ export const SettingsScreen = memo(() => {
           </motion.button>
           <div className="flex-1">
             <h1 className="text-title-1 text-foreground">{t.settings}</h1>
-            <p className="text-caption text-muted-foreground">
-              {t.appName} • ID: {tgUser?.id || "—"}
-            </p>
           </div>
         </div>
         
@@ -106,16 +103,24 @@ export const SettingsScreen = memo(() => {
         {/* Telegram Bot */}
         <div className="card-elevated p-4 mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-2xl">
-              🤖
-            </div>
+            <motion.div 
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <span className="text-2xl">🤖</span>
+            </motion.div>
             <div className="flex-1">
-              <p className="font-medium text-foreground">Telegram Bot</p>
+              <p className="font-medium text-foreground">@hamyonmoneybot</p>
               <p className="text-caption text-muted-foreground">{t.botHint}</p>
             </div>
-            <button onClick={openBot} className="btn-secondary">
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={openBot} 
+              className="btn-secondary"
+            >
               {t.openBot}
-            </button>
+            </motion.button>
           </div>
         </div>
         
