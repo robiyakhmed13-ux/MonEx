@@ -123,16 +123,77 @@ export interface MonthlyReport {
   topExpenses: Transaction[];
 }
 
+// Multi-Currency Support
+export interface Currency {
+  code: string;
+  symbol: string;
+  name: string;
+  rate: number; // Rate to base currency (UZS)
+}
+
+export interface ExchangeRates {
+  base: string;
+  rates: Record<string, number>;
+  lastUpdated: string;
+}
+
+// Bill Splitting
+export interface BillSplit {
+  id: string;
+  title: string;
+  totalAmount: number;
+  currency: string;
+  date: string;
+  paidBy: string;
+  participants: BillParticipant[];
+  settled: boolean;
+}
+
+export interface BillParticipant {
+  id: string;
+  name: string;
+  amount: number;
+  paid: boolean;
+}
+
+// Subscription Management
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  frequency: "weekly" | "monthly" | "yearly";
+  nextBillingDate: string;
+  category: string;
+  emoji: string;
+  active: boolean;
+  reminderDays: number; // Days before to remind
+  autoRenew: boolean;
+}
+
+// Net Worth Tracking
+export interface NetWorthSnapshot {
+  date: string;
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+  breakdown: {
+    accounts: Record<string, number>;
+    investments: Record<string, number>;
+    debts: Record<string, number>;
+  };
+}
+
 // Smart Notifications
 export interface SmartNotification {
   id: string;
-  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning";
+  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning" | "subscription_reminder";
   title: string;
   message: string;
   severity: "info" | "warning" | "critical";
   createdAt: string;
   read: boolean;
-  actionType?: "view_limit" | "view_goal" | "view_transaction" | "view_debt";
+  actionType?: "view_limit" | "view_goal" | "view_transaction" | "view_debt" | "view_subscription";
   actionData?: string;
 }
 
@@ -148,4 +209,7 @@ export type ScreenType =
   | "settings"
   | "accounts"
   | "debt-assessment"
-  | "reports";
+  | "reports"
+  | "subscriptions"
+  | "bill-split"
+  | "net-worth";
