@@ -415,6 +415,48 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </motion.button>
         </div>
       </section>
+
+      {/* Quick Access to New Features */}
+      <section className="mb-6">
+        <h2 className="text-title-3 text-foreground mb-3">
+          {lang === "ru" ? "Инструменты" : lang === "uz" ? "Asboblar" : "Tools"}
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("accounts")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">💳</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Счета" : lang === "uz" ? "Hisoblar" : "Accounts"}
+            </span>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("debt-assessment")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">📊</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Долги" : lang === "uz" ? "Qarzlar" : "Debt"}
+            </span>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ y: -2 }}
+            onClick={() => setActiveScreen("reports")}
+            className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex flex-col items-center gap-2"
+          >
+            <span className="text-2xl">📑</span>
+            <span className="text-xs font-medium text-foreground">
+              {lang === "ru" ? "Отчёты" : lang === "uz" ? "Hisobotlar" : "Reports"}
+            </span>
+          </motion.button>
+        </div>
+      </section>
       
       {/* Recent Transactions */}
       <section>

@@ -4,6 +4,10 @@ import { BottomNav } from "@/components/BottomNav";
 import { HomeScreen } from "@/components/HomeScreen";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
+import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { Bell } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Lazy load screens for better performance
 const TransactionsScreen = lazy(() => import("@/components/TransactionsScreen").then(m => ({ default: m.TransactionsScreen })));
@@ -12,6 +16,9 @@ const LimitsScreen = lazy(() => import("@/components/LimitsScreen").then(m => ({
 const GoalsScreen = lazy(() => import("@/components/GoalsScreen"));
 const RecurringScreen = lazy(() => import("@/components/RecurringScreen"));
 const SettingsScreen = lazy(() => import("@/components/SettingsScreen").then(m => ({ default: m.SettingsScreen })));
+const AccountsScreen = lazy(() => import("@/components/AccountsScreen").then(m => ({ default: m.AccountsScreen })));
+const ReportsScreen = lazy(() => import("@/components/ReportsScreen").then(m => ({ default: m.ReportsScreen })));
+const DebtAssessmentScreen = lazy(() => import("@/components/DebtAssessmentScreen").then(m => ({ default: m.DebtAssessmentScreen })));
 
 const LoadingFallback = () => (
   <div className="screen-container flex items-center justify-center">
@@ -21,11 +28,13 @@ const LoadingFallback = () => (
 
 const HamyonApp: React.FC = () => {
   const { activeScreen, onboardingComplete, setOnboardingComplete } = useApp();
+  const { notifications, unreadCount, markAsRead, clearAll } = useSmartNotifications();
   
   // Modal states
   const [showAddTx, setShowAddTx] = useState(false);
   const [editTxId, setEditTxId] = useState<string | null>(null);
   const [txType, setTxType] = useState<"expense" | "income" | "debt">("expense");
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const openAddExpense = () => {
     setTxType("expense");
@@ -48,6 +57,7 @@ const HamyonApp: React.FC = () => {
     setShowAddTx(false);
     setEditTxId(null);
   };
+  
   // Show onboarding for new users
   if (!onboardingComplete) {
     return <OnboardingFlow onComplete={() => setOnboardingComplete(true)} />;
@@ -55,6 +65,24 @@ const HamyonApp: React.FC = () => {
   
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      {/* Notification Bell - Fixed position */}
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowNotifications(true)}
+        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center"
+      >
+        <Bell className="w-5 h-5 text-foreground" />
+        {unreadCount > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs rounded-full flex items-center justify-center font-bold"
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </motion.span>
+        )}
+      </motion.button>
+
       {/* Main Content */}
       {activeScreen === "home" && (
         <HomeScreen onAddExpense={openAddExpense} onAddIncome={openAddIncome} />
@@ -69,6 +97,9 @@ const HamyonApp: React.FC = () => {
         {activeScreen === "goals" && <GoalsScreen />}
         {activeScreen === "recurring" && <RecurringScreen />}
         {activeScreen === "settings" && <SettingsScreen />}
+        {activeScreen === "accounts" && <AccountsScreen />}
+        {activeScreen === "reports" && <ReportsScreen />}
+        {activeScreen === "debt-assessment" && <DebtAssessmentScreen />}
       </Suspense>
       
       {/* Bottom Navigation */}
@@ -80,6 +111,15 @@ const HamyonApp: React.FC = () => {
         onClose={closeModal}
         editId={editTxId}
         initialType={txType}
+      />
+
+      {/* Notifications Panel */}
+      <NotificationsPanel
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        onMarkAsRead={markAsRead}
+        onClearAll={clearAll}
       />
     </div>
   );
