@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
-import { SmartNotification } from "@/types";
+import { SmartNotification, Subscription, RecurringTransaction } from "@/types";
 import { safeJSON, uid } from "@/lib/storage";
 
 export const useSmartNotifications = () => {
@@ -8,6 +8,10 @@ export const useSmartNotifications = () => {
     transactions, limits, goals, monthSpentByCategory, getCat, catLabel, lang, t,
     weekSpend, monthSpend
   } = useApp();
+  
+  // Get subscriptions and recurring transactions
+  const subscriptions = useMemo(() => safeJSON.get<Subscription[]>("hamyon_subscriptions", []), []);
+  const recurring = useMemo(() => safeJSON.get<RecurringTransaction[]>("hamyon_recurring", []), []);
   
   const [notifications, setNotifications] = useState<SmartNotification[]>(() => 
     safeJSON.get("hamyon_notifications", [])
@@ -148,6 +152,75 @@ export const useSmartNotifications = () => {
       }
     });
   }, [goals, lang, addNotification]);
+  
+  // Check subscription reminders (bills due within reminderDays)
+  useEffect(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    
+    subscriptions.filter(sub => sub.active).forEach(sub => {
+      const nextBilling = new Date(sub.nextBillingDate);
+      const daysUntil = Math.ceil((nextBilling.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Check if within reminder window (default 3 days if not set)
+      const reminderDays = sub.reminderDays || 3;
+      
+      if (daysUntil >= 0 && daysUntil <= reminderDays) {
+        const daysText = daysUntil === 0 
+          ? (lang === "ru" ? "сегодня" : lang === "uz" ? "bugun" : "today")
+          : daysUntil === 1 
+          ? (lang === "ru" ? "завтра" : lang === "uz" ? "ertaga" : "tomorrow")
+          : `${daysUntil} ${lang === "ru" ? "дней" : lang === "uz" ? "kun" : "days"}`;
+        
+        addNotification({
+          type: "subscription_reminder",
+          title: lang === "ru" ? "Напоминание о подписке" : lang === "uz" ? "Obuna eslatmasi" : "Subscription Reminder",
+          message: lang === "ru" 
+            ? `${sub.emoji} ${sub.name} — оплата ${daysText}`
+            : lang === "uz"
+            ? `${sub.emoji} ${sub.name} — to'lov ${daysText}`
+            : `${sub.emoji} ${sub.name} — payment ${daysText}`,
+          severity: daysUntil === 0 ? "critical" : "warning",
+          actionType: "view_subscription",
+          actionData: sub.id,
+        });
+      }
+    });
+  }, [subscriptions, lang, addNotification]);
+  
+  // Check recurring bill reminders
+  useEffect(() => {
+    const today = new Date();
+    
+    recurring.filter(rec => rec.active && rec.type === "expense").forEach(rec => {
+      const nextDate = new Date(rec.nextDate);
+      const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Remind 3 days before
+      if (daysUntil >= 0 && daysUntil <= 3) {
+        const daysText = daysUntil === 0 
+          ? (lang === "ru" ? "сегодня" : lang === "uz" ? "bugun" : "today")
+          : daysUntil === 1 
+          ? (lang === "ru" ? "завтра" : lang === "uz" ? "ertaga" : "tomorrow")
+          : `${daysUntil} ${lang === "ru" ? "дней" : lang === "uz" ? "kun" : "days"}`;
+        
+        const cat = getCat(rec.categoryId);
+        
+        addNotification({
+          type: "bill_reminder",
+          title: lang === "ru" ? "Напоминание о счёте" : lang === "uz" ? "Hisob eslatmasi" : "Bill Reminder",
+          message: lang === "ru" 
+            ? `${rec.emoji || cat.emoji} ${rec.description} — ${daysText}`
+            : lang === "uz"
+            ? `${rec.emoji || cat.emoji} ${rec.description} — ${daysText}`
+            : `${rec.emoji || cat.emoji} ${rec.description} — ${daysText}`,
+          severity: daysUntil === 0 ? "critical" : "warning",
+          actionType: "view_transaction",
+          actionData: rec.id,
+        });
+      }
+    });
+  }, [recurring, lang, getCat, addNotification]);
   
   // Unread count
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
