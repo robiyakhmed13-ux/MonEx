@@ -2,6 +2,8 @@ import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { formatUZS, clamp } from "@/lib/storage";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { ArrowLeft, Target } from "lucide-react";
 
 export const LimitsScreen = memo(() => {
   const { t, limits, allCats, getCat, catLabel, monthSpentByCategory, addLimit, updateLimit, deleteLimit, setActiveScreen } = useApp();
@@ -54,7 +56,7 @@ export const LimitsScreen = memo(() => {
             onClick={() => setActiveScreen("home")}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
           >
-            ←
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </motion.button>
           <div className="flex-1">
             <h1 className="text-title-1 text-foreground">{t.limits}</h1>
@@ -68,7 +70,9 @@ export const LimitsScreen = memo(() => {
         <div className="space-y-3 mb-6">
           {limits.length === 0 ? (
             <div className="card-elevated p-8 text-center">
-              <span className="text-5xl block mb-3">🎯</span>
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Target className="w-8 h-8 text-primary" />
+              </div>
               <p className="text-muted-foreground">{t.noLimits}</p>
             </div>
           ) : (
@@ -87,7 +91,7 @@ export const LimitsScreen = memo(() => {
                         className="category-icon"
                         style={{ backgroundColor: `${cat.color}20` }}
                       >
-                        {cat.emoji}
+                        <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
                       </div>
                       <div>
                         <p className="font-medium text-foreground">{catLabel(cat)}</p>
@@ -150,7 +154,7 @@ export const LimitsScreen = memo(() => {
             >
               {allCats.expense.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.emoji} {catLabel(c)}
+                  {catLabel(c)}
                 </option>
               ))}
             </select>

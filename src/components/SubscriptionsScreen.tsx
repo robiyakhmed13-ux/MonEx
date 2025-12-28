@@ -1,12 +1,31 @@
-import React, { useState, useMemo, memo, useCallback } from "react";
+import React, { useState, useMemo, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { Subscription } from "@/types";
 import { safeJSON, uid } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
-import { Plus, X, Bell, Calendar, CreditCard, Trash2, Edit2, Check } from "lucide-react";
+import { Plus, X, Bell, Calendar, CreditCard, Trash2, Edit2, Check, Tv, Music, Cloud, Gamepad2, Smartphone, Dumbbell, BookOpen, Film, Lock, Briefcase, ArrowLeft, Package } from "lucide-react";
 
-const SUBSCRIPTION_EMOJIS = ["📺", "🎵", "☁️", "🎮", "📱", "💪", "📚", "🎬", "🔒", "💼"];
+// Subscription icon options using Lucide icons
+const SUBSCRIPTION_ICONS = [
+  { id: "tv", icon: Tv },
+  { id: "music", icon: Music },
+  { id: "cloud", icon: Cloud },
+  { id: "gaming", icon: Gamepad2 },
+  { id: "phone", icon: Smartphone },
+  { id: "fitness", icon: Dumbbell },
+  { id: "books", icon: BookOpen },
+  { id: "streaming", icon: Film },
+  { id: "security", icon: Lock },
+  { id: "business", icon: Briefcase },
+];
+
+const SubscriptionIcon = memo(({ iconId, className }: { iconId: string; className?: string }) => {
+  const iconDef = SUBSCRIPTION_ICONS.find(i => i.id === iconId);
+  const IconComponent = iconDef?.icon || CreditCard;
+  return <IconComponent className={className} />;
+});
+SubscriptionIcon.displayName = "SubscriptionIcon";
 
 export const SubscriptionsScreen = memo(() => {
   const { lang, currency, showToast, setActiveScreen } = useApp();
@@ -21,7 +40,7 @@ export const SubscriptionsScreen = memo(() => {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<"weekly" | "monthly" | "yearly">("monthly");
   const [nextBillingDate, setNextBillingDate] = useState(new Date().toISOString().slice(0, 10));
-  const [emoji, setEmoji] = useState("📺");
+  const [iconId, setIconId] = useState("tv");
   const [reminderDays, setReminderDays] = useState(3);
   const [autoRenew, setAutoRenew] = useState(true);
 
@@ -66,7 +85,7 @@ export const SubscriptionsScreen = memo(() => {
     setAmount("");
     setFrequency("monthly");
     setNextBillingDate(new Date().toISOString().slice(0, 10));
-    setEmoji("📺");
+    setIconId("tv");
     setReminderDays(3);
     setAutoRenew(true);
     setEditingId(null);
@@ -77,7 +96,7 @@ export const SubscriptionsScreen = memo(() => {
     setAmount(sub.amount.toString());
     setFrequency(sub.frequency);
     setNextBillingDate(sub.nextBillingDate);
-    setEmoji(sub.emoji);
+    setIconId(sub.emoji || "tv");
     setReminderDays(sub.reminderDays);
     setAutoRenew(sub.autoRenew);
     setEditingId(sub.id);
@@ -95,7 +114,7 @@ export const SubscriptionsScreen = memo(() => {
       frequency,
       nextBillingDate,
       category: "subscription",
-      emoji,
+      emoji: iconId,
       active: true,
       reminderDays,
       autoRenew,
@@ -147,7 +166,9 @@ export const SubscriptionsScreen = memo(() => {
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
+          <button onClick={() => setActiveScreen("home")} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
           <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
         </div>
         <motion.button
@@ -203,7 +224,9 @@ export const SubscriptionsScreen = memo(() => {
                   animate={{ opacity: 1, x: 0 }}
                   className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3"
                 >
-                  <span className="text-2xl">{sub.emoji}</span>
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <SubscriptionIcon iconId={sub.emoji} className="w-5 h-5 text-amber-500" />
+                  </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground">{sub.name}</p>
                     <p className="text-sm text-muted-foreground">
@@ -225,7 +248,9 @@ export const SubscriptionsScreen = memo(() => {
         <h2 className="text-lg font-semibold text-foreground mb-3">{t.active}</h2>
         {subscriptions.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
-            <span className="text-4xl block mb-3">📦</span>
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted flex items-center justify-center">
+              <Package className="w-8 h-8 text-muted-foreground" />
+            </div>
             <p>{t.noSubs}</p>
           </div>
         ) : (
@@ -239,7 +264,9 @@ export const SubscriptionsScreen = memo(() => {
                 className={`p-4 rounded-xl border ${sub.active ? 'bg-card border-border' : 'bg-muted/50 border-border opacity-60'}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{sub.emoji}</span>
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <SubscriptionIcon iconId={sub.emoji} className="w-5 h-5 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{sub.name}</p>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -298,19 +325,22 @@ export const SubscriptionsScreen = memo(() => {
               </div>
 
               <div className="space-y-4">
-                {/* Emoji Picker */}
+                {/* Icon Picker */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Emoji</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Icon</label>
                   <div className="flex gap-2 flex-wrap">
-                    {SUBSCRIPTION_EMOJIS.map(e => (
-                      <button
-                        key={e}
-                        onClick={() => setEmoji(e)}
-                        className={`p-3 rounded-xl text-2xl ${emoji === e ? 'bg-primary/20 border-2 border-primary' : 'bg-secondary'}`}
-                      >
-                        {e}
-                      </button>
-                    ))}
+                    {SUBSCRIPTION_ICONS.map(item => {
+                      const IconComp = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setIconId(item.id)}
+                          className={`p-3 rounded-xl ${iconId === item.id ? 'bg-primary/20 border-2 border-primary' : 'bg-secondary'}`}
+                        >
+                          <IconComp className={`w-6 h-6 ${iconId === item.id ? 'text-primary' : 'text-foreground'}`} />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

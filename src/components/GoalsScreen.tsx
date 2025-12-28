@@ -2,6 +2,7 @@ import React, { useState, memo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { formatUZS, clamp } from "@/lib/storage";
+import { Target, Home, Car, Plane, Heart, Smartphone, GraduationCap, Wallet, Palmtree, Gift, X, Plus, PiggyBank } from "lucide-react";
 
 export const GoalsScreen: React.FC = () => {
   const { t, goals, addGoal, updateGoal, deleteGoal, depositToGoal, showToast } = useApp();
@@ -30,7 +31,7 @@ export const GoalsScreen: React.FC = () => {
             onClick={() => setShowAddModal(true)}
             className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
           >
-            <span className="text-xl">+</span>
+            <Plus className="w-5 h-5" />
           </motion.button>
         </div>
       </div>
@@ -39,7 +40,9 @@ export const GoalsScreen: React.FC = () => {
       <div className="px-4 space-y-4">
         {goals.length === 0 ? (
           <div className="card-elevated p-8 text-center">
-            <span className="text-5xl block mb-3">🎯</span>
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Target className="w-8 h-8 text-primary" />
+            </div>
             <p className="text-muted-foreground mb-4">{t.noGoals}</p>
             <button
               onClick={() => setShowAddModal(true)}
@@ -61,8 +64,8 @@ export const GoalsScreen: React.FC = () => {
                 className="glass-card p-4"
               >
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center text-3xl">
-                    {goal.emoji}
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <GoalIcon iconId={goal.emoji} className="w-7 h-7 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground mb-1">{goal.name}</h3>
@@ -77,9 +80,9 @@ export const GoalsScreen: React.FC = () => {
                   </div>
                   <button
                     onClick={() => deleteGoal(goal.id)}
-                    className="w-8 h-8 rounded-full bg-secondary text-muted-foreground flex items-center justify-center text-sm"
+                    className="w-8 h-8 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
                   >
-                    ✕
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -107,7 +110,7 @@ export const GoalsScreen: React.FC = () => {
                   }}
                   className="w-full py-3 rounded-xl bg-primary/10 text-primary font-semibold flex items-center justify-center gap-2"
                 >
-                  <span>💰</span>
+                  <PiggyBank className="w-5 h-5" />
                   {t.deposit}
                 </button>
               </motion.div>
@@ -173,13 +176,32 @@ export const GoalsScreen: React.FC = () => {
   );
 };
 
+// Goal icon mapping
+const GOAL_ICONS = [
+  { id: "target", icon: Target },
+  { id: "home", icon: Home },
+  { id: "car", icon: Car },
+  { id: "plane", icon: Plane },
+  { id: "heart", icon: Heart },
+  { id: "phone", icon: Smartphone },
+  { id: "education", icon: GraduationCap },
+  { id: "wallet", icon: Wallet },
+  { id: "vacation", icon: Palmtree },
+  { id: "gift", icon: Gift },
+];
+
+const GoalIcon = memo(({ iconId, className }: { iconId: string; className?: string }) => {
+  const iconDef = GOAL_ICONS.find(i => i.id === iconId);
+  const IconComponent = iconDef?.icon || Target;
+  return <IconComponent className={className} />;
+});
+GoalIcon.displayName = "GoalIcon";
+
 const AddGoalModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, addGoal } = useApp();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
-  const [emoji, setEmoji] = useState("🎯");
-
-  const EMOJI_OPTIONS = ["🎯", "🏠", "🚗", "✈️", "💍", "📱", "🎓", "💰", "🏖️", "🎁"];
+  const [iconId, setIconId] = useState("target");
 
   const handleSave = () => {
     if (!name || !target) return;
@@ -187,11 +209,11 @@ const AddGoalModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       name,
       target: parseInt(target),
       current: 0,
-      emoji,
+      emoji: iconId,
     });
     setName("");
     setTarget("");
-    setEmoji("🎯");
+    setIconId("target");
     onClose();
   };
 
@@ -219,25 +241,28 @@ const AddGoalModal = memo(({ isOpen, onClose }: { isOpen: boolean; onClose: () =
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-title-1 text-foreground">{t.add} {t.goals.toLowerCase()}</h2>
             <button onClick={onClose} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
-              ✕
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Emoji Selection */}
+          {/* Icon Selection */}
           <div className="mb-4">
             <label className="text-caption text-muted-foreground font-medium mb-2 block">Icon</label>
             <div className="flex gap-2 flex-wrap">
-              {EMOJI_OPTIONS.map((e) => (
-                <button
-                  key={e}
-                  onClick={() => setEmoji(e)}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-all ${
-                    emoji === e ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary"
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
+              {GOAL_ICONS.map((item) => {
+                const IconComp = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setIconId(item.id)}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                      iconId === item.id ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary"
+                    }`}
+                  >
+                    <IconComp className={`w-6 h-6 ${iconId === item.id ? "text-primary" : "text-foreground"}`} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
