@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { formatUZS, todayISO, startOfWeekISO, monthPrefix } from "@/lib/storage";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { ArrowLeft, FileText } from "lucide-react";
 
 interface TransactionsScreenProps {
   onEditTransaction: (id: string) => void;
@@ -44,7 +46,7 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
             onClick={() => setActiveScreen("home")}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
           >
-            ←
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </motion.button>
           <div className="flex-1">
             <h1 className="text-title-1 text-foreground">{t.allTransactions}</h1>
@@ -81,7 +83,9 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
         {/* Transaction List */}
         {filtered.length === 0 ? (
           <div className="card-elevated p-8 text-center">
-            <span className="text-5xl block mb-3">📝</span>
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted flex items-center justify-center">
+              <FileText className="w-8 h-8 text-muted-foreground" />
+            </div>
             <p className="text-muted-foreground">{t.empty}</p>
           </div>
         ) : (
@@ -97,7 +101,7 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
                     className="category-icon"
                     style={{ backgroundColor: `${cat.color}20` }}
                   >
-                    {cat.emoji}
+                    <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{tx.description}</p>
