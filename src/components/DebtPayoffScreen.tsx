@@ -201,7 +201,7 @@ export const DebtPayoffScreen = memo(() => {
   const totalDebt = debts.reduce((sum, d) => sum + d.remainingAmount, 0);
 
   return (
-    <div className="pb-24 px-4 pt-2 safe-top">
+    <div className="min-h-screen bg-background pb-32 px-4 pt-4">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

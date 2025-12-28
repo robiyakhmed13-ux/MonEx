@@ -142,7 +142,7 @@ export const AnalyticsScreen: React.FC = () => {
   };
 
   return (
-    <div className="screen-container pb-24">
+    <div className="screen-container pb-32">
       {/* Header */}
       <div className="safe-top px-4 pt-4 pb-6">
         <h1 className="text-title-1 text-foreground">{t.analytics}</h1>

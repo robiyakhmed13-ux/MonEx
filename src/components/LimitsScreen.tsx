@@ -47,7 +47,7 @@ export const LimitsScreen = memo(() => {
   };
   
   return (
-    <div className="screen-container pb-24 safe-top">
+    <div className="screen-container pb-32 safe-top">
       <div className="px-4 pt-2">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

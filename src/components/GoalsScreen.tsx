@@ -21,7 +21,7 @@ export const GoalsScreen: React.FC = () => {
   }, [showDepositModal, depositAmount, depositToGoal]);
 
   return (
-    <div className="screen-container pb-24">
+    <div className="screen-container pb-32">
       {/* Header */}
       <div className="safe-top px-4 pt-4 pb-6">
         <div className="flex items-center justify-between">
