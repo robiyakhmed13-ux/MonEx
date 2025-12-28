@@ -280,6 +280,7 @@ export type ScreenType =
   | "debt-assessment"
   | "reports"
   | "subscriptions"
+  | "subscriptions-add"
   | "bill-split"
   | "net-worth"
   | "investments"
