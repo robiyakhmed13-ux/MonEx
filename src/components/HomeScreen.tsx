@@ -1,12 +1,12 @@
-import React, { useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import React, { useCallback, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { formatUZS, clamp, todayISO } from "@/lib/storage";
+import { formatUZS, clamp, todayISO, safeJSON } from "@/lib/storage";
 import { VoiceInput } from "./VoiceInput";
 import { CategoryIcon } from "./CategoryIcon";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Lightbulb, Plus,
-  CreditCard, PieChart, Tv, Users, TrendingUp, FileText
+  CreditCard, PieChart, Tv, Users, TrendingUp, FileText, Edit2, X, Check
 } from "lucide-react";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
@@ -116,6 +116,34 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     { id: "taxi", categoryId: "taxi", amount: 20000 },
     { id: "shopping", categoryId: "shopping", amount: 100000 },
   ];
+
+  // State for editing quick add amounts
+  const [editingQuickAdd, setEditingQuickAdd] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [localQuickAdds, setLocalQuickAdds] = useState<typeof defaultQuickAdds>(() => {
+    const saved = safeJSON.get<typeof defaultQuickAdds>("hamyon_quickAdds", []);
+    return saved.length > 0 ? saved : quickAdds.length > 0 ? quickAdds : defaultQuickAdds;
+  });
+
+  const handleEditQuickAdd = (itemId: string, currentAmount: number) => {
+    setEditingQuickAdd(itemId);
+    setEditAmount(currentAmount.toString());
+  };
+
+  const handleSaveQuickAdd = (itemId: string) => {
+    const newAmount = parseInt(editAmount) || 0;
+    if (newAmount > 0) {
+      const updated = localQuickAdds.map(item => 
+        item.id === itemId || item.categoryId === itemId 
+          ? { ...item, amount: newAmount } 
+          : item
+      );
+      setLocalQuickAdds(updated);
+      safeJSON.set("hamyon_quickAdds", updated);
+    }
+    setEditingQuickAdd(null);
+    setEditAmount("");
+  };
   
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
@@ -368,30 +396,81 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
       <section className="mb-6">
         <h2 className="text-title-3 text-foreground mb-3">{t.quickAdd}</h2>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {(quickAdds.length > 0 ? quickAdds : defaultQuickAdds).map((item, i) => {
+          {localQuickAdds.map((item, i) => {
             const cat = getCat(item.categoryId);
+            const itemKey = item.id || item.categoryId;
+            const isEditing = editingQuickAdd === itemKey;
+            
             return (
-              <motion.button
+              <motion.div
                 key={i}
-                whileTap={{ scale: 0.95 }}
-                whileHover={{ y: -4 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                onClick={() => handleQuickAdd(item.categoryId, item.amount)}
-                className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card hover:border-primary/50'}`}
+                className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all relative ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card'}`}
               >
-                <motion.div 
-                  className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: cat.color + "20" }}
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.2 }}
+                {/* Edit Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditQuickAdd(itemKey, item.amount);
+                  }}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-secondary/80 flex items-center justify-center opacity-60 hover:opacity-100"
                 >
-                  <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
-                </motion.div>
-                <p className="text-body-sm font-medium text-foreground">{catLabel(cat)}</p>
-                <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
-              </motion.button>
+                  <Edit2 className="w-3 h-3 text-muted-foreground" />
+                </button>
+                
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleQuickAdd(item.categoryId, item.amount)}
+                  className="w-full flex flex-col items-center"
+                >
+                  <motion.div 
+                    className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: cat.color + "20" }}
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                  </motion.div>
+                  <p className="text-body-sm font-medium text-foreground">{catLabel(cat)}</p>
+                  <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
+                </motion.button>
+
+                {/* Edit Modal */}
+                <AnimatePresence>
+                  {isEditing && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="absolute inset-0 bg-card rounded-2xl border-2 border-primary p-2 flex flex-col items-center justify-center z-10"
+                    >
+                      <input
+                        type="number"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        className="w-full text-center text-sm font-medium bg-secondary rounded-lg p-2 mb-2 text-foreground"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingQuickAdd(null)}
+                          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+                        >
+                          <X className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => handleSaveQuickAdd(itemKey)}
+                          className="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
+                        >
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             );
           })}
           <motion.button
