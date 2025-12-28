@@ -6,7 +6,8 @@ import { VoiceInput } from "./VoiceInput";
 import { CategoryIcon } from "./CategoryIcon";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Lightbulb, Plus,
-  CreditCard, PieChart, Tv, Users, TrendingUp, FileText, Edit2, X, Check
+  CreditCard, PieChart, Tv, Users, TrendingUp, FileText, Edit2, X, Check,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
@@ -110,11 +111,16 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     });
   }, [addTransaction]);
 
+  // Extended default quick adds with more categories
   const defaultQuickAdds = [
     { id: "coffee", categoryId: "coffee", amount: 15000 },
     { id: "restaurants", categoryId: "restaurants", amount: 35000 },
     { id: "taxi", categoryId: "taxi", amount: 20000 },
     { id: "shopping", categoryId: "shopping", amount: 100000 },
+    { id: "groceries", categoryId: "groceries", amount: 80000 },
+    { id: "fuel", categoryId: "fuel", amount: 50000 },
+    { id: "entertainment", categoryId: "entertainment", amount: 40000 },
+    { id: "health", categoryId: "health", amount: 30000 },
   ];
 
   // State for editing quick add amounts
@@ -144,9 +150,16 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     setEditingQuickAdd(null);
     setEditAmount("");
   };
+
+  // Stepper increment/decrement for amount editing
+  const stepAmount = (delta: number) => {
+    const current = parseInt(editAmount) || 0;
+    const step = current >= 100000 ? 10000 : current >= 10000 ? 5000 : 1000;
+    setEditAmount(Math.max(1000, current + delta * step).toString());
+  };
   
   return (
-    <div className="pb-24 px-4 pt-2 safe-top">
+    <div className="pb-24 px-4 pt-2 safe-top overflow-y-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -437,7 +450,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                   <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
                 </motion.button>
 
-                {/* Edit Modal */}
+                {/* Enhanced Edit Modal with Stepper */}
                 <AnimatePresence>
                   {isEditing && (
                     <motion.div
@@ -446,13 +459,27 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                       exit={{ opacity: 0, scale: 0.9 }}
                       className="absolute inset-0 bg-card rounded-2xl border-2 border-primary p-2 flex flex-col items-center justify-center z-10"
                     >
-                      <input
-                        type="number"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
-                        className="w-full text-center text-sm font-medium bg-secondary rounded-lg p-2 mb-2 text-foreground"
-                        autoFocus
-                      />
+                      <div className="flex items-center gap-1 mb-2">
+                        <button
+                          onClick={() => stepAmount(-1)}
+                          className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center"
+                        >
+                          <ChevronDown className="w-4 h-4 text-foreground" />
+                        </button>
+                        <input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="w-16 text-center text-sm font-medium bg-secondary rounded-lg p-1.5 text-foreground"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => stepAmount(1)}
+                          className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center"
+                        >
+                          <ChevronUp className="w-4 h-4 text-foreground" />
+                        </button>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setEditingQuickAdd(null)}
@@ -494,7 +521,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
       </section>
 
-      {/* Quick Access to New Features */}
+      {/* Quick Access to New Features - Now with "Add" action */}
       <section className="mb-6">
         <h2 className="text-title-3 text-foreground mb-3">
           {lang === "ru" ? "Инструменты" : lang === "uz" ? "Asboblar" : "Tools"}
@@ -525,7 +552,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           <motion.button
             whileTap={{ scale: 0.95 }}
             whileHover={{ y: -2 }}
-            onClick={() => setActiveScreen("subscriptions")}
+            onClick={() => setActiveScreen("subscriptions-add")}
             className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/20 flex flex-col items-center gap-2"
           >
             <Tv className="w-6 h-6 text-pink-600 dark:text-pink-400" />

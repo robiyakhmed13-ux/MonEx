@@ -109,7 +109,7 @@ const HamyonApp: React.FC = () => {
         {activeScreen === "accounts" && <AccountsScreen />}
         {activeScreen === "reports" && <ReportsScreen />}
         {activeScreen === "debt-assessment" && <DebtAssessmentScreen />}
-        {activeScreen === "subscriptions" && <SubscriptionsScreen />}
+        {(activeScreen === "subscriptions" || activeScreen === "subscriptions-add") && <SubscriptionsScreen openAddForm={activeScreen === "subscriptions-add"} />}
         {activeScreen === "bill-split" && <BillSplitScreen />}
         {activeScreen === "net-worth" && <NetWorthScreen />}
         {activeScreen === "investments" && <InvestmentsScreen />}

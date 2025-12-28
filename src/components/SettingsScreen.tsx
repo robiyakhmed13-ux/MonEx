@@ -1,12 +1,11 @@
 import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { LangKey } from "@/lib/constants";
-import { ThemeToggle } from "./ThemeToggle";
 import { exportTransactionsCSV, CURRENCIES } from "@/lib/exportData";
 import { 
   ArrowLeft, Bell, RefreshCw, FileSpreadsheet, Bot, Zap, Trash2,
-  Sun, Moon, Monitor, Cloud, Smartphone, Settings2
+  Sun, Moon, Monitor, Cloud, Smartphone, Settings2, User, HelpCircle,
+  CreditCard, GraduationCap, ChevronRight, Star, Share2
 } from "lucide-react";
 
 export const SettingsScreen = memo(() => {
@@ -16,11 +15,14 @@ export const SettingsScreen = memo(() => {
     setActiveScreen, setBalance, setTransactions, setLimits, setGoals, 
     theme, setTheme, setOnboardingComplete,
     transactions, allCats, catLabel, currency, setCurrency,
-    reminderDays, setReminderDays
+    reminderDays, setReminderDays, tgUser
   } = useApp();
   
   const [resetOpen, setResetOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
+  const [showCurrency, setShowCurrency] = useState(false);
   
   const doReset = () => {
     setBalance(0);
@@ -58,16 +60,26 @@ export const SettingsScreen = memo(() => {
   };
 
   const langs = [
-    { key: "uz" as const, label: "UZ" },
-    { key: "ru" as const, label: "RU" },
-    { key: "en" as const, label: "EN" },
+    { key: "uz" as const, label: "O'zbekcha" },
+    { key: "ru" as const, label: "Русский" },
+    { key: "en" as const, label: "English" },
   ];
+
+  const themeOptions = [
+    { key: "light" as const, icon: Sun, label: lang === "ru" ? "Светлая" : lang === "uz" ? "Yorug'" : "Light" },
+    { key: "dark" as const, icon: Moon, label: lang === "ru" ? "Тёмная" : lang === "uz" ? "Tungi" : "Dark" },
+    { key: "system" as const, icon: Monitor, label: lang === "ru" ? "Авто" : lang === "uz" ? "Avto" : "Auto" },
+  ];
+
+  const getCurrentLangLabel = () => langs.find(l => l.key === lang)?.label || "English";
+  const getCurrentThemeLabel = () => themeOptions.find(t => t.key === theme)?.label || "Auto";
+  const getCurrentCurrencySymbol = () => CURRENCIES.find(c => c.code === currency)?.symbol || "UZS";
   
   return (
-    <div className="screen-container pb-24 safe-top">
-      <div className="px-4 pt-2">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+    <div className="min-h-screen bg-background pb-24 safe-top">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-6">
+        <div className="flex items-center gap-4">
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setActiveScreen("home")}
@@ -75,245 +87,201 @@ export const SettingsScreen = memo(() => {
           >
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </motion.button>
-          <div className="flex-1">
-            <h1 className="text-title-1 text-foreground">{t.settings}</h1>
-          </div>
-        </div>
-        
-        {/* Language */}
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="text-title-3 text-foreground mb-4">{t.language}</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {langs.map((l) => (
-              <button
-                key={l.key}
-                onClick={() => setLang(l.key)}
-                className={`py-3 px-4 rounded-xl font-medium transition-all ${
-                  lang === l.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Theme */}
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="text-title-3 text-foreground mb-4">
-            {lang === "ru" ? "Тема" : lang === "uz" ? "Mavzu" : "Theme"}
-          </h3>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              { key: "light" as const, icon: Sun, label: lang === "ru" ? "Светлая" : lang === "uz" ? "Yorug'" : "Light" },
-              { key: "dark" as const, icon: Moon, label: lang === "ru" ? "Тёмная" : lang === "uz" ? "Tungi" : "Dark" },
-              { key: "system" as const, icon: Monitor, label: lang === "ru" ? "Авто" : lang === "uz" ? "Avto" : "Auto" },
-            ]).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setTheme(item.key)}
-                className={`py-3 px-3 rounded-xl font-medium transition-all flex flex-col items-center gap-2 ${
-                  theme === item.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-sm">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Currency */}
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="text-title-3 text-foreground mb-4">
-            {lang === "ru" ? "Валюта" : lang === "uz" ? "Valyuta" : "Currency"}
-          </h3>
-          <div className="grid grid-cols-3 gap-2">
-            {CURRENCIES.map((c) => (
-              <button
-                key={c.code}
-                onClick={() => setCurrency(c.code)}
-                className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
-                  currency === c.code
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                <span className="text-lg font-bold">{c.symbol}</span>
-                <span className="text-sm">{c.code}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Notification Timing */}
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="text-title-3 text-foreground mb-2">
-            {lang === "ru" ? "Напоминания" : lang === "uz" ? "Eslatmalar" : "Reminders"}
-          </h3>
-          <p className="text-caption text-muted-foreground mb-4">
-            {lang === "ru" ? "За сколько дней напоминать о счетах" : lang === "uz" ? "Hisoblar haqida necha kun oldin eslatish" : "How many days before bills to remind"}
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 3, 7].map((days) => (
-              <button
-                key={days}
-                onClick={() => setReminderDays(days)}
-                className={`py-3 px-4 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${
-                  reminderDays === days
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="text-sm">
-                  {days} {lang === "ru" ? (days === 1 ? "день" : "дней") : lang === "uz" ? "kun" : (days === 1 ? "day" : "days")}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Data Mode */}
-        <div className="card-elevated p-4 mb-4">
-          <h3 className="text-title-3 text-foreground mb-2">{t.dataMode}</h3>
-          <p className="text-caption text-muted-foreground mb-4">
-            {useRemote ? "Connected to cloud" : "Offline mode"}
-          </p>
-          
-          <div className="flex gap-2 mb-4">
-            {[
-              { k: "auto", label: "Auto", icon: Settings2 },
-              { k: "local", label: "Local", icon: Smartphone },
-              { k: "remote", label: "Cloud", icon: Cloud },
-            ].map((x) => (
-              <button
-                key={x.k}
-                onClick={() => setDataMode(x.k)}
-                className={`flex-1 py-3 rounded-xl font-medium flex flex-col items-center gap-1 transition-all ${
-                  dataMode === x.k
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                <x.icon className="w-5 h-5" />
-                <span className="text-body-sm">{x.label}</span>
-              </button>
-            ))}
-          </div>
-          
-          <button onClick={syncFromRemote} className="btn-primary w-full flex items-center justify-center gap-2">
-            <RefreshCw className="w-4 h-4" />
-            {t.sync}
-          </button>
-        </div>
-        
-        {/* Export Data */}
-        <div className="card-elevated p-4 mb-4">
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="w-12 h-12 rounded-xl bg-gradient-to-br from-income/20 to-income/5 flex items-center justify-center"
-            >
-              <FileSpreadsheet className="w-6 h-6 text-income" />
-            </motion.div>
-            <div className="flex-1">
-              <p className="font-medium text-foreground">
-                {lang === "ru" ? "Экспорт данных" : lang === "uz" ? "Ma'lumotlarni eksport" : "Export Data"}
-              </p>
-              <p className="text-caption text-muted-foreground">
-                {lang === "ru" ? "Скачать CSV для бухгалтерии" : lang === "uz" ? "Buxgalteriya uchun CSV yuklab olish" : "Download CSV for accounting"}
-              </p>
-            </div>
-            <motion.button 
-              whileTap={{ scale: 0.95 }}
-              onClick={handleExportCSV} 
-              className="btn-secondary"
-            >
-              CSV
-            </motion.button>
-          </div>
-        </div>
-        
-        {/* Telegram Bot */}
-        <div className="card-elevated p-4 mb-4">
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center"
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Bot className="w-6 h-6 text-primary" />
-            </motion.div>
-            <div className="flex-1">
-              <p className="font-medium text-foreground">@hamyonmoneybot</p>
-              <p className="text-caption text-muted-foreground">{t.botHint}</p>
-            </div>
-            <motion.button 
-              whileTap={{ scale: 0.95 }}
-              onClick={openBot} 
-              className="btn-secondary"
-            >
-              {t.openBot}
-            </motion.button>
-          </div>
-        </div>
-        
-        {/* Customize Preferences */}
-        <div className="card-elevated p-4 mb-4">
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 flex items-center justify-center"
-            >
-              <Zap className="w-6 h-6 text-purple-500" />
-            </motion.div>
-            <div className="flex-1">
-              <p className="font-medium text-foreground">
-                {lang === "ru" ? "Быстрые настройки" : lang === "uz" ? "Tez sozlamalar" : "Quick Add Setup"}
-              </p>
-              <p className="text-caption text-muted-foreground">
-                {lang === "ru" ? "Перенастроить быстрые расходы" : lang === "uz" ? "Tez qo'shish tugmalarini qayta sozlash" : "Reconfigure quick add buttons"}
-              </p>
-            </div>
-            <motion.button 
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setCustomizeOpen(true)} 
-              className="btn-secondary"
-            >
-              {lang === "ru" ? "Настроить" : lang === "uz" ? "Sozlash" : "Setup"}
-            </motion.button>
-          </div>
-        </div>
-        
-        {/* Danger Zone */}
-        <div className="card-elevated p-4 border-2 border-destructive/20">
-          <h3 className="text-title-3 text-foreground mb-4">
-            {lang === "ru" ? "Опасная зона" : lang === "uz" ? "Xavfli zona" : "Danger Zone"}
-          </h3>
-          <button 
-            onClick={() => setResetOpen(true)} 
-            className="w-full py-4 rounded-xl bg-red-50 dark:bg-red-950/30 text-expense font-semibold flex items-center justify-center gap-2"
-          >
-            <Trash2 className="w-5 h-5" />
-            {t.resetLocal}
-          </button>
+          <h1 className="text-2xl font-bold text-foreground">{t.settings}</h1>
         </div>
       </div>
+
+      {/* Profile Card */}
+      <div className="px-4 mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-3xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent border border-primary/20"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-primary-foreground text-2xl font-bold">
+              {(tgUser?.first_name || "U").charAt(0)}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">{tgUser?.first_name || "User"}</h2>
+              {tgUser?.username && (
+                <p className="text-sm text-muted-foreground">@{tgUser.username}</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Plan & Referral Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+              <div className="flex items-center gap-2 mb-1">
+                <Star className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Standard</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {lang === "ru" ? "Ваш план" : lang === "uz" ? "Sizning rejangiz" : "Your plan"}
+              </p>
+            </div>
+            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+              <div className="flex items-center gap-2 mb-1">
+                <Share2 className="w-4 h-4 text-income" />
+                <span className="text-sm font-semibold text-foreground">
+                  {lang === "ru" ? "Рефералы" : lang === "uz" ? "Tavsiyalar" : "Referrals"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {lang === "ru" ? "Пригласи друзей" : lang === "uz" ? "Do'stlarni taklif qil" : "Invite friends"}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Menu Sections */}
+      <div className="px-4 space-y-4">
+        {/* Main Settings Group */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl bg-card border border-border overflow-hidden"
+        >
+          <MenuItem 
+            icon={<User className="w-5 h-5" />}
+            label={lang === "ru" ? "Язык" : lang === "uz" ? "Til" : "Language"}
+            value={getCurrentLangLabel()}
+            onClick={() => setShowLanguage(true)}
+          />
+          <MenuItem 
+            icon={theme === "dark" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            label={lang === "ru" ? "Тема" : lang === "uz" ? "Mavzu" : "Theme"}
+            value={getCurrentThemeLabel()}
+            onClick={() => setShowTheme(true)}
+          />
+          <MenuItem 
+            icon={<CreditCard className="w-5 h-5" />}
+            label={lang === "ru" ? "Валюта" : lang === "uz" ? "Valyuta" : "Currency"}
+            value={getCurrentCurrencySymbol()}
+            onClick={() => setShowCurrency(true)}
+            isLast
+          />
+        </motion.div>
+
+        {/* Data & Sync Group */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl bg-card border border-border overflow-hidden"
+        >
+          <MenuItem 
+            icon={<Cloud className="w-5 h-5" />}
+            label={lang === "ru" ? "Синхронизация" : lang === "uz" ? "Sinxronlash" : "Sync Data"}
+            value={useRemote ? "Cloud" : "Local"}
+            onClick={syncFromRemote}
+          />
+          <MenuItem 
+            icon={<FileSpreadsheet className="w-5 h-5" />}
+            label={lang === "ru" ? "Экспорт CSV" : lang === "uz" ? "CSV eksport" : "Export CSV"}
+            onClick={handleExportCSV}
+          />
+          <MenuItem 
+            icon={<Zap className="w-5 h-5" />}
+            label={lang === "ru" ? "Быстрые настройки" : lang === "uz" ? "Tez sozlamalar" : "Quick Setup"}
+            onClick={() => setCustomizeOpen(true)}
+            isLast
+          />
+        </motion.div>
+
+        {/* Help & Support Group */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl bg-card border border-border overflow-hidden"
+        >
+          <MenuItem 
+            icon={<HelpCircle className="w-5 h-5" />}
+            label={lang === "ru" ? "Помощь" : lang === "uz" ? "Yordam" : "Help"}
+            onClick={openBot}
+          />
+          <MenuItem 
+            icon={<Bot className="w-5 h-5" />}
+            label="Telegram Bot"
+            value="@hamyonmoneybot"
+            onClick={openBot}
+          />
+          <MenuItem 
+            icon={<GraduationCap className="w-5 h-5" />}
+            label={lang === "ru" ? "Обучение" : lang === "uz" ? "O'rganish" : "Learn"}
+            onClick={openBot}
+            isLast
+          />
+        </motion.div>
+
+        {/* Danger Zone */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="rounded-2xl bg-card border border-destructive/30 overflow-hidden"
+        >
+          <MenuItem 
+            icon={<Trash2 className="w-5 h-5 text-destructive" />}
+            label={t.resetLocal}
+            textColor="text-destructive"
+            onClick={() => setResetOpen(true)}
+            isLast
+          />
+        </motion.div>
+      </div>
       
+      {/* Language Picker Modal */}
+      {showLanguage && (
+        <PickerModal
+          title={lang === "ru" ? "Язык" : lang === "uz" ? "Til" : "Language"}
+          onClose={() => setShowLanguage(false)}
+          options={langs.map(l => ({ key: l.key, label: l.label }))}
+          selected={lang}
+          onSelect={(key) => { setLang(key as any); setShowLanguage(false); }}
+        />
+      )}
+
+      {/* Theme Picker Modal */}
+      {showTheme && (
+        <PickerModal
+          title={lang === "ru" ? "Тема" : lang === "uz" ? "Mavzu" : "Theme"}
+          onClose={() => setShowTheme(false)}
+          options={themeOptions.map(t => ({ key: t.key, label: t.label, icon: t.icon }))}
+          selected={theme}
+          onSelect={(key) => { setTheme(key as any); setShowTheme(false); }}
+        />
+      )}
+
+      {/* Currency Picker Modal */}
+      {showCurrency && (
+        <PickerModal
+          title={lang === "ru" ? "Валюта" : lang === "uz" ? "Valyuta" : "Currency"}
+          onClose={() => setShowCurrency(false)}
+          options={CURRENCIES.map(c => ({ key: c.code, label: `${c.symbol} ${c.code}` }))}
+          selected={currency}
+          onSelect={(key) => { setCurrency(key); setShowCurrency(false); }}
+        />
+      )}
+
       {/* Reset Confirmation */}
       {resetOpen && (
-        <div className="modal-overlay" onClick={() => setResetOpen(false)}>
-          <div 
-            className="absolute bottom-0 left-0 right-0 modal-content safe-bottom"
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setResetOpen(false)}>
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-title-2 text-foreground mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2">
               {lang === "ru" ? "Сбросить все данные?" : lang === "uz" ? "Barcha ma'lumotlarni o'chirish?" : "Reset all data?"}
             </h3>
-            <p className="text-body-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               {lang === "ru" ? "Все транзакции, бюджеты и цели будут удалены." : 
                lang === "uz" ? "Barcha tranzaksiyalar, byudjetlar va maqsadlar o'chiriladi." : 
                "This will delete all your transactions, budgets, and goals."}
@@ -322,21 +290,24 @@ export const SettingsScreen = memo(() => {
               <button onClick={() => setResetOpen(false)} className="btn-secondary flex-1">{t.cancel}</button>
               <button onClick={doReset} className="flex-1 py-4 rounded-xl bg-destructive text-destructive-foreground font-semibold">{t.delete}</button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
       
       {/* Customize Preferences Confirmation */}
       {customizeOpen && (
-        <div className="modal-overlay" onClick={() => setCustomizeOpen(false)}>
-          <div 
-            className="absolute bottom-0 left-0 right-0 modal-content safe-bottom"
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setCustomizeOpen(false)}>
+          <motion.div 
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-title-2 text-foreground mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2">
               {lang === "ru" ? "Перезапустить настройку?" : lang === "uz" ? "Qayta sozlashni boshlash?" : "Restart setup wizard?"}
             </h3>
-            <p className="text-body-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               {lang === "ru" ? "Вы сможете заново настроить быстрые расходы и предпочтения." : 
                lang === "uz" ? "Tez qo'shish va afzalliklarni qayta sozlashingiz mumkin." : 
                "You'll be able to reconfigure quick adds and preferences."}
@@ -351,7 +322,7 @@ export const SettingsScreen = memo(() => {
                 {lang === "ru" ? "Начать" : lang === "uz" ? "Boshlash" : "Start"}
               </motion.button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>
@@ -359,3 +330,78 @@ export const SettingsScreen = memo(() => {
 });
 
 SettingsScreen.displayName = "SettingsScreen";
+
+// Reusable Menu Item Component
+const MenuItem = ({ 
+  icon, 
+  label, 
+  value, 
+  onClick, 
+  isLast = false,
+  textColor = "text-foreground"
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  value?: string; 
+  onClick: () => void; 
+  isLast?: boolean;
+  textColor?: string;
+}) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors ${!isLast ? 'border-b border-border' : ''}`}
+  >
+    <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground">
+      {icon}
+    </div>
+    <span className={`flex-1 text-left font-medium ${textColor}`}>{label}</span>
+    {value && <span className="text-sm text-muted-foreground">{value}</span>}
+    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+  </button>
+);
+
+// Reusable Picker Modal
+const PickerModal = ({ 
+  title, 
+  onClose, 
+  options, 
+  selected, 
+  onSelect 
+}: { 
+  title: string; 
+  onClose: () => void; 
+  options: Array<{ key: string; label: string; icon?: React.FC<any> }>; 
+  selected: string;
+  onSelect: (key: string) => void;
+}) => (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={onClose}>
+    <motion.div 
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-xl font-bold text-foreground mb-4">{title}</h3>
+      <div className="space-y-2">
+        {options.map((opt) => {
+          const IconComp = opt.icon;
+          return (
+            <button
+              key={opt.key}
+              onClick={() => onSelect(opt.key)}
+              className={`w-full p-4 rounded-xl flex items-center gap-3 transition-all ${
+                selected === opt.key 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-secondary text-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {IconComp && <IconComp className="w-5 h-5" />}
+              <span className="font-medium">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
+  </div>
+);

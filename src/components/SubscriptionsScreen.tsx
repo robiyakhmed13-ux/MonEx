@@ -27,12 +27,16 @@ const SubscriptionIcon = memo(({ iconId, className }: { iconId: string; classNam
 });
 SubscriptionIcon.displayName = "SubscriptionIcon";
 
-export const SubscriptionsScreen = memo(() => {
+interface SubscriptionsScreenProps {
+  openAddForm?: boolean;
+}
+
+export const SubscriptionsScreen = memo(({ openAddForm = false }: SubscriptionsScreenProps) => {
   const { lang, currency, showToast, setActiveScreen } = useApp();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => 
     safeJSON.get("hamyon_subscriptions", [])
   );
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(openAddForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   
   // Form state
