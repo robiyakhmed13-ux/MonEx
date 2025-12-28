@@ -286,4 +286,5 @@ export type ScreenType =
   | "investments"
   | "envelopes"
   | "cash-flow"
-  | "debt-payoff";
+  | "debt-payoff"
+  | "more";
