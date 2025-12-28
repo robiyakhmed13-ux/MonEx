@@ -76,7 +76,7 @@ export const SettingsScreen = memo(() => {
   const getCurrentCurrencySymbol = () => CURRENCIES.find(c => c.code === currency)?.symbol || "UZS";
   
   return (
-    <div className="min-h-screen bg-background pb-24 safe-top">
+    <div className="min-h-screen bg-background pb-32 safe-top">
       {/* Header */}
       <div className="px-4 pt-4 pb-6">
         <div className="flex items-center gap-4">

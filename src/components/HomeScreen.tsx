@@ -159,7 +159,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
   };
   
   return (
-    <div className="pb-24 px-4 pt-2 safe-top overflow-y-auto">
+    <div className="min-h-screen bg-background pb-32 px-4 pt-4 overflow-y-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

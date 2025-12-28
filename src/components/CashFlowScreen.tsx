@@ -160,7 +160,7 @@ export const CashFlowScreen = memo(() => {
   const totalOutflows = forecast.reduce((s, f) => s + f.outflows, 0);
 
   return (
-    <div className="pb-24 px-4 pt-2 safe-top">
+    <div className="min-h-screen bg-background pb-32 px-4 pt-4">
       {/* Header */}
       <header className="flex items-center gap-3 mb-6">
         <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
