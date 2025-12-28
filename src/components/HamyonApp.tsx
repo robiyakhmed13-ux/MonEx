@@ -26,6 +26,7 @@ const InvestmentsScreen = lazy(() => import("@/components/InvestmentsScreen").th
 const CashFlowScreen = lazy(() => import("@/components/CashFlowScreen").then(m => ({ default: m.CashFlowScreen })));
 const EnvelopesScreen = lazy(() => import("@/components/EnvelopesScreen").then(m => ({ default: m.EnvelopesScreen })));
 const DebtPayoffScreen = lazy(() => import("@/components/DebtPayoffScreen").then(m => ({ default: m.DebtPayoffScreen })));
+const MoreScreen = lazy(() => import("@/components/MoreScreen").then(m => ({ default: m.MoreScreen })));
 
 const LoadingFallback = () => (
   <div className="screen-container flex items-center justify-center">
@@ -116,6 +117,7 @@ const HamyonApp: React.FC = () => {
         {activeScreen === "cash-flow" && <CashFlowScreen />}
         {activeScreen === "envelopes" && <EnvelopesScreen />}
         {activeScreen === "debt-payoff" && <DebtPayoffScreen />}
+        {activeScreen === "more" && <MoreScreen />}
       </Suspense>
       
       {/* Bottom Navigation */}

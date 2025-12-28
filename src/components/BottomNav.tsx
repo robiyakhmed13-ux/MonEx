@@ -218,6 +218,41 @@ const AnimatedReportsIcon = ({ isActive }: { isActive: boolean }) => (
   </motion.svg>
 );
 
+// Animated More Icon
+const AnimatedMoreIcon = ({ isActive }: { isActive: boolean }) => (
+  <motion.svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <motion.rect 
+      x="3" y="3" width="7" height="7" rx="1"
+      animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+      transition={{ duration: 0.6, repeat: isActive ? Infinity : 0, repeatDelay: 0.5 }}
+    />
+    <motion.rect 
+      x="14" y="3" width="7" height="7" rx="1"
+      animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+      transition={{ duration: 0.6, delay: 0.1, repeat: isActive ? Infinity : 0, repeatDelay: 0.5 }}
+    />
+    <motion.rect 
+      x="3" y="14" width="7" height="7" rx="1"
+      animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+      transition={{ duration: 0.6, delay: 0.2, repeat: isActive ? Infinity : 0, repeatDelay: 0.5 }}
+    />
+    <motion.rect 
+      x="14" y="14" width="7" height="7" rx="1"
+      animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+      transition={{ duration: 0.6, delay: 0.3, repeat: isActive ? Infinity : 0, repeatDelay: 0.5 }}
+    />
+  </motion.svg>
+);
+
 const NAV_ITEMS: NavItem[] = [
   { 
     screen: "home", 
@@ -232,39 +267,15 @@ const NAV_ITEMS: NavItem[] = [
     gradient: "from-purple-500 to-pink-500"
   },
   { 
-    screen: "analytics", 
-    label: (t) => t.analytics, 
-    icon: <AnimatedAnalyticsIcon isActive={false} />,
-    gradient: "from-amber-500 to-orange-500"
-  },
-  { 
-    screen: "limits", 
-    label: (t) => t.limits || "Limits", 
-    icon: <AnimatedLimitsIcon isActive={false} />,
-    gradient: "from-red-500 to-rose-500"
-  },
-  { 
     screen: "goals", 
     label: (t) => t.goals || "Goals", 
     icon: <AnimatedGoalsIcon isActive={false} />,
     gradient: "from-emerald-500 to-teal-500"
   },
   { 
-    screen: "accounts", 
-    label: (t) => t.accounts || "Accounts", 
-    icon: <AnimatedAccountsIcon isActive={false} />,
-    gradient: "from-cyan-500 to-blue-500"
-  },
-  { 
-    screen: "reports", 
-    label: (t) => t.reports || "Reports", 
-    icon: <AnimatedReportsIcon isActive={false} />,
-    gradient: "from-violet-500 to-purple-500"
-  },
-  { 
-    screen: "settings", 
-    label: (t) => t.settings, 
-    icon: <AnimatedSettingsIcon isActive={false} />,
+    screen: "more", 
+    label: (t) => t.more || "More", 
+    icon: <AnimatedMoreIcon isActive={false} />,
     gradient: "from-slate-500 to-zinc-600"
   },
 ];
@@ -351,18 +362,10 @@ const NavButton: React.FC<NavButtonProps> = ({ item, isActive, onClick, t }) => 
         return <AnimatedHomeIcon isActive={isActive} />;
       case "transactions":
         return <AnimatedTransactionsIcon isActive={isActive} />;
-      case "analytics":
-        return <AnimatedAnalyticsIcon isActive={isActive} />;
-      case "limits":
-        return <AnimatedLimitsIcon isActive={isActive} />;
       case "goals":
         return <AnimatedGoalsIcon isActive={isActive} />;
-      case "accounts":
-        return <AnimatedAccountsIcon isActive={isActive} />;
-      case "reports":
-        return <AnimatedReportsIcon isActive={isActive} />;
-      case "settings":
-        return <AnimatedSettingsIcon isActive={isActive} />;
+      case "more":
+        return <AnimatedMoreIcon isActive={isActive} />;
       default:
         return null;
     }
