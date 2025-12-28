@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const TelegramBot = require('node-telegram-bot-api');
 const { v4: uuidv4 } = require('uuid');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,19 +15,94 @@ const MINI_APP_URL = process.env.MINI_APP_URL || 'https://your-app.vercel.app';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 
+// PostgreSQL connection
+const DATABASE_URL = process.env.DATABASE_URL;
+let pool = null;
+
+if (DATABASE_URL) {
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+  console.log('PostgreSQL connection configured');
+}
+
+// Initialize database tables
+async function initDatabase() {
+  if (!pool) {
+    console.log('No DATABASE_URL - using in-memory storage (data will be lost on restart)');
+    return;
+  }
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT UNIQUE NOT NULL,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        username VARCHAR(255),
+        lang VARCHAR(10) DEFAULT 'uz',
+        balance DECIMAL(20, 2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+        type VARCHAR(20) NOT NULL,
+        amount DECIMAL(20, 2) NOT NULL,
+        description TEXT,
+        category_id VARCHAR(50) DEFAULT 'other',
+        date DATE DEFAULT CURRENT_DATE,
+        time TIME DEFAULT CURRENT_TIME,
+        source VARCHAR(50) DEFAULT 'app',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS limits (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+        category_id VARCHAR(50) NOT NULL,
+        amount DECIMAL(20, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS goals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        target_amount DECIMAL(20, 2) NOT NULL,
+        current_amount DECIMAL(20, 2) DEFAULT 0,
+        emoji VARCHAR(50) DEFAULT '🎯',
+        deadline DATE,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_telegram_id);
+      CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+      CREATE INDEX IF NOT EXISTS idx_limits_user ON limits(user_telegram_id);
+      CREATE INDEX IF NOT EXISTS idx_goals_user ON goals(user_telegram_id);
+    `);
+    console.log('Database tables initialized');
+  } catch (error) {
+    console.error('Error initializing database:', error);
+  }
+}
+
+// Fallback in-memory storage (when no DATABASE_URL)
+const usersMemory = new Map();
+const transactionsMemory = new Map();
+
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Increased for image uploads
-
-// In-memory storage (replace with database in production)
-const users = new Map();
-const transactions = new Map();
+app.use(express.json({ limit: '10mb' }));
 
 // Initialize bot
 let bot;
 if (BOT_TOKEN) {
   bot = new TelegramBot(BOT_TOKEN);
-  
   if (WEBHOOK_URL) {
     bot.setWebHook(`${WEBHOOK_URL}/webhook`);
   }
@@ -282,33 +358,188 @@ app.post('/api/get-stock-price', async (req, res) => {
 });
 
 // =====================================================
-// TELEGRAM BOT (Existing functionality)
+// DATABASE HELPER FUNCTIONS
+// =====================================================
+
+async function getUser(telegramId) {
+  if (!pool) {
+    return usersMemory.get(telegramId) || null;
+  }
+  const result = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+  return result.rows[0] || null;
+}
+
+async function upsertUser(telegramId, data) {
+  if (!pool) {
+    const existing = usersMemory.get(telegramId);
+    const user = {
+      id: telegramId,
+      telegram_id: telegramId,
+      first_name: data.firstName || existing?.first_name,
+      last_name: data.lastName || existing?.last_name,
+      username: data.username || existing?.username,
+      lang: data.lang || existing?.lang || 'uz',
+      balance: existing?.balance || 0,
+      created_at: existing?.created_at || new Date().toISOString(),
+    };
+    usersMemory.set(telegramId, user);
+    if (!transactionsMemory.has(telegramId)) {
+      transactionsMemory.set(telegramId, []);
+    }
+    return user;
+  }
+
+  const result = await pool.query(`
+    INSERT INTO users (telegram_id, first_name, last_name, username, lang)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (telegram_id) DO UPDATE SET
+      first_name = COALESCE($2, users.first_name),
+      last_name = COALESCE($3, users.last_name),
+      username = COALESCE($4, users.username),
+      lang = COALESCE($5, users.lang),
+      updated_at = NOW()
+    RETURNING *
+  `, [telegramId, data.firstName, data.lastName, data.username, data.lang]);
+  return result.rows[0];
+}
+
+async function updateUserBalance(telegramId, delta) {
+  if (!pool) {
+    const user = usersMemory.get(telegramId);
+    if (user) {
+      user.balance = (user.balance || 0) + delta;
+      usersMemory.set(telegramId, user);
+    }
+    return user;
+  }
+
+  const result = await pool.query(
+    'UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE telegram_id = $2 RETURNING *',
+    [delta, telegramId]
+  );
+  return result.rows[0];
+}
+
+async function getUserTransactions(telegramId, limit = 200) {
+  if (!pool) {
+    return (transactionsMemory.get(telegramId) || []).slice(0, limit);
+  }
+
+  const result = await pool.query(`
+    SELECT id, type, amount, description, category_id as "categoryId", 
+           date::text, time::text, source, created_at
+    FROM transactions 
+    WHERE user_telegram_id = $1 
+    ORDER BY created_at DESC 
+    LIMIT $2
+  `, [telegramId, limit]);
+  return result.rows;
+}
+
+async function addTransaction(telegramId, tx) {
+  if (!pool) {
+    const userTx = transactionsMemory.get(telegramId) || [];
+    const newTx = {
+      id: uuidv4(),
+      type: tx.type || (tx.amount < 0 ? 'expense' : 'income'),
+      amount: Number(tx.amount),
+      description: tx.description || '',
+      categoryId: tx.categoryId || 'other',
+      date: tx.date || new Date().toISOString().slice(0, 10),
+      time: tx.time || new Date().toISOString().slice(11, 16),
+      source: tx.source || 'api',
+    };
+    userTx.unshift(newTx);
+    transactionsMemory.set(telegramId, userTx);
+    
+    // Update balance
+    const user = usersMemory.get(telegramId);
+    if (user) {
+      user.balance = (user.balance || 0) + newTx.amount;
+      usersMemory.set(telegramId, user);
+    }
+    return newTx;
+  }
+
+  const result = await pool.query(`
+    INSERT INTO transactions (user_telegram_id, type, amount, description, category_id, date, time, source)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id, type, amount, description, category_id as "categoryId", date::text, time::text, source
+  `, [
+    telegramId,
+    tx.type || (tx.amount < 0 ? 'expense' : 'income'),
+    tx.amount,
+    tx.description || '',
+    tx.categoryId || 'other',
+    tx.date || new Date().toISOString().slice(0, 10),
+    tx.time || new Date().toISOString().slice(11, 16),
+    tx.source || 'api'
+  ]);
+
+  // Update user balance
+  await updateUserBalance(telegramId, tx.amount);
+
+  return result.rows[0];
+}
+
+async function deleteTransaction(telegramId, txId) {
+  if (!pool) {
+    const userTx = transactionsMemory.get(telegramId) || [];
+    const txIndex = userTx.findIndex(tx => tx.id === txId);
+    if (txIndex === -1) return null;
+    
+    const [deleted] = userTx.splice(txIndex, 1);
+    transactionsMemory.set(telegramId, userTx);
+    
+    // Update balance
+    const user = usersMemory.get(telegramId);
+    if (user) {
+      user.balance = (user.balance || 0) - deleted.amount;
+      usersMemory.set(telegramId, user);
+    }
+    return deleted;
+  }
+
+  // Get amount before delete
+  const txResult = await pool.query('SELECT amount FROM transactions WHERE id = $1 AND user_telegram_id = $2', [txId, telegramId]);
+  if (txResult.rows.length === 0) return null;
+
+  const amount = parseFloat(txResult.rows[0].amount);
+  
+  await pool.query('DELETE FROM transactions WHERE id = $1 AND user_telegram_id = $2', [txId, telegramId]);
+  await updateUserBalance(telegramId, -amount);
+
+  return { id: txId, amount };
+}
+
+// =====================================================
+// TELEGRAM BOT HANDLERS
 // =====================================================
 
 const COMMANDS = {
   uz: {
-    start: "Salom! 👋 Men Hamyon botiman - moliyaviy yordamchingiz.\n\n💰 Xarajatlaringizni kuzatish uchun quyidagi buyruqlardan foydalaning:",
-    help: "📚 *Buyruqlar:*\n\n/start - Boshlash\n/balance - Balansni ko'rish\n/add - Tranzaksiya qo'shish\n/stats - Statistika\n/app - Mini ilovani ochish",
-    balance: "💰 Sizning balansingiz:",
+    start: "Salom! Men Hamyon botiman - moliyaviy yordamchingiz.\n\nXarajatlaringizni kuzatish uchun quyidagi buyruqlardan foydalaning:",
+    help: "*Buyruqlar:*\n\n/start - Boshlash\n/balance - Balansni ko'rish\n/add - Tranzaksiya qo'shish\n/stats - Statistika\n/app - Mini ilovani ochish",
+    balance: "Sizning balansingiz:",
     addPrompt: "Tranzaksiya qo'shish:\n\nFormat: `summa tavsif`\nMasalan: `50000 taksi` yoki `-30000 tushlik`",
-    added: "✅ Tranzaksiya qo'shildi!",
-    stats: "📊 Sizning statistikangiz:",
+    added: "Tranzaksiya qo'shildi!",
+    stats: "Sizning statistikangiz:",
   },
   ru: {
-    start: "Привет! 👋 Я Hamyon бот - ваш финансовый помощник.\n\n💰 Используйте команды для отслеживания расходов:",
-    help: "📚 *Команды:*\n\n/start - Начать\n/balance - Баланс\n/add - Добавить транзакцию\n/stats - Статистика\n/app - Открыть приложение",
-    balance: "💰 Ваш баланс:",
+    start: "Привет! Я Hamyon бот - ваш финансовый помощник.\n\nИспользуйте команды для отслеживания расходов:",
+    help: "*Команды:*\n\n/start - Начать\n/balance - Баланс\n/add - Добавить транзакцию\n/stats - Статистика\n/app - Открыть приложение",
+    balance: "Ваш баланс:",
     addPrompt: "Добавить транзакцию:\n\nФормат: `сумма описание`\nПример: `50000 такси` или `-30000 обед`",
-    added: "✅ Транзакция добавлена!",
-    stats: "📊 Ваша статистика:",
+    added: "Транзакция добавлена!",
+    stats: "Ваша статистика:",
   },
   en: {
-    start: "Hello! 👋 I'm Hamyon bot - your financial assistant.\n\n💰 Use commands to track your expenses:",
-    help: "📚 *Commands:*\n\n/start - Start\n/balance - Check balance\n/add - Add transaction\n/stats - Statistics\n/app - Open Mini App",
-    balance: "💰 Your balance:",
+    start: "Hello! I'm Hamyon bot - your financial assistant.\n\nUse commands to track your expenses:",
+    help: "*Commands:*\n\n/start - Start\n/balance - Check balance\n/add - Add transaction\n/stats - Statistics\n/app - Open Mini App",
+    balance: "Your balance:",
     addPrompt: "Add transaction:\n\nFormat: `amount description`\nExample: `50000 taxi` or `-30000 lunch`",
-    added: "✅ Transaction added!",
-    stats: "📊 Your statistics:",
+    added: "Transaction added!",
+    stats: "Your statistics:",
   },
 };
 
@@ -335,41 +566,37 @@ function detectCategory(text) {
   return 'other';
 }
 
-function getUserLang(userId) {
-  const user = users.get(userId);
+async function getUserLang(telegramId) {
+  const user = await getUser(telegramId);
   return user?.lang || 'uz';
 }
 
-function getT(userId) {
-  return COMMANDS[getUserLang(userId)] || COMMANDS.uz;
+async function getT(telegramId) {
+  const lang = await getUserLang(telegramId);
+  return COMMANDS[lang] || COMMANDS.uz;
 }
 
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const text = msg.text || '';
-  const t = getT(userId);
+  const t = await getT(userId);
   
-  if (!users.has(userId)) {
-    users.set(userId, {
-      id: userId,
-      firstName: msg.from.first_name,
-      lastName: msg.from.last_name,
-      username: msg.from.username,
-      lang: msg.from.language_code?.startsWith('ru') ? 'ru' : 'uz',
-      balance: 0,
-      createdAt: new Date().toISOString(),
-    });
-    transactions.set(userId, []);
-  }
+  // Ensure user exists
+  await upsertUser(userId, {
+    firstName: msg.from.first_name,
+    lastName: msg.from.last_name,
+    username: msg.from.username,
+    lang: msg.from.language_code?.startsWith('ru') ? 'ru' : 'uz',
+  });
   
   if (text.startsWith('/start')) {
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '📱 Open App', web_app: { url: MINI_APP_URL } }],
-          [{ text: '➕ Add Transaction', callback_data: 'add' }],
-          [{ text: '💰 Balance', callback_data: 'balance' }, { text: '📊 Stats', callback_data: 'stats' }],
+          [{ text: 'Open App', web_app: { url: MINI_APP_URL } }],
+          [{ text: 'Add Transaction', callback_data: 'add' }],
+          [{ text: 'Balance', callback_data: 'balance' }, { text: 'Stats', callback_data: 'stats' }],
         ],
       },
     };
@@ -383,8 +610,8 @@ async function handleMessage(msg) {
   }
   
   if (text.startsWith('/balance')) {
-    const user = users.get(userId);
-    await bot.sendMessage(chatId, `${t.balance} *${user.balance.toLocaleString()} UZS*`, { parse_mode: 'Markdown' });
+    const user = await getUser(userId);
+    await bot.sendMessage(chatId, `${t.balance} *${(user?.balance || 0).toLocaleString()} UZS*`, { parse_mode: 'Markdown' });
     return;
   }
   
@@ -394,57 +621,47 @@ async function handleMessage(msg) {
   }
   
   if (text.startsWith('/stats')) {
-    const userTx = transactions.get(userId) || [];
+    const userTx = await getUserTransactions(userId);
     const thisMonth = new Date().toISOString().slice(0, 7);
     const monthTx = userTx.filter(tx => tx.date.startsWith(thisMonth));
     
-    const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
-    const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + parseFloat(tx.amount), 0);
+    const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(parseFloat(tx.amount)), 0);
     
     await bot.sendMessage(chatId, 
-      `${t.stats}\n\n💚 Income: *${income.toLocaleString()}* UZS\n❤️ Expenses: *${expenses.toLocaleString()}* UZS\n\n📝 Transactions: ${monthTx.length}`,
+      `${t.stats}\n\nIncome: *${income.toLocaleString()}* UZS\nExpenses: *${expenses.toLocaleString()}* UZS\n\nTransactions: ${monthTx.length}`,
       { parse_mode: 'Markdown' }
     );
     return;
   }
   
   if (text.startsWith('/app')) {
-    await bot.sendMessage(chatId, '📱 Open the app:', {
+    await bot.sendMessage(chatId, 'Open the app:', {
       reply_markup: {
-        inline_keyboard: [[{ text: '🚀 Open Hamyon', web_app: { url: MINI_APP_URL } }]],
+        inline_keyboard: [[{ text: 'Open Hamyon', web_app: { url: MINI_APP_URL } }]],
       },
     });
     return;
   }
   
+  // Handle transaction input
   const match = text.match(/^(-?\d+(?:\s*\d+)*)\s*(.*)$/);
   if (match) {
     const amount = parseInt(match[1].replace(/\s/g, ''));
     const description = match[2].trim() || 'Transaction';
     const categoryId = detectCategory(description);
     
-    const tx = {
-      id: uuidv4(),
+    const tx = await addTransaction(userId, {
       type: amount < 0 ? 'expense' : 'income',
-      amount: amount,
+      amount,
       description,
       categoryId,
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toISOString().slice(11, 16),
       source: 'bot',
-    };
+    });
     
-    const userTx = transactions.get(userId) || [];
-    userTx.unshift(tx);
-    transactions.set(userId, userTx);
-    
-    const user = users.get(userId);
-    user.balance += amount;
-    users.set(userId, user);
-    
-    const emoji = amount < 0 ? '❤️' : '💚';
+    const icon = amount < 0 ? '−' : '+';
     await bot.sendMessage(chatId, 
-      `${t.added}\n\n${emoji} *${Math.abs(amount).toLocaleString()}* UZS\n📝 ${description}\n📁 ${categoryId}`,
+      `${t.added}\n\n${icon} *${Math.abs(amount).toLocaleString()}* UZS\n${description}\n${categoryId}`,
       { parse_mode: 'Markdown' }
     );
     return;
@@ -455,23 +672,23 @@ async function handleCallback(query) {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
   const data = query.data;
-  const t = getT(userId);
+  const t = await getT(userId);
   
   if (data === 'add') {
     await bot.sendMessage(chatId, t.addPrompt, { parse_mode: 'Markdown' });
   } else if (data === 'balance') {
-    const user = users.get(userId);
+    const user = await getUser(userId);
     await bot.sendMessage(chatId, `${t.balance} *${(user?.balance || 0).toLocaleString()} UZS*`, { parse_mode: 'Markdown' });
   } else if (data === 'stats') {
-    const userTx = transactions.get(userId) || [];
+    const userTx = await getUserTransactions(userId);
     const thisMonth = new Date().toISOString().slice(0, 7);
     const monthTx = userTx.filter(tx => tx.date.startsWith(thisMonth));
     
-    const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
-    const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+    const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + parseFloat(tx.amount), 0);
+    const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(parseFloat(tx.amount)), 0);
     
     await bot.sendMessage(chatId, 
-      `${t.stats}\n\n💚 Income: *${income.toLocaleString()}* UZS\n❤️ Expenses: *${expenses.toLocaleString()}* UZS`,
+      `${t.stats}\n\nIncome: *${income.toLocaleString()}* UZS\nExpenses: *${expenses.toLocaleString()}* UZS`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -484,7 +701,11 @@ async function handleCallback(query) {
 // =====================================================
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: pool ? 'postgresql' : 'in-memory'
+  });
 });
 
 app.post('/webhook', async (req, res) => {
@@ -517,140 +738,133 @@ app.get('/setWebhook', async (req, res) => {
   }
 });
 
-app.get('/api/user/:telegramId', (req, res) => {
-  const userId = parseInt(req.params.telegramId);
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+app.get('/api/user/:telegramId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.telegramId);
+    const user = await getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error getting user:', error);
+    res.status(500).json({ error: error.message });
   }
-  
-  res.json(user);
 });
 
-app.post('/api/user', (req, res) => {
-  const { telegramId, firstName, lastName, username, lang } = req.body;
-  
-  if (!telegramId) {
-    return res.status(400).json({ error: 'telegramId required' });
+app.post('/api/user', async (req, res) => {
+  try {
+    const { telegramId, firstName, lastName, username, lang } = req.body;
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    const user = await upsertUser(telegramId, { firstName, lastName, username, lang });
+    res.json(user);
+  } catch (error) {
+    console.error('Error upserting user:', error);
+    res.status(500).json({ error: error.message });
   }
-  
-  const existing = users.get(telegramId);
-  const user = {
-    id: telegramId,
-    firstName: firstName || existing?.firstName,
-    lastName: lastName || existing?.lastName,
-    username: username || existing?.username,
-    lang: lang || existing?.lang || 'uz',
-    balance: existing?.balance || 0,
-    createdAt: existing?.createdAt || new Date().toISOString(),
-  };
-  
-  users.set(telegramId, user);
-  
-  if (!transactions.has(telegramId)) {
-    transactions.set(telegramId, []);
-  }
-  
-  res.json(user);
 });
 
-app.get('/api/transactions/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const userTx = transactions.get(userId) || [];
-  
-  res.json(userTx);
+app.get('/api/transactions/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const userTx = await getUserTransactions(userId);
+    res.json(userTx);
+  } catch (error) {
+    console.error('Error getting transactions:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/transaction', (req, res) => {
-  const { userId, amount, description, categoryId, type } = req.body;
-  
-  if (!userId || amount === undefined) {
-    return res.status(400).json({ error: 'userId and amount required' });
+app.post('/api/transaction', async (req, res) => {
+  try {
+    const { userId, amount, description, categoryId, type } = req.body;
+    
+    if (!userId || amount === undefined) {
+      return res.status(400).json({ error: 'userId and amount required' });
+    }
+    
+    const tx = await addTransaction(userId, {
+      type: type || (amount < 0 ? 'expense' : 'income'),
+      amount: Number(amount),
+      description,
+      categoryId,
+      source: 'api',
+    });
+    
+    res.json(tx);
+  } catch (error) {
+    console.error('Error adding transaction:', error);
+    res.status(500).json({ error: error.message });
   }
-  
-  const tx = {
-    id: uuidv4(),
-    type: type || (amount < 0 ? 'expense' : 'income'),
-    amount: Number(amount),
-    description: description || '',
-    categoryId: categoryId || 'other',
-    date: new Date().toISOString().slice(0, 10),
-    time: new Date().toISOString().slice(11, 16),
-    source: 'api',
-  };
-  
-  const userTx = transactions.get(userId) || [];
-  userTx.unshift(tx);
-  transactions.set(userId, userTx);
-  
-  const user = users.get(userId);
-  if (user) {
-    user.balance += tx.amount;
-    users.set(userId, user);
-  }
-  
-  res.json(tx);
 });
 
-app.delete('/api/transaction/:id', (req, res) => {
-  const txId = req.params.id;
-  const userId = parseInt(req.query.userId);
-  
-  if (!userId) {
-    return res.status(400).json({ error: 'userId required' });
+app.delete('/api/transaction/:id', async (req, res) => {
+  try {
+    const txId = req.params.id;
+    const userId = parseInt(req.query.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+    
+    const deleted = await deleteTransaction(userId, txId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+    
+    res.json({ success: true, deleted });
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    res.status(500).json({ error: error.message });
   }
-  
-  const userTx = transactions.get(userId) || [];
-  const txIndex = userTx.findIndex(tx => tx.id === txId);
-  
-  if (txIndex === -1) {
-    return res.status(404).json({ error: 'Transaction not found' });
-  }
-  
-  const [deleted] = userTx.splice(txIndex, 1);
-  transactions.set(userId, userTx);
-  
-  const user = users.get(userId);
-  if (user) {
-    user.balance -= deleted.amount;
-    users.set(userId, user);
-  }
-  
-  res.json({ success: true, deleted });
 });
 
-app.get('/api/stats/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const userTx = transactions.get(userId) || [];
-  const user = users.get(userId);
-  
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const monthTx = userTx.filter(tx => tx.date.startsWith(thisMonth));
-  
-  const income = monthTx.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
-  const expenses = monthTx.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
-  
-  const categories = {};
-  monthTx.filter(tx => tx.amount < 0).forEach(tx => {
-    categories[tx.categoryId] = (categories[tx.categoryId] || 0) + Math.abs(tx.amount);
-  });
-  
-  res.json({
-    balance: user?.balance || 0,
-    monthlyIncome: income,
-    monthlyExpenses: expenses,
-    netSavings: income - expenses,
-    transactionCount: monthTx.length,
-    categoryBreakdown: categories,
-  });
+app.get('/api/stats/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const userTx = await getUserTransactions(userId);
+    const user = await getUser(userId);
+    
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const monthTx = userTx.filter(tx => tx.date.startsWith(thisMonth));
+    
+    const income = monthTx.filter(tx => parseFloat(tx.amount) > 0).reduce((s, tx) => s + parseFloat(tx.amount), 0);
+    const expenses = monthTx.filter(tx => parseFloat(tx.amount) < 0).reduce((s, tx) => s + Math.abs(parseFloat(tx.amount)), 0);
+    
+    const categories = {};
+    monthTx.filter(tx => parseFloat(tx.amount) < 0).forEach(tx => {
+      categories[tx.categoryId] = (categories[tx.categoryId] || 0) + Math.abs(parseFloat(tx.amount));
+    });
+    
+    res.json({
+      balance: parseFloat(user?.balance || 0),
+      monthlyIncome: income,
+      monthlyExpenses: expenses,
+      netSavings: income - expenses,
+      transactionCount: monthTx.length,
+      categoryBreakdown: categories,
+    });
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Hamyon Backend running on port ${PORT}`);
-  console.log(`📱 Mini App URL: ${MINI_APP_URL}`);
-  if (WEBHOOK_URL) {
-    console.log(`🔗 Webhook URL: ${WEBHOOK_URL}/webhook`);
-  }
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Hamyon Backend running on port ${PORT}`);
+    console.log(`Mini App URL: ${MINI_APP_URL}`);
+    console.log(`Database: ${pool ? 'PostgreSQL' : 'In-memory (add DATABASE_URL for persistence)'}`);
+    if (WEBHOOK_URL) {
+      console.log(`Webhook URL: ${WEBHOOK_URL}/webhook`);
+    }
+  });
 });

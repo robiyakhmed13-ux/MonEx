@@ -1,18 +1,23 @@
 import React, { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { formatUZS, clamp, todayISO, startOfWeekISO } from "@/lib/storage";
+import { formatUZS, clamp, todayISO } from "@/lib/storage";
 import { VoiceInput } from "./VoiceInput";
+import { CategoryIcon } from "./CategoryIcon";
+import { 
+  RefreshCw, ArrowDown, ArrowUp, Lightbulb, Plus,
+  CreditCard, PieChart, Tv, Users, TrendingUp, FileText
+} from "lucide-react";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
   const { 
     t, lang, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
     limits, monthSpentByCategory, getCat, catLabel, addTransaction,
-    transactions, setActiveScreen, syncFromRemote, allCats, quickAdds
+    transactions, setActiveScreen, syncFromRemote, quickAdds
   } = useApp();
   
   // Calculate last week's spending for comparison
-  const { lastWeekSpend, weekChange, topSpendingCategory, smartTip } = useMemo(() => {
+  const { lastWeekSpend, weekChange, smartTip } = useMemo(() => {
     const today = new Date();
     const thisWeekStart = new Date(today);
     thisWeekStart.setDate(today.getDate() - today.getDay());
@@ -30,11 +35,9 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     
     transactions.forEach(tx => {
       if (tx.amount < 0) {
-        // Last week
         if (tx.date >= lastWeekStartStr && tx.date <= lastWeekEndStr) {
           lastWeek += Math.abs(tx.amount);
         }
-        // Category tracking for this month
         const month = new Date().toISOString().slice(0, 7);
         if (tx.date.startsWith(month)) {
           categorySpend[tx.categoryId] = (categorySpend[tx.categoryId] || 0) + Math.abs(tx.amount);
@@ -61,21 +64,21 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             lang === "uz" ? "Xarajatlar odatdagidan yuqori. Kamroq sarflang" :
             "Spending is higher than usual. Try to cut back";
     } else if (change < -10) {
-      tip = lang === "ru" ? "Отлично! Вы экономите больше обычного 🎉" :
-            lang === "uz" ? "Ajoyib! Siz odatdagidan ko'proq tejayapsiz 🎉" :
-            "Great job! You're saving more than usual 🎉";
+      tip = lang === "ru" ? "Отлично! Вы экономите больше обычного" :
+            lang === "uz" ? "Ajoyib! Siz odatdagidan ko'proq tejayapsiz" :
+            "Great job! You're saving more than usual";
     } else if (topCat && topAmount > monthSpend * 0.4) {
       const cat = getCat(topCat);
-      tip = lang === "ru" ? `${cat.emoji} ${catLabel(cat)} составляет 40%+ расходов` :
-            lang === "uz" ? `${cat.emoji} ${catLabel(cat)} xarajatlarning 40%+` :
-            `${cat.emoji} ${catLabel(cat)} is 40%+ of your spending`;
+      tip = lang === "ru" ? `${catLabel(cat)} составляет 40%+ расходов` :
+            lang === "uz" ? `${catLabel(cat)} xarajatlarning 40%+` :
+            `${catLabel(cat)} is 40%+ of your spending`;
     } else {
       tip = lang === "ru" ? "Продолжайте отслеживать расходы!" :
             lang === "uz" ? "Xarajatlarni kuzatishda davom eting!" :
             "Keep tracking your spending!";
     }
     
-    return { lastWeekSpend: lastWeek, weekChange: change, topSpendingCategory: topCat, smartTip: tip };
+    return { lastWeekSpend: lastWeek, weekChange: change, smartTip: tip };
   }, [transactions, weekSpend, monthSpend, getCat, catLabel, lang]);
   
   // Quick add handler
@@ -106,6 +109,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
       source: "voice",
     });
   }, [addTransaction]);
+
+  const defaultQuickAdds = [
+    { id: "coffee", categoryId: "coffee", amount: 15000 },
+    { id: "restaurants", categoryId: "restaurants", amount: 35000 },
+    { id: "taxi", categoryId: "taxi", amount: 20000 },
+    { id: "shopping", categoryId: "shopping", amount: 100000 },
+  ];
   
   return (
     <div className="pb-24 px-4 pt-2 safe-top">
@@ -125,20 +135,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Voice Input Button */}
           <VoiceInput onTransactionParsed={handleVoiceTransaction} />
           <motion.button 
             whileTap={{ scale: 0.95 }}
             onClick={syncFromRemote}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
           >
-            <motion.span 
-              className="text-lg"
-              whileHover={{ rotate: 180 }}
-              transition={{ duration: 0.3 }}
-            >
-              🔄
-            </motion.span>
+            <RefreshCw className="w-5 h-5 text-muted-foreground" />
           </motion.button>
         </div>
       </header>
@@ -159,13 +162,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         <div className="flex gap-4">
           <div className="flex-1 p-3 rounded-xl bg-red-50 dark:bg-red-950/30">
             <div className="flex items-center gap-2 mb-1">
-              <motion.span 
-                className="w-6 h-6 rounded-full bg-expense/20 flex items-center justify-center text-xs text-expense"
+              <motion.div 
+                className="w-6 h-6 rounded-full bg-expense/20 flex items-center justify-center"
                 animate={{ y: [0, -2, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
               >
-                ↓
-              </motion.span>
+                <ArrowDown className="w-3.5 h-3.5 text-expense" />
+              </motion.div>
               <span className="text-caption text-muted-foreground">{t.expenses}</span>
             </div>
             <p className="text-title-3 amount-expense">
@@ -174,13 +177,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </div>
           <div className="flex-1 p-3 rounded-xl bg-green-50 dark:bg-green-950/30">
             <div className="flex items-center gap-2 mb-1">
-              <motion.span 
-                className="w-6 h-6 rounded-full bg-income/20 flex items-center justify-center text-xs text-income"
+              <motion.div 
+                className="w-6 h-6 rounded-full bg-income/20 flex items-center justify-center"
                 animate={{ y: [0, -2, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
               >
-                ↑
-              </motion.span>
+                <ArrowUp className="w-3.5 h-3.5 text-income" />
+              </motion.div>
               <span className="text-caption text-muted-foreground">{t.income}</span>
             </div>
             <p className="text-title-3 amount-income">
@@ -203,7 +206,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             animate={{ rotate: [0, 5, -5, 0] }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            <span className="text-xl">💡</span>
+            <Lightbulb className="w-5 h-5 text-primary" />
           </motion.div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -276,12 +279,12 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           onClick={onAddExpense}
           className="flex-1 quick-action group"
         >
-          <motion.span 
-            className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center text-expense text-xl"
+          <motion.div 
+            className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center"
             whileHover={{ y: -2 }}
           >
-            ↓
-          </motion.span>
+            <ArrowDown className="w-5 h-5 text-expense" />
+          </motion.div>
           <span className="text-body-sm font-medium text-foreground">{t.addExpense}</span>
         </motion.button>
         <motion.button
@@ -290,12 +293,12 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           onClick={onAddIncome}
           className="flex-1 quick-action group"
         >
-          <motion.span 
-            className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-950/50 flex items-center justify-center text-income text-xl"
+          <motion.div 
+            className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-950/50 flex items-center justify-center"
             whileHover={{ y: -2 }}
           >
-            ↑
-          </motion.span>
+            <ArrowUp className="w-5 h-5 text-income" />
+          </motion.div>
           <span className="text-body-sm font-medium text-foreground">{t.addIncome}</span>
         </motion.button>
       </div>
@@ -329,7 +332,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                 >
                   <div className="relative mb-2">
                     <motion.div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
+                      className="w-16 h-16 rounded-full flex items-center justify-center"
                       style={{ 
                         background: `conic-gradient(${isOver ? 'hsl(var(--expense))' : cat.color} ${clamp(pct, 0, 100)}%, hsl(var(--secondary)) 0%)`,
                       }}
@@ -337,7 +340,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                       transition={{ duration: 0.5, repeat: isOver ? Infinity : 0, repeatDelay: 1 }}
                     >
                       <div className="w-12 h-12 rounded-full bg-card flex items-center justify-center">
-                        {cat.emoji}
+                        <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
                       </div>
                     </motion.div>
                     {isOver && (
@@ -365,12 +368,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
       <section className="mb-6">
         <h2 className="text-title-3 text-foreground mb-3">{t.quickAdd}</h2>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {(quickAdds.length > 0 ? quickAdds : [
-            { id: "coffee", emoji: "☕", categoryId: "coffee", amount: 15000 },
-            { id: "restaurants", emoji: "🍽️", categoryId: "restaurants", amount: 35000 },
-            { id: "taxi", emoji: "🚕", categoryId: "taxi", amount: 20000 },
-            { id: "shopping", emoji: "🛒", categoryId: "shopping", amount: 100000 },
-          ]).map((item, i) => {
+          {(quickAdds.length > 0 ? quickAdds : defaultQuickAdds).map((item, i) => {
             const cat = getCat(item.categoryId);
             return (
               <motion.button
@@ -383,13 +381,14 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                 onClick={() => handleQuickAdd(item.categoryId, item.amount)}
                 className={`min-w-[90px] p-4 rounded-2xl border-2 transition-all ${i === 0 ? 'border-primary bg-accent' : 'border-border bg-card hover:border-primary/50'}`}
               >
-                <motion.span 
-                  className="text-2xl block mb-2"
-                  whileHover={{ scale: 1.2, rotate: [0, -10, 10, 0] }}
-                  transition={{ duration: 0.3 }}
+                <motion.div 
+                  className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: cat.color + "20" }}
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  {item.emoji}
-                </motion.span>
+                  <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                </motion.div>
                 <p className="text-body-sm font-medium text-foreground">{catLabel(cat)}</p>
                 <p className="text-caption text-muted-foreground">{formatUZS(item.amount)}</p>
               </motion.button>
@@ -404,13 +403,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={onAddExpense}
             className="min-w-[90px] p-4 rounded-2xl border-2 border-dashed border-border bg-secondary flex flex-col items-center justify-center hover:border-primary/50"
           >
-            <motion.span 
-              className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-primary text-xl mb-2"
+            <motion.div 
+              className="w-10 h-10 rounded-full bg-accent flex items-center justify-center mb-2"
               whileHover={{ rotate: 90 }}
               transition={{ duration: 0.2 }}
             >
-              +
-            </motion.span>
+              <Plus className="w-5 h-5 text-primary" />
+            </motion.div>
             <p className="text-body-sm font-medium text-muted-foreground">{t.add}</p>
           </motion.button>
         </div>
@@ -428,7 +427,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("accounts")}
             className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">💳</span>
+            <CreditCard className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Счета" : lang === "uz" ? "Hisoblar" : "Accounts"}
             </span>
@@ -439,7 +438,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("debt-assessment")}
             className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">📊</span>
+            <PieChart className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Долги" : lang === "uz" ? "Qarzlar" : "Debt"}
             </span>
@@ -450,7 +449,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("subscriptions")}
             className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">📺</span>
+            <Tv className="w-6 h-6 text-pink-600 dark:text-pink-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Подписки" : lang === "uz" ? "Obunalar" : "Subs"}
             </span>
@@ -461,7 +460,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("bill-split")}
             className="p-4 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border border-teal-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">👥</span>
+            <Users className="w-6 h-6 text-teal-600 dark:text-teal-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Делить" : lang === "uz" ? "Bo'lish" : "Split"}
             </span>
@@ -472,7 +471,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("net-worth")}
             className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-blue-500/10 border border-indigo-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">📈</span>
+            <TrendingUp className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Капитал" : lang === "uz" ? "Boylik" : "Worth"}
             </span>
@@ -483,7 +482,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             onClick={() => setActiveScreen("reports")}
             className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex flex-col items-center gap-2"
           >
-            <span className="text-2xl">📑</span>
+            <FileText className="w-6 h-6 text-violet-600 dark:text-violet-400" />
             <span className="text-xs font-medium text-foreground">
               {lang === "ru" ? "Отчёты" : lang === "uz" ? "Hisobotlar" : "Reports"}
             </span>
@@ -509,13 +508,13 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <motion.span 
-              className="text-5xl block mb-3"
+            <motion.div 
+              className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-secondary flex items-center justify-center"
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              💳
-            </motion.span>
+              <CreditCard className="w-8 h-8 text-muted-foreground" />
+            </motion.div>
             <p className="text-muted-foreground">{t.empty}</p>
           </motion.div>
         ) : (
@@ -532,11 +531,11 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                   className="list-item"
                 >
                   <motion.div 
-                    className="category-icon"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: `${cat.color}20` }}
                     whileHover={{ scale: 1.1 }}
                   >
-                    {cat.emoji}
+                    <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
                   </motion.div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{tx.description}</p>
