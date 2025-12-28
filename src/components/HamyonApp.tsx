@@ -72,23 +72,25 @@ const HamyonApp: React.FC = () => {
   
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Notification Bell - Fixed position */}
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setShowNotifications(true)}
-        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center"
-      >
-        <Bell className="w-5 h-5 text-foreground" />
-        {unreadCount > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs rounded-full flex items-center justify-center font-bold"
-          >
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </motion.span>
-        )}
-      </motion.button>
+      {/* Notification Bell - Only show on home screen */}
+      {activeScreen === "home" && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowNotifications(true)}
+          className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center"
+        >
+          <Bell className="w-5 h-5 text-foreground" />
+          {unreadCount > 0 && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white text-xs rounded-full flex items-center justify-center font-bold"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </motion.span>
+          )}
+        </motion.button>
+      )}
 
       {/* Main Content */}
       {activeScreen === "home" && (
