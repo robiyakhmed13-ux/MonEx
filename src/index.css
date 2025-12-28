@@ -159,7 +159,8 @@
   
   /* Glass effect for overlays */
   .glass {
-    @apply bg-card/80 backdrop-blur-xl;
+    background-color: hsl(var(--card) / 0.8);
+    @apply backdrop-blur-xl;
     box-shadow: var(--shadow-xl);
   }
   
@@ -218,18 +219,23 @@
   /* Bottom navigation */
   .bottom-nav {
     @apply fixed bottom-0 inset-x-0 z-50;
-    padding-bottom: var(--safe-area-bottom);
+    padding-bottom: max(var(--safe-area-bottom), 8px);
   }
   
   .bottom-nav-inner {
-    @apply mx-auto max-w-lg bg-card/95 backdrop-blur-xl;
-    @apply border-t border-border;
+    @apply mx-auto max-w-lg backdrop-blur-xl border-t;
+    border-color: hsl(var(--border) / 0.5);
+    background-color: hsl(var(--card) / 0.98);
     box-shadow: 0 -4px 20px rgb(0 0 0 / 0.05);
   }
   
-  /* Screen container */
+  /* Screen container with proper scroll */
   .screen-container {
-    @apply fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain;
+    @apply min-h-screen bg-background overflow-y-auto overscroll-contain;
+    padding-top: max(var(--safe-area-top), 16px);
+    padding-left: max(var(--safe-area-left), 16px);
+    padding-right: max(var(--safe-area-right), 16px);
+    padding-bottom: calc(100px + var(--safe-area-bottom));
   }
   
   /* Animated list item */

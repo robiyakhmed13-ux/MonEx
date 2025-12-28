@@ -287,14 +287,14 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ onAddClick }) => {
   const { t, activeScreen, setActiveScreen } = useApp();
 
-  // Split items for layout around center button
-  const leftItems = NAV_ITEMS.slice(0, 3);
-  const rightItems = NAV_ITEMS.slice(3);
+  // Split items: 2 left, center button, 2 right for symmetry
+  const leftItems = NAV_ITEMS.slice(0, 2);
+  const rightItems = NAV_ITEMS.slice(2, 4);
 
   return (
     <nav className="bottom-nav">
-      <div className="bottom-nav-inner px-1 py-2">
-        <div className="flex items-center justify-between">
+      <div className="bottom-nav-inner px-2 py-2">
+        <div className="flex items-center justify-around w-full">
           {/* Left side items */}
           {leftItems.map((item) => (
             <NavButton
@@ -311,7 +311,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onAddClick }) => {
             whileTap={{ scale: 0.85 }}
             whileHover={{ scale: 1.05 }}
             onClick={onAddClick}
-            className="w-14 h-14 -mt-8 rounded-2xl bg-gradient-to-br from-primary via-primary to-blue-600 text-primary-foreground flex items-center justify-center shadow-lg relative overflow-hidden"
+            className="w-14 h-14 -mt-6 rounded-2xl bg-gradient-to-br from-primary via-primary to-blue-600 text-primary-foreground flex items-center justify-center shadow-lg relative overflow-hidden flex-shrink-0"
           >
             <motion.div
               className="absolute inset-0 bg-white/20"
@@ -375,13 +375,13 @@ const NavButton: React.FC<NavButtonProps> = ({ item, isActive, onClick, t }) => 
     <motion.button
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-2 py-1.5 relative min-w-[52px]"
+      className="flex flex-col items-center justify-center gap-0.5 py-1.5 relative flex-1 max-w-[72px]"
     >
       {/* Active indicator */}
       {isActive && (
         <motion.div
           layoutId="activeTab"
-          className={`absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-gradient-to-r ${item.gradient}`}
+          className={`absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-gradient-to-r ${item.gradient}`}
           initial={false}
           transition={{ type: "spring", stiffness: 500, damping: 35 }}
         />
@@ -396,7 +396,7 @@ const NavButton: React.FC<NavButtonProps> = ({ item, isActive, onClick, t }) => 
       </motion.div>
       
       <motion.span
-        className={`text-[10px] font-medium transition-colors ${
+        className={`text-[10px] font-medium transition-colors whitespace-nowrap ${
           isActive ? "text-primary" : "text-muted-foreground"
         }`}
         animate={{ opacity: isActive ? 1 : 0.7 }}
