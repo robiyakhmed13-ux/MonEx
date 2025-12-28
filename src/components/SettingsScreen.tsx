@@ -1,16 +1,20 @@
 import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { LANGS, LangKey } from "@/lib/constants";
+import { LangKey } from "@/lib/constants";
 import { ThemeToggle } from "./ThemeToggle";
 import { exportTransactionsCSV, CURRENCIES } from "@/lib/exportData";
+import { 
+  ArrowLeft, Bell, RefreshCw, FileSpreadsheet, Bot, Zap, Trash2,
+  Sun, Moon, Monitor, Cloud, Smartphone, Settings2
+} from "lucide-react";
 
 export const SettingsScreen = memo(() => {
   const { 
     t, lang, setLang,
     dataMode, setDataMode, useRemote, syncFromRemote, 
     setActiveScreen, setBalance, setTransactions, setLimits, setGoals, 
-    categories, setCategories, theme, setTheme, setOnboardingComplete,
+    theme, setTheme, setOnboardingComplete,
     transactions, allCats, catLabel, currency, setCurrency,
     reminderDays, setReminderDays
   } = useApp();
@@ -52,6 +56,12 @@ export const SettingsScreen = memo(() => {
       window.open(`https://t.me/${BOT_USERNAME}`, "_blank");
     }
   };
+
+  const langs = [
+    { key: "uz" as const, label: "UZ" },
+    { key: "ru" as const, label: "RU" },
+    { key: "en" as const, label: "EN" },
+  ];
   
   return (
     <div className="screen-container pb-24 safe-top">
@@ -63,7 +73,7 @@ export const SettingsScreen = memo(() => {
             onClick={() => setActiveScreen("home")}
             className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
           >
-            ←
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </motion.button>
           <div className="flex-1">
             <h1 className="text-title-1 text-foreground">{t.settings}</h1>
@@ -74,17 +84,17 @@ export const SettingsScreen = memo(() => {
         <div className="card-elevated p-4 mb-4">
           <h3 className="text-title-3 text-foreground mb-4">{t.language}</h3>
           <div className="grid grid-cols-3 gap-2">
-            {LANGS.map((l) => (
+            {langs.map((l) => (
               <button
                 key={l.key}
-                onClick={() => setLang(l.key as LangKey)}
+                onClick={() => setLang(l.key)}
                 className={`py-3 px-4 rounded-xl font-medium transition-all ${
                   lang === l.key
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground"
                 }`}
               >
-                {l.flag} {l.label}
+                {l.label}
               </button>
             ))}
           </div>
@@ -95,7 +105,26 @@ export const SettingsScreen = memo(() => {
           <h3 className="text-title-3 text-foreground mb-4">
             {lang === "ru" ? "Тема" : lang === "uz" ? "Mavzu" : "Theme"}
           </h3>
-          <ThemeToggle theme={theme} onChange={setTheme} />
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { key: "light" as const, icon: Sun, label: lang === "ru" ? "Светлая" : lang === "uz" ? "Yorug'" : "Light" },
+              { key: "dark" as const, icon: Moon, label: lang === "ru" ? "Тёмная" : lang === "uz" ? "Tungi" : "Dark" },
+              { key: "system" as const, icon: Monitor, label: lang === "ru" ? "Авто" : lang === "uz" ? "Avto" : "Auto" },
+            ]).map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setTheme(item.key)}
+                className={`py-3 px-3 rounded-xl font-medium transition-all flex flex-col items-center gap-2 ${
+                  theme === item.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="text-sm">{item.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
         
         {/* Currency */}
@@ -114,7 +143,7 @@ export const SettingsScreen = memo(() => {
                     : "bg-secondary text-muted-foreground"
                 }`}
               >
-                <span className="text-lg">{c.flag}</span>
+                <span className="text-lg font-bold">{c.symbol}</span>
                 <span className="text-sm">{c.code}</span>
               </button>
             ))}
@@ -140,7 +169,7 @@ export const SettingsScreen = memo(() => {
                     : "bg-secondary text-muted-foreground"
                 }`}
               >
-                <span className="text-lg">🔔</span>
+                <Bell className="w-5 h-5" />
                 <span className="text-sm">
                   {days} {lang === "ru" ? (days === 1 ? "день" : "дней") : lang === "uz" ? "kun" : (days === 1 ? "day" : "days")}
                 </span>
@@ -153,14 +182,14 @@ export const SettingsScreen = memo(() => {
         <div className="card-elevated p-4 mb-4">
           <h3 className="text-title-3 text-foreground mb-2">{t.dataMode}</h3>
           <p className="text-caption text-muted-foreground mb-4">
-            {useRemote ? "✅ Connected to cloud" : "📱 Offline mode"}
+            {useRemote ? "Connected to cloud" : "Offline mode"}
           </p>
           
           <div className="flex gap-2 mb-4">
             {[
-              { k: "auto", label: "Auto", icon: "🤖" },
-              { k: "local", label: "Local", icon: "📱" },
-              { k: "remote", label: "Cloud", icon: "☁️" },
+              { k: "auto", label: "Auto", icon: Settings2 },
+              { k: "local", label: "Local", icon: Smartphone },
+              { k: "remote", label: "Cloud", icon: Cloud },
             ].map((x) => (
               <button
                 key={x.k}
@@ -171,14 +200,15 @@ export const SettingsScreen = memo(() => {
                     : "bg-secondary text-muted-foreground"
                 }`}
               >
-                <span className="text-lg">{x.icon}</span>
+                <x.icon className="w-5 h-5" />
                 <span className="text-body-sm">{x.label}</span>
               </button>
             ))}
           </div>
           
-          <button onClick={syncFromRemote} className="btn-primary w-full">
-            🔄 {t.sync}
+          <button onClick={syncFromRemote} className="btn-primary w-full flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            {t.sync}
           </button>
         </div>
         
@@ -188,7 +218,7 @@ export const SettingsScreen = memo(() => {
             <motion.div 
               className="w-12 h-12 rounded-xl bg-gradient-to-br from-income/20 to-income/5 flex items-center justify-center"
             >
-              <span className="text-2xl">📊</span>
+              <FileSpreadsheet className="w-6 h-6 text-income" />
             </motion.div>
             <div className="flex-1">
               <p className="font-medium text-foreground">
@@ -216,7 +246,7 @@ export const SettingsScreen = memo(() => {
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <span className="text-2xl">🤖</span>
+              <Bot className="w-6 h-6 text-primary" />
             </motion.div>
             <div className="flex-1">
               <p className="font-medium text-foreground">@hamyonmoneybot</p>
@@ -238,7 +268,7 @@ export const SettingsScreen = memo(() => {
             <motion.div 
               className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 flex items-center justify-center"
             >
-              <span className="text-2xl">⚡</span>
+              <Zap className="w-6 h-6 text-purple-500" />
             </motion.div>
             <div className="flex-1">
               <p className="font-medium text-foreground">
@@ -265,9 +295,10 @@ export const SettingsScreen = memo(() => {
           </h3>
           <button 
             onClick={() => setResetOpen(true)} 
-            className="w-full py-4 rounded-xl bg-red-50 dark:bg-red-950/30 text-expense font-semibold"
+            className="w-full py-4 rounded-xl bg-red-50 dark:bg-red-950/30 text-expense font-semibold flex items-center justify-center gap-2"
           >
-            🗑 {t.resetLocal}
+            <Trash2 className="w-5 h-5" />
+            {t.resetLocal}
           </button>
         </div>
       </div>
