@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, CSSProperties } from "react";
 import {
   Banknote,
   Briefcase,
@@ -19,9 +19,10 @@ import {
 type Props = {
   categoryId: string;
   className?: string;
+  style?: CSSProperties;
 };
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string; style?: CSSProperties }>> = {
   // Expense
   food: Utensils,
   restaurants: Utensils,
@@ -49,9 +50,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   credit: CreditCard,
 };
 
-export const CategoryIcon = memo(({ categoryId, className }: Props) => {
+export const CategoryIcon = memo(({ categoryId, className, style }: Props) => {
   const Icon = iconMap[categoryId] || Package;
-  return <Icon className={className} aria-hidden="true" />;
+  return <Icon className={className} style={style} aria-hidden="true" />;
 });
 
 CategoryIcon.displayName = "CategoryIcon";
