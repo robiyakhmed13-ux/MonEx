@@ -360,7 +360,7 @@ const MenuItem = ({
   </button>
 );
 
-// Reusable Picker Modal
+// Reusable Picker Modal with scrollable content
 const PickerModal = ({ 
   title, 
   onClose, 
@@ -379,11 +379,11 @@ const PickerModal = ({
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
-      className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
+      className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom max-h-[70vh] flex flex-col"
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 className="text-xl font-bold text-foreground mb-4">{title}</h3>
-      <div className="space-y-2">
+      <h3 className="text-xl font-bold text-foreground mb-4 flex-shrink-0">{title}</h3>
+      <div className="space-y-2 overflow-y-auto flex-1 pb-4 -mx-2 px-2">
         {options.map((opt) => {
           const IconComp = opt.icon;
           return (
