@@ -1,7 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 // Telegram API helpers
 const sendMessage = async (chatId: number, text: string, options?: { reply_markup?: any }) => {
@@ -30,10 +36,61 @@ const sendMessage = async (chatId: number, text: string, options?: { reply_marku
   return response;
 };
 
-// Parse transaction from text using AI
+// Get voice file from Telegram
+const getFile = async (fileId: string) => {
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.result?.file_path;
+};
+
+// Download file from Telegram
+const downloadFile = async (filePath: string): Promise<ArrayBuffer> => {
+  const url = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`;
+  const response = await fetch(url);
+  return await response.arrayBuffer();
+};
+
+// Transcribe voice using OpenAI Whisper
+const transcribeVoice = async (audioBuffer: ArrayBuffer, lang: string = 'uz'): Promise<string | null> => {
+  if (!OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY not set');
+    return null;
+  }
+
+  try {
+    const formData = new FormData();
+    const blob = new Blob([audioBuffer], { type: 'audio/ogg' });
+    formData.append('file', blob, 'voice.ogg');
+    formData.append('model', 'whisper-1');
+    formData.append('language', lang === 'uz' ? 'uz' : lang === 'ru' ? 'ru' : 'en');
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      console.error('Whisper API error:', await response.text());
+      return null;
+    }
+
+    const result = await response.json();
+    console.log(`Transcribed: "${result.text}"`);
+    return result.text;
+  } catch (error) {
+    console.error('Transcription error:', error);
+    return null;
+  }
+};
+
+// Parse transaction from text using OpenAI
 const parseTransaction = async (text: string, lang: string = 'uz') => {
-  if (!LOVABLE_API_KEY) {
-    console.error('LOVABLE_API_KEY not set');
+  if (!OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY not set');
     return null;
   }
 
@@ -49,16 +106,17 @@ Categories for expenses:
 Categories for income:
 - salary, freelance, bonus, other_income
 
-Parse commands like:
+Parse commands in Uzbek, Russian, or English like:
 - "taxi 20000" → expense, taxi, 20000
 - "kofe 15000" → expense, coffee, 15000
 - "обед 35000" → expense, restaurants, 35000
 - "зарплата 5000000" → income, salary, 5000000
 - "oziq-ovqat 100k" → expense, food, 100000
+- "taksi uchun 20 ming" → expense, taxi, 20000
 
 Handle shortcuts:
-- "k" or "000" = thousand (e.g., "15k" = 15000)
-- "m" or "mln" = million (e.g., "5m" = 5000000)
+- "k", "ming", "тысяч" = thousand (e.g., "15k" = 15000)
+- "m", "mln", "миллион" = million (e.g., "5m" = 5000000)
 
 Return JSON:
 {
@@ -73,14 +131,14 @@ If unclear: { "error": "message" }`;
   try {
     console.log(`Parsing transaction: "${text}" (lang: ${lang})`);
     
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `Parse (language: ${lang}): "${text}"` }
@@ -90,7 +148,7 @@ If unclear: { "error": "message" }`;
     });
 
     if (!response.ok) {
-      console.error(`AI error: ${response.status}`);
+      console.error(`OpenAI error: ${response.status}`);
       return null;
     }
 
@@ -113,9 +171,40 @@ If unclear: { "error": "message" }`;
   }
 };
 
+// Save transaction to database
+const saveTransaction = async (telegramUserId: number, parsed: any, currency: string = 'UZS') => {
+  try {
+    const { data, error } = await supabase
+      .from('telegram_transactions')
+      .insert({
+        telegram_user_id: telegramUserId,
+        type: parsed.type,
+        category_id: parsed.categoryId,
+        amount: parsed.type === 'expense' ? -Math.abs(parsed.amount) : Math.abs(parsed.amount),
+        description: parsed.description,
+        currency,
+        source: 'telegram',
+        synced: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      return null;
+    }
+
+    console.log(`Saved transaction: ${data.id}`);
+    return data;
+  } catch (error) {
+    console.error('Save error:', error);
+    return null;
+  }
+};
+
 // Format number with spaces
 const formatNumber = (num: number): string => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return Math.abs(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
 // Category emojis
@@ -149,6 +238,33 @@ const getCategoryName = (categoryId: string, lang: string): string => {
   return names[categoryId]?.[lang] || categoryId;
 };
 
+// Get user stats from database
+const getUserStats = async (telegramUserId: number) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const monthStart = today.slice(0, 7) + '-01';
+
+  const { data: transactions, error } = await supabase
+    .from('telegram_transactions')
+    .select('*')
+    .eq('telegram_user_id', telegramUserId)
+    .gte('created_at', monthStart + 'T00:00:00Z');
+
+  if (error) {
+    console.error('Stats query error:', error);
+    return { todayExpense: 0, todayIncome: 0, monthExpense: 0, monthIncome: 0, count: 0 };
+  }
+
+  const todayTx = transactions?.filter(t => t.created_at.slice(0, 10) === today) || [];
+  
+  return {
+    todayExpense: todayTx.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
+    todayIncome: todayTx.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+    monthExpense: transactions?.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0) || 0,
+    monthIncome: transactions?.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0) || 0,
+    count: transactions?.length || 0,
+  };
+};
+
 // Handle /start command
 const handleStart = async (chatId: number, user: any) => {
   const firstName = user?.first_name || 'User';
@@ -161,16 +277,14 @@ const handleStart = async (chatId: number, user: any) => {
 
 📝 <b>Qanday foydalanish:</b>
 • Xabar yozing: <code>taxi 20000</code>
-• Ovozli xabar yuboring
+• 🎤 Ovozli xabar yuboring
 • Yoki tugmalardan foydalaning
 
 📊 <b>Buyruqlar:</b>
-/balance - Balansni ko'rish
 /stats - Statistika
-/add - Tranzaksiya qo'shish
 /help - Yordam
 
-💡 Misol: <code>kofe 15000</code>`,
+💡 Misol: <code>kofe 15000</code> yoki <code>oylik 5m</code>`,
 
     ru: `👋 Привет, ${firstName}!
 
@@ -178,16 +292,14 @@ const handleStart = async (chatId: number, user: any) => {
 
 📝 <b>Как пользоваться:</b>
 • Напишите: <code>такси 20000</code>
-• Отправьте голосовое сообщение
+• 🎤 Отправьте голосовое сообщение
 • Или используйте кнопки
 
 📊 <b>Команды:</b>
-/balance - Проверить баланс
 /stats - Статистика
-/add - Добавить транзакцию
 /help - Помощь
 
-💡 Пример: <code>кофе 15000</code>`,
+💡 Пример: <code>кофе 15000</code> или <code>зарплата 5м</code>`,
 
     en: `👋 Hello, ${firstName}!
 
@@ -195,23 +307,20 @@ const handleStart = async (chatId: number, user: any) => {
 
 📝 <b>How to use:</b>
 • Send: <code>taxi 20000</code>
-• Send a voice message
+• 🎤 Send a voice message
 • Or use the buttons
 
 📊 <b>Commands:</b>
-/balance - Check balance
 /stats - Statistics
-/add - Add transaction
 /help - Help
 
-💡 Example: <code>coffee 15000</code>`,
+💡 Example: <code>coffee 15000</code> or <code>salary 5m</code>`,
   };
 
   const keyboard = {
     keyboard: [
       [{ text: '➕ Xarajat' }, { text: '💰 Daromad' }],
-      [{ text: '📊 Statistika' }, { text: '💳 Balans' }],
-      [{ text: '🌐 Ilovani ochish', web_app: { url: 'https://dvomgnudbwkdcavihebw.lovableproject.com' } }],
+      [{ text: '📊 Statistika' }, { text: '❓ Yordam' }],
     ],
     resize_keyboard: true,
     persistent: true,
@@ -228,40 +337,42 @@ const handleHelp = async (chatId: number, lang: string) => {
 <b>Xarajat qo'shish:</b>
 • <code>taxi 20000</code> - Taksi xarajati
 • <code>oziq-ovqat 50k</code> - Oziq-ovqat
-• <code>kofe 15000</code> - Kofe
+• <code>kofe 15 ming</code> - Kofe
+
+<b>🎤 Ovozli xabar:</b>
+Shunchaki gapiring: "Taksi uchun yigirma ming"
 
 <b>Daromad qo'shish:</b>
 • <code>oylik 5m</code> - Oylik maosh
 • <code>freelance 500000</code>
 
 <b>Qisqartmalar:</b>
-• k = ming (15k = 15,000)
-• m = million (5m = 5,000,000)
+• k, ming = ming (15k = 15,000)
+• m, mln = million (5m = 5,000,000)
 
 <b>Buyruqlar:</b>
-/balance - Joriy balans
-/stats - Bugungi statistika
-/add - Yangi tranzaksiya`,
+/stats - Bugungi statistika`,
 
     ru: `📖 <b>Помощь</b>
 
 <b>Добавить расход:</b>
 • <code>такси 20000</code> - Такси
 • <code>продукты 50к</code> - Продукты
-• <code>кофе 15000</code> - Кофе
+• <code>кофе 15 тысяч</code> - Кофе
+
+<b>🎤 Голосовое сообщение:</b>
+Просто скажите: "Такси двадцать тысяч"
 
 <b>Добавить доход:</b>
 • <code>зарплата 5м</code> - Зарплата
 • <code>фриланс 500000</code>
 
 <b>Сокращения:</b>
-• к = тысяча (15к = 15,000)
-• м = миллион (5м = 5,000,000)
+• к, тысяч = тысяча (15к = 15,000)
+• м, млн = миллион (5м = 5,000,000)
 
 <b>Команды:</b>
-/balance - Текущий баланс
-/stats - Статистика за сегодня
-/add - Новая транзакция`,
+/stats - Статистика за сегодня`,
 
     en: `📖 <b>Help</b>
 
@@ -269,6 +380,9 @@ const handleHelp = async (chatId: number, lang: string) => {
 • <code>taxi 20000</code> - Taxi
 • <code>food 50k</code> - Food
 • <code>coffee 15000</code> - Coffee
+
+<b>🎤 Voice message:</b>
+Just say: "Taxi twenty thousand"
 
 <b>Add income:</b>
 • <code>salary 5m</code> - Salary
@@ -279,97 +393,80 @@ const handleHelp = async (chatId: number, lang: string) => {
 • m = million (5m = 5,000,000)
 
 <b>Commands:</b>
-/balance - Current balance
-/stats - Today's statistics
-/add - New transaction`,
+/stats - Today's statistics`,
   };
 
   await sendMessage(chatId, messages[lang] || messages.en);
 };
 
-// Handle /balance command
-const handleBalance = async (chatId: number, lang: string) => {
-  const messages: Record<string, string> = {
-    uz: `💳 <b>Balans</b>
-
-Balansni ko'rish uchun ilovani oching.
-
-🌐 Ilovani ochish uchun tugmani bosing.`,
-    ru: `💳 <b>Баланс</b>
-
-Откройте приложение для просмотра баланса.
-
-🌐 Нажмите кнопку для открытия приложения.`,
-    en: `💳 <b>Balance</b>
-
-Open the app to view your balance.
-
-🌐 Press the button to open the app.`,
-  };
-
-  const keyboard = {
-    inline_keyboard: [
-      [{ text: '🌐 Ilovani ochish', web_app: { url: 'https://dvomgnudbwkdcavihebw.lovableproject.com' } }],
-    ],
-  };
-
-  await sendMessage(chatId, messages[lang] || messages.en, { reply_markup: keyboard });
-};
-
 // Handle /stats command
-const handleStats = async (chatId: number, lang: string) => {
+const handleStats = async (chatId: number, telegramUserId: number, lang: string) => {
+  const stats = await getUserStats(telegramUserId);
+  
   const messages: Record<string, string> = {
     uz: `📊 <b>Statistika</b>
 
-Statistikani ko'rish uchun ilovani oching.
+<b>Bugun:</b>
+📤 Xarajat: ${formatNumber(stats.todayExpense)} so'm
+📥 Daromad: ${formatNumber(stats.todayIncome)} so'm
 
-🌐 Ilovani ochish uchun tugmani bosing.`,
+<b>Bu oy:</b>
+📤 Xarajat: ${formatNumber(stats.monthExpense)} so'm
+📥 Daromad: ${formatNumber(stats.monthIncome)} so'm
+
+📝 Jami tranzaksiyalar: ${stats.count}`,
+
     ru: `📊 <b>Статистика</b>
 
-Откройте приложение для просмотра статистики.
+<b>Сегодня:</b>
+📤 Расход: ${formatNumber(stats.todayExpense)} сум
+📥 Доход: ${formatNumber(stats.todayIncome)} сум
 
-🌐 Нажмите кнопку для открытия приложения.`,
+<b>Этот месяц:</b>
+📤 Расход: ${formatNumber(stats.monthExpense)} сум
+📥 Доход: ${formatNumber(stats.monthIncome)} сум
+
+📝 Всего транзакций: ${stats.count}`,
+
     en: `📊 <b>Statistics</b>
 
-Open the app to view your statistics.
+<b>Today:</b>
+📤 Expense: ${formatNumber(stats.todayExpense)} UZS
+📥 Income: ${formatNumber(stats.todayIncome)} UZS
 
-🌐 Press the button to open the app.`,
+<b>This month:</b>
+📤 Expense: ${formatNumber(stats.monthExpense)} UZS
+📥 Income: ${formatNumber(stats.monthIncome)} UZS
+
+📝 Total transactions: ${stats.count}`,
   };
 
-  const keyboard = {
-    inline_keyboard: [
-      [{ text: '🌐 Ilovani ochish', web_app: { url: 'https://dvomgnudbwkdcavihebw.lovableproject.com' } }],
-    ],
-  };
-
-  await sendMessage(chatId, messages[lang] || messages.en, { reply_markup: keyboard });
+  await sendMessage(chatId, messages[lang] || messages.en);
 };
 
 // Handle text message (parse as transaction)
 const handleTextMessage = async (chatId: number, text: string, user: any) => {
   const lang = user?.language_code || 'uz';
+  const telegramUserId = user?.id;
   
   // Check for button presses
   if (text === '➕ Xarajat' || text === '💰 Daromad') {
-    const keyboard = {
-      inline_keyboard: [
-        [{ text: '🌐 Ilovadan qo\'shish', web_app: { url: 'https://dvomgnudbwkdcavihebw.lovableproject.com' } }],
-      ],
+    const promptMsgs: Record<string, string> = {
+      uz: '📝 Summa va kategoriyani yozing yoki ovozli xabar yuboring.\n\nMisol: <code>kofe 15000</code>',
+      ru: '📝 Напишите сумму и категорию или отправьте голосовое сообщение.\n\nПример: <code>кофе 15000</code>',
+      en: '📝 Type the amount and category or send a voice message.\n\nExample: <code>coffee 15000</code>',
     };
-    await sendMessage(chatId, lang === 'ru' 
-      ? '📝 Напишите сумму и категорию, например: <code>кофе 15000</code>'
-      : '📝 Summa va kategoriyani yozing, masalan: <code>kofe 15000</code>', 
-      { reply_markup: keyboard });
+    await sendMessage(chatId, promptMsgs[lang] || promptMsgs.en);
     return;
   }
   
   if (text === '📊 Statistika') {
-    await handleStats(chatId, lang);
+    await handleStats(chatId, telegramUserId, lang);
     return;
   }
   
-  if (text === '💳 Balans') {
-    await handleBalance(chatId, lang);
+  if (text === '❓ Yordam') {
+    await handleHelp(chatId, lang);
     return;
   }
 
@@ -378,15 +475,27 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   
   if (!parsed || parsed.error) {
     const errorMsgs: Record<string, string> = {
-      uz: `❌ Tushunmadim. Masalan yozing: <code>taxi 20000</code>`,
-      ru: `❌ Не понял. Напишите например: <code>такси 20000</code>`,
-      en: `❌ Couldn't understand. Try: <code>taxi 20000</code>`,
+      uz: `❌ Tushunmadim. Masalan yozing: <code>taxi 20000</code>\n\nYoki ovozli xabar yuboring 🎤`,
+      ru: `❌ Не понял. Напишите например: <code>такси 20000</code>\n\nИли отправьте голосовое сообщение 🎤`,
+      en: `❌ Couldn't understand. Try: <code>taxi 20000</code>\n\nOr send a voice message 🎤`,
     };
     await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
     return;
   }
 
-  // Transaction parsed successfully
+  // Save to database
+  const saved = await saveTransaction(telegramUserId, parsed);
+  if (!saved) {
+    const errorMsgs: Record<string, string> = {
+      uz: `❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.`,
+      ru: `❌ Произошла ошибка. Попробуйте ещё раз.`,
+      en: `❌ An error occurred. Please try again.`,
+    };
+    await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+    return;
+  }
+
+  // Transaction saved successfully
   const emoji = CATEGORY_EMOJIS[parsed.categoryId] || '📝';
   const catName = getCategoryName(parsed.categoryId, lang);
   const typeEmoji = parsed.type === 'expense' ? '📤' : '📥';
@@ -396,59 +505,111 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   };
 
   const confirmMsgs: Record<string, string> = {
-    uz: `✅ <b>Tranzaksiya qo'shildi!</b>
+    uz: `✅ <b>Saqlandi!</b>
 
 ${typeEmoji} <b>Turi:</b> ${typeLabel[parsed.type][lang]}
 ${emoji} <b>Kategoriya:</b> ${catName}
-💵 <b>Summa:</b> ${formatNumber(parsed.amount)} so'm
-📝 <b>Izoh:</b> ${parsed.description || catName}
+💵 <b>Summa:</b> ${formatNumber(parsed.amount)} so'm`,
 
-🌐 <i>Ilovada ko'rish uchun tugmani bosing</i>`,
-
-    ru: `✅ <b>Транзакция добавлена!</b>
+    ru: `✅ <b>Сохранено!</b>
 
 ${typeEmoji} <b>Тип:</b> ${typeLabel[parsed.type][lang]}
 ${emoji} <b>Категория:</b> ${catName}
-💵 <b>Сумма:</b> ${formatNumber(parsed.amount)} сум
-📝 <b>Описание:</b> ${parsed.description || catName}
+💵 <b>Сумма:</b> ${formatNumber(parsed.amount)} сум`,
 
-🌐 <i>Нажмите кнопку для просмотра в приложении</i>`,
-
-    en: `✅ <b>Transaction added!</b>
+    en: `✅ <b>Saved!</b>
 
 ${typeEmoji} <b>Type:</b> ${typeLabel[parsed.type][lang]}
 ${emoji} <b>Category:</b> ${catName}
-💵 <b>Amount:</b> ${formatNumber(parsed.amount)} UZS
-📝 <b>Note:</b> ${parsed.description || catName}
-
-🌐 <i>Press button to view in app</i>`,
+💵 <b>Amount:</b> ${formatNumber(parsed.amount)} UZS`,
   };
 
-  const keyboard = {
-    inline_keyboard: [
-      [{ text: '🌐 Ilovada ko\'rish', web_app: { url: 'https://dvomgnudbwkdcavihebw.lovableproject.com' } }],
-    ],
-  };
-
-  // Send confirmation with transaction data for the app to sync
-  await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en, { reply_markup: keyboard });
-  
-  // Store transaction in a way that can be synced
-  // We'll use Telegram's data_check_string with user_id to identify
-  console.log(`Transaction for user ${user?.id}: ${JSON.stringify(parsed)}`);
+  await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
 };
 
 // Handle voice message
-const handleVoiceMessage = async (chatId: number, user: any) => {
+const handleVoiceMessage = async (chatId: number, voice: any, user: any) => {
   const lang = user?.language_code || 'uz';
+  const telegramUserId = user?.id;
   
-  const messages: Record<string, string> = {
-    uz: `🎤 Ovozli xabar qabul qilindi!\n\nHozircha ovozli xabarlarni qayta ishlash mavjud emas. Iltimos, matn yozing, masalan: <code>taxi 20000</code>`,
-    ru: `🎤 Голосовое сообщение получено!\n\nПока обработка голосовых сообщений недоступна. Пожалуйста, напишите текстом, например: <code>такси 20000</code>`,
-    en: `🎤 Voice message received!\n\nVoice processing is not available yet. Please type your message, e.g.: <code>taxi 20000</code>`,
+  // Send processing message
+  const processingMsgs: Record<string, string> = {
+    uz: '🎤 Ovozli xabaringizni qayta ishlayman...',
+    ru: '🎤 Обрабатываю голосовое сообщение...',
+    en: '🎤 Processing your voice message...',
   };
+  await sendMessage(chatId, processingMsgs[lang] || processingMsgs.en);
 
-  await sendMessage(chatId, messages[lang] || messages.en);
+  try {
+    // Get file path
+    const filePath = await getFile(voice.file_id);
+    if (!filePath) {
+      throw new Error('Could not get file path');
+    }
+
+    // Download file
+    const audioBuffer = await downloadFile(filePath);
+    
+    // Transcribe
+    const transcription = await transcribeVoice(audioBuffer, lang);
+    if (!transcription) {
+      throw new Error('Transcription failed');
+    }
+
+    // Parse as transaction
+    const parsed = await parseTransaction(transcription, lang);
+    
+    if (!parsed || parsed.error) {
+      const errorMsgs: Record<string, string> = {
+        uz: `🎤 Eshitdim: "<i>${transcription}</i>"\n\n❌ Tranzaksiya tushunilmadi. Masalan ayting: "Taksi yigirma ming"`,
+        ru: `🎤 Услышал: "<i>${transcription}</i>"\n\n❌ Не удалось понять транзакцию. Например скажите: "Такси двадцать тысяч"`,
+        en: `🎤 Heard: "<i>${transcription}</i>"\n\n❌ Couldn't understand transaction. Try saying: "Taxi twenty thousand"`,
+      };
+      await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+      return;
+    }
+
+    // Save to database
+    const saved = await saveTransaction(telegramUserId, parsed);
+    if (!saved) {
+      throw new Error('Failed to save transaction');
+    }
+
+    // Success message
+    const emoji = CATEGORY_EMOJIS[parsed.categoryId] || '📝';
+    const catName = getCategoryName(parsed.categoryId, lang);
+    const typeEmoji = parsed.type === 'expense' ? '📤' : '📥';
+
+    const successMsgs: Record<string, string> = {
+      uz: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Saqlandi!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} so'm`,
+
+      ru: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Сохранено!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} сум`,
+
+      en: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Saved!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} UZS`,
+    };
+
+    await sendMessage(chatId, successMsgs[lang] || successMsgs.en);
+  } catch (error) {
+    console.error('Voice processing error:', error);
+    const errorMsgs: Record<string, string> = {
+      uz: `❌ Ovozli xabarni qayta ishlashda xatolik. Iltimos, matn yozing.`,
+      ru: `❌ Ошибка обработки голосового сообщения. Пожалуйста, напишите текстом.`,
+      en: `❌ Error processing voice message. Please type your message.`,
+    };
+    await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+  }
 };
 
 serve(async (req) => {
@@ -473,7 +634,14 @@ serve(async (req) => {
     const chatId = message.chat.id;
     const user = message.from;
     const text = message.text;
+    const voice = message.voice;
     const lang = user?.language_code || 'uz';
+
+    // Handle voice messages
+    if (voice) {
+      await handleVoiceMessage(chatId, voice, user);
+      return new Response('OK', { status: 200 });
+    }
 
     // Handle commands
     if (text?.startsWith('/')) {
@@ -486,28 +654,33 @@ serve(async (req) => {
         case '/help':
           await handleHelp(chatId, lang);
           break;
-        case '/balance':
-          await handleBalance(chatId, lang);
-          break;
         case '/stats':
-          await handleStats(chatId, lang);
+          await handleStats(chatId, user?.id, lang);
           break;
         case '/add':
-          await handleTextMessage(chatId, text.replace('/add ', '').trim(), user);
+          const addText = text.replace('/add ', '').trim();
+          if (addText && addText !== '/add') {
+            await handleTextMessage(chatId, addText, user);
+          } else {
+            const promptMsgs: Record<string, string> = {
+              uz: '📝 Yozing: <code>/add taxi 20000</code>',
+              ru: '📝 Напишите: <code>/add такси 20000</code>',
+              en: '📝 Type: <code>/add taxi 20000</code>',
+            };
+            await sendMessage(chatId, promptMsgs[lang] || promptMsgs.en);
+          }
           break;
         default:
           await handleHelp(chatId, lang);
       }
-    } else if (message.voice || message.audio) {
-      await handleVoiceMessage(chatId, user);
     } else if (text) {
+      // Handle regular text
       await handleTextMessage(chatId, text, user);
     }
 
     return new Response('OK', { status: 200 });
-
   } catch (error) {
-    console.error('Error handling webhook:', error);
-    return new Response('Error', { status: 500 });
+    console.error('Webhook error:', error);
+    return new Response('Internal error', { status: 500 });
   }
 });

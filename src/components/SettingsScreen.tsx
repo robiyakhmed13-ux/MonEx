@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { exportTransactionsCSV, CURRENCIES } from "@/lib/exportData";
 import { 
-  ArrowLeft, Bell, RefreshCw, FileSpreadsheet, Bot, Zap, Trash2,
-  Sun, Moon, Monitor, Cloud, Smartphone, Settings2, User, HelpCircle,
+  ArrowLeft, RefreshCw, FileSpreadsheet, Zap, Trash2,
+  Sun, Moon, Monitor, Cloud, User, HelpCircle,
   CreditCard, GraduationCap, ChevronRight, Star, Share2
 } from "lucide-react";
 
@@ -76,7 +76,7 @@ export const SettingsScreen = memo(() => {
   const getCurrentCurrencySymbol = () => CURRENCIES.find(c => c.code === currency)?.symbol || "UZS";
   
   return (
-    <div className="min-h-screen bg-background pb-32 safe-top">
+    <div className="screen-container">
       {/* Header */}
       <div className="px-4 pt-4 pb-6">
         <div className="flex items-center gap-4">
@@ -202,12 +202,6 @@ export const SettingsScreen = memo(() => {
           <MenuItem 
             icon={<HelpCircle className="w-5 h-5" />}
             label={lang === "ru" ? "Помощь" : lang === "uz" ? "Yordam" : "Help"}
-            onClick={openBot}
-          />
-          <MenuItem 
-            icon={<Bot className="w-5 h-5" />}
-            label="Telegram Bot"
-            value="@hamyonmoneybot"
             onClick={openBot}
           />
           <MenuItem 

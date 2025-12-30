@@ -183,8 +183,8 @@ export const MoreScreen: React.FC = () => {
   }, [searchQuery, t]);
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      <div className="px-4 pt-4">
+    <div className="screen-container">
+      <div className="pt-0">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <motion.button

@@ -166,7 +166,7 @@ export const SubscriptionsScreen = memo(({ openAddForm = false }: SubscriptionsS
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32 px-4 pt-4">
+    <div className="screen-container">
       {/* Header */}
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
