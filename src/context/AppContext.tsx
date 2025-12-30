@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { I18N, DEFAULT_CATEGORIES, LangKey, Translation, Category } from "@/lib/constants";
 import { safeJSON, uid, todayISO, startOfWeekISO, monthPrefix, clamp, sb } from "@/lib/storage";
 import { Transaction, Limit, Goal, TelegramUser, ScreenType, QuickAddPreset } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppState {
   lang: LangKey;
@@ -55,6 +56,7 @@ interface AppState {
   reminderDays: number;
   setReminderDays: (days: number) => void;
   syncFromRemote: () => Promise<void>;
+  syncTelegramTransactions: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -343,6 +345,81 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       showToast(t.syncFail, false);
     }
   }, [tgUser, useRemote, t, showToast]);
+
+  // Sync transactions from Telegram bot
+  const syncTelegramTransactions = useCallback(async () => {
+    if (!tgUser?.id) {
+      showToast(t.syncFail, false);
+      return;
+    }
+    
+    try {
+      // Fetch unsynced transactions from telegram_transactions table
+      const { data: telegramTx, error } = await supabase
+        .from('telegram_transactions')
+        .select('*')
+        .eq('telegram_user_id', tgUser.id)
+        .eq('synced', false)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching telegram transactions:', error);
+        showToast(t.syncFail, false);
+        return;
+      }
+
+      if (!telegramTx || telegramTx.length === 0) {
+        showToast(lang === 'ru' ? 'Нет новых транзакций' : lang === 'uz' ? 'Yangi tranzaksiyalar yo\'q' : 'No new transactions', true);
+        return;
+      }
+
+      // Convert and add to local transactions
+      const newTransactions: Transaction[] = telegramTx.map((tx: any) => ({
+        id: tx.id,
+        type: tx.type as 'expense' | 'income',
+        amount: Number(tx.amount),
+        description: tx.description || '',
+        categoryId: tx.category_id,
+        date: tx.created_at.slice(0, 10),
+        time: tx.created_at.slice(11, 16),
+        source: 'telegram',
+      }));
+
+      // Merge with existing transactions (avoid duplicates)
+      setTransactions(prev => {
+        const existingIds = new Set(prev.map(t => t.id));
+        const uniqueNew = newTransactions.filter(t => !existingIds.has(t.id));
+        const merged = [...uniqueNew, ...prev];
+        safeJSON.set("hamyon_transactions", merged);
+        return merged;
+      });
+
+      // Update balance
+      const balanceChange = newTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+      setBalance(prev => {
+        const newBalance = prev + balanceChange;
+        safeJSON.set("hamyon_balance", newBalance);
+        return newBalance;
+      });
+
+      // Mark as synced in database
+      const syncedIds = telegramTx.map((tx: any) => tx.id);
+      await supabase
+        .from('telegram_transactions')
+        .update({ synced: true })
+        .in('id', syncedIds);
+
+      showToast(
+        lang === 'ru' ? `Синхронизировано: ${telegramTx.length}` : 
+        lang === 'uz' ? `Sinxronlandi: ${telegramTx.length}` : 
+        `Synced: ${telegramTx.length}`, 
+        true
+      );
+    } catch (e) {
+      console.error('Sync error:', e);
+      showToast(t.syncFail, false);
+    }
+  }, [tgUser, lang, t, showToast, setTransactions, setBalance]);
   
   const value: AppState = {
     lang, t, setLang,
@@ -361,7 +438,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addLimit, updateLimit, deleteLimit,
     addGoal, updateGoal, deleteGoal, depositToGoal,
     theme, setTheme, currency, setCurrency, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
-    reminderDays, setReminderDays, syncFromRemote,
+    reminderDays, setReminderDays, syncFromRemote, syncTelegramTransactions,
   };
   
   return (
