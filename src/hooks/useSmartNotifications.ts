@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { SmartNotification, Subscription, RecurringTransaction } from "@/types";
 import { safeJSON, uid } from "@/lib/storage";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useSmartNotifications = () => {
   const { 
-    transactions, limits, goals, monthSpentByCategory, getCat, catLabel, lang, t,
+    tgUser,
+    transactions, limits, goals, monthSpentByCategory, getCat, catLabel, lang, t, currency,
     weekSpend, monthSpend, reminderDays
   } = useApp();
   
@@ -21,7 +23,7 @@ export const useSmartNotifications = () => {
   useEffect(() => {
     safeJSON.set("hamyon_notifications", notifications);
   }, [notifications]);
-  
+
   // Add notification helper
   const addNotification = useCallback((notif: Omit<SmartNotification, "id" | "createdAt" | "read">) => {
     const newNotif: SmartNotification = {
@@ -42,6 +44,55 @@ export const useSmartNotifications = () => {
       return [newNotif, ...prev].slice(0, 50); // Keep last 50 notifications
     });
   }, []);
+
+  // Realtime: notify about new Telegram transactions
+  useEffect(() => {
+    if (!tgUser?.id) return;
+
+    const channel = supabase
+      .channel(`telegram_tx_${tgUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "telegram_transactions",
+          filter: `telegram_user_id=eq.${tgUser.id}`,
+        },
+        (payload) => {
+          const row: any = (payload as any).new;
+          if (!row) return;
+
+          const amount = Number(row.amount || 0);
+          const cat = getCat(row.category_id);
+          const title =
+            lang === "ru"
+              ? "Новая транзакция из Telegram"
+              : lang === "uz"
+                ? "Telegramdan yangi tranzaksiya"
+                : "New Telegram transaction";
+
+          const formattedAmount = Math.abs(amount).toLocaleString(lang === "ru" ? "ru-RU" : lang === "uz" ? "uz-UZ" : "en-US");
+          const direction = amount < 0
+            ? (lang === "ru" ? "Расход" : lang === "uz" ? "Xarajat" : "Expense")
+            : (lang === "ru" ? "Доход" : lang === "uz" ? "Daromad" : "Income");
+
+          addNotification({
+            type: "telegram_tx",
+            title,
+            message: `${cat.emoji} ${direction}: ${catLabel(cat)} • ${formattedAmount} ${row.currency || currency}`,
+            severity: "info",
+            actionType: "view_transaction",
+            actionData: row.id,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tgUser?.id, lang, currency, getCat, catLabel, addNotification]);
   
   // Mark notification as read
   const markAsRead = useCallback((id: string) => {

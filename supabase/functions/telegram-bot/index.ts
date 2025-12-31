@@ -265,6 +265,42 @@ const getUserStats = async (telegramUserId: number) => {
   };
 };
 
+// Get today's expense breakdown
+const getDailyExpenseBreakdown = async (telegramUserId: number) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const dayStart = today + 'T00:00:00Z';
+
+  const { data: rows, error } = await supabase
+    .from('telegram_transactions')
+    .select('amount, category_id, created_at, currency')
+    .eq('telegram_user_id', telegramUserId)
+    .gte('created_at', dayStart);
+
+  if (error) {
+    console.error('Daily breakdown query error:', error);
+    return { totalExpense: 0, currency: 'UZS', top: [] as Array<{ categoryId: string; spent: number }> };
+  }
+
+  const expenses = (rows || []).filter(r => Number((r as any).amount) < 0);
+  const currency = (rows?.[0] as any)?.currency || 'UZS';
+
+  const map = new Map<string, number>();
+  for (const r of expenses) {
+    const cat = (r as any).category_id as string;
+    const spent = Math.abs(Number((r as any).amount) || 0);
+    map.set(cat, (map.get(cat) || 0) + spent);
+  }
+
+  const top = [...map.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([categoryId, spent]) => ({ categoryId, spent }));
+
+  const totalExpense = top.reduce((s, x) => s + x.spent, 0);
+
+  return { totalExpense, currency, top };
+};
+
 // Handle /start command
 const handleStart = async (chatId: number, user: any) => {
   const firstName = user?.first_name || 'User';
@@ -317,16 +353,37 @@ const handleStart = async (chatId: number, user: any) => {
 💡 Example: <code>coffee 15000</code> or <code>salary 5m</code>`,
   };
 
-  const keyboard = {
-    keyboard: [
-      [{ text: '➕ Xarajat' }, { text: '💰 Daromad' }],
-      [{ text: '📊 Statistika' }, { text: '❓ Yordam' }],
-    ],
-    resize_keyboard: true,
-    persistent: true,
+  const keyboardByLang: Record<string, any> = {
+    uz: {
+      keyboard: [
+        [{ text: '➕ Xarajat' }, { text: '💰 Daromad' }],
+        [{ text: '📊 Statistika' }, { text: '📅 Kunlik' }],
+        [{ text: '❓ Yordam' }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+    ru: {
+      keyboard: [
+        [{ text: '➕ Расход' }, { text: '💰 Доход' }],
+        [{ text: '📊 Статистика' }, { text: '📅 Сводка' }],
+        [{ text: '❓ Помощь' }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
+    en: {
+      keyboard: [
+        [{ text: '➕ Expense' }, { text: '💰 Income' }],
+        [{ text: '📊 Stats' }, { text: '📅 Daily' }],
+        [{ text: '❓ Help' }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    },
   };
 
-  await sendMessage(chatId, messages[lang] || messages.en, { reply_markup: keyboard });
+  await sendMessage(chatId, messages[lang] || messages.en, { reply_markup: keyboardByLang[lang] || keyboardByLang.en });
 };
 
 // Handle /help command
@@ -444,13 +501,48 @@ const handleStats = async (chatId: number, telegramUserId: number, lang: string)
   await sendMessage(chatId, messages[lang] || messages.en);
 };
 
+// Handle daily expense summary
+const handleDailySummary = async (chatId: number, telegramUserId: number, lang: string) => {
+  const daily = await getDailyExpenseBreakdown(telegramUserId);
+
+  const header: Record<string, string> = {
+    uz: `📅 <b>Bugungi xarajatlar</b>\n\n📤 Jami: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
+    ru: `📅 <b>Расходы за сегодня</b>\n\n📤 Итого: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
+    en: `📅 <b>Today's expenses</b>\n\n📤 Total: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
+  };
+
+  if (!daily.top.length) {
+    const empty: Record<string, string> = {
+      uz: header[lang] + `\n\n✅ Bugun xarajat yo'q`,
+      ru: header[lang] + `\n\n✅ Сегодня расходов нет`,
+      en: header[lang] + `\n\n✅ No expenses today`,
+    };
+    await sendMessage(chatId, empty[lang] || empty.en);
+    return;
+  }
+
+  const lines = daily.top
+    .map((x) => {
+      const emoji = CATEGORY_EMOJIS[x.categoryId] || '🧾';
+      const name = getCategoryName(x.categoryId, lang);
+      return `${emoji} ${name}: ${formatNumber(x.spent)} ${daily.currency}`;
+    })
+    .join('\n');
+
+  await sendMessage(chatId, `${header[lang] || header.en}\n\n${lines}`);
+};
+
 // Handle text message (parse as transaction)
 const handleTextMessage = async (chatId: number, text: string, user: any) => {
   const lang = user?.language_code || 'uz';
   const telegramUserId = user?.id;
   
   // Check for button presses
-  if (text === '➕ Xarajat' || text === '💰 Daromad') {
+  if (
+    text === '➕ Xarajat' || text === '💰 Daromad' ||
+    text === '➕ Расход' || text === '💰 Доход' ||
+    text === '➕ Expense' || text === '💰 Income'
+  ) {
     const promptMsgs: Record<string, string> = {
       uz: '📝 Summa va kategoriyani yozing yoki ovozli xabar yuboring.\n\nMisol: <code>kofe 15000</code>',
       ru: '📝 Напишите сумму и категорию или отправьте голосовое сообщение.\n\nПример: <code>кофе 15000</code>',
@@ -459,13 +551,18 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
     await sendMessage(chatId, promptMsgs[lang] || promptMsgs.en);
     return;
   }
-  
-  if (text === '📊 Statistika') {
+
+  if (text === '📊 Statistika' || text === '📊 Статистика' || text === '📊 Stats') {
     await handleStats(chatId, telegramUserId, lang);
     return;
   }
-  
-  if (text === '❓ Yordam') {
+
+  if (text === '📅 Kunlik' || text === '📅 Сводка' || text === '📅 Daily') {
+    await handleDailySummary(chatId, telegramUserId, lang);
+    return;
+  }
+
+  if (text === '❓ Yordam' || text === '❓ Помощь' || text === '❓ Help') {
     await handleHelp(chatId, lang);
     return;
   }
@@ -656,6 +753,9 @@ serve(async (req) => {
           break;
         case '/stats':
           await handleStats(chatId, user?.id, lang);
+          break;
+        case '/daily':
+          await handleDailySummary(chatId, user?.id, lang);
           break;
         case '/add':
           const addText = text.replace('/add ', '').trim();
