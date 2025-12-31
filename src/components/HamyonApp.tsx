@@ -72,7 +72,7 @@ const HamyonApp: React.FC = () => {
   }
   
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="h-[100dvh] bg-background text-foreground overflow-hidden">
       {/* Notification Bell - Only show on home screen */}
       {activeScreen === "home" && (
         <motion.button
