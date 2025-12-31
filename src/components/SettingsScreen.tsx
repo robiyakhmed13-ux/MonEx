@@ -377,7 +377,7 @@ const PickerModal = ({
       onClick={(e) => e.stopPropagation()}
     >
       <h3 className="text-xl font-bold text-foreground mb-4 flex-shrink-0">{title}</h3>
-      <div className="space-y-2 overflow-y-auto flex-1 pb-4 -mx-2 px-2">
+      <div className="space-y-2 overflow-y-auto flex-1 pb-4 -mx-2 px-2 touch-pan-y">
         {options.map((opt) => {
           const IconComp = opt.icon;
           return (

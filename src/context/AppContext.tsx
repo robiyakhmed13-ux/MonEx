@@ -135,7 +135,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tg.expand();
       tg.setHeaderColor("#FAFAFA");
       tg.setBackgroundColor("#FAFAFA");
-      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      // NOTE: do NOT disable vertical swipes; it breaks scrolling in many screens/modals.
       u = tg.initDataUnsafe?.user || null;
     }
     if (!u) {

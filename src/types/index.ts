@@ -256,7 +256,15 @@ export interface DebtPaymentSchedule {
 // Smart Notifications
 export interface SmartNotification {
   id: string;
-  type: "budget_alert" | "bill_reminder" | "anomaly" | "goal_progress" | "debt_warning" | "subscription_reminder" | "investment_alert";
+  type:
+    | "budget_alert"
+    | "bill_reminder"
+    | "anomaly"
+    | "goal_progress"
+    | "debt_warning"
+    | "subscription_reminder"
+    | "investment_alert"
+    | "telegram_tx";
   title: string;
   message: string;
   severity: "info" | "warning" | "critical";
