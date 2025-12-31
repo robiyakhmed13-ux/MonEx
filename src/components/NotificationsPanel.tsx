@@ -126,7 +126,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             </div>
 
             {/* Notifications List */}
-            <div className="overflow-y-auto h-[calc(100%-64px)]">
+            <div className="overflow-y-auto h-[calc(100%-64px)] touch-pan-y">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                   <Bell className="w-12 h-12 mb-4 opacity-30" />

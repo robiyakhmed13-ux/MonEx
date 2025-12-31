@@ -243,6 +243,7 @@
     @apply bg-background overflow-y-auto overscroll-contain;
     height: 100dvh;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     padding-top: max(var(--safe-area-top), 16px);
     padding-left: max(var(--safe-area-left), 16px);
     padding-right: max(var(--safe-area-right), 16px);

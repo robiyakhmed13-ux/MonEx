@@ -78,7 +78,7 @@ export const useSmartNotifications = () => {
             : (lang === "ru" ? "Доход" : lang === "uz" ? "Daromad" : "Income");
 
           addNotification({
-            type: "telegram_tx",
+            type: "anomaly",
             title,
             message: `${cat.emoji} ${direction}: ${catLabel(cat)} • ${formattedAmount} ${row.currency || currency}`,
             severity: "info",
