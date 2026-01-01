@@ -263,8 +263,7 @@ export interface SmartNotification {
     | "goal_progress"
     | "debt_warning"
     | "subscription_reminder"
-    | "investment_alert"
-    | "telegram_tx";
+    | "investment_alert";
   title: string;
   message: string;
   severity: "info" | "warning" | "critical";
