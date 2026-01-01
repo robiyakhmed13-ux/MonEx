@@ -241,7 +241,8 @@
   /* Screen container with proper scroll */
   .screen-container {
     @apply bg-background overflow-y-auto overscroll-contain;
-    height: 100dvh;
+    height: 100%;
+    min-height: 100dvh;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     padding-top: max(var(--safe-area-top), 16px);
