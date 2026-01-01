@@ -294,4 +294,6 @@ export type ScreenType =
   | "envelopes"
   | "cash-flow"
   | "debt-payoff"
-  | "more";
+  | "more"
+  | "help"
+  | "learn";

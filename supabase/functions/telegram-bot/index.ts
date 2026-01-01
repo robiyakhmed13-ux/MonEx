@@ -265,23 +265,37 @@ const getUserStats = async (telegramUserId: number) => {
   };
 };
 
-// Get today's expense breakdown
-const getDailyExpenseBreakdown = async (telegramUserId: number) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const dayStart = today + 'T00:00:00Z';
+// Get expense breakdown for a period
+const getExpenseBreakdown = async (telegramUserId: number, period: 'today' | 'week' | 'month' = 'today') => {
+  const now = new Date();
+  let startDate: string;
+  
+  switch (period) {
+    case 'week':
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      startDate = weekAgo.toISOString().slice(0, 10) + 'T00:00:00Z';
+      break;
+    case 'month':
+      startDate = now.toISOString().slice(0, 7) + '-01T00:00:00Z';
+      break;
+    default:
+      startDate = now.toISOString().slice(0, 10) + 'T00:00:00Z';
+  }
 
   const { data: rows, error } = await supabase
     .from('telegram_transactions')
     .select('amount, category_id, created_at, currency')
     .eq('telegram_user_id', telegramUserId)
-    .gte('created_at', dayStart);
+    .gte('created_at', startDate);
 
   if (error) {
-    console.error('Daily breakdown query error:', error);
-    return { totalExpense: 0, currency: 'UZS', top: [] as Array<{ categoryId: string; spent: number }> };
+    console.error('Expense breakdown query error:', error);
+    return { totalExpense: 0, totalIncome: 0, currency: 'UZS', top: [] as Array<{ categoryId: string; spent: number }>, period };
   }
 
   const expenses = (rows || []).filter(r => Number((r as any).amount) < 0);
+  const incomes = (rows || []).filter(r => Number((r as any).amount) > 0);
   const currency = (rows?.[0] as any)?.currency || 'UZS';
 
   const map = new Map<string, number>();
@@ -296,9 +310,10 @@ const getDailyExpenseBreakdown = async (telegramUserId: number) => {
     .slice(0, 5)
     .map(([categoryId, spent]) => ({ categoryId, spent }));
 
-  const totalExpense = top.reduce((s, x) => s + x.spent, 0);
+  const totalExpense = expenses.reduce((s, r) => s + Math.abs(Number((r as any).amount) || 0), 0);
+  const totalIncome = incomes.reduce((s, r) => s + Number((r as any).amount) || 0, 0);
 
-  return { totalExpense, currency, top };
+  return { totalExpense, totalIncome, currency, top, period };
 };
 
 // Handle /start command
@@ -501,35 +516,52 @@ const handleStats = async (chatId: number, telegramUserId: number, lang: string)
   await sendMessage(chatId, messages[lang] || messages.en);
 };
 
-// Handle daily expense summary
-const handleDailySummary = async (chatId: number, telegramUserId: number, lang: string) => {
-  const daily = await getDailyExpenseBreakdown(telegramUserId);
+// Handle daily expense summary with period selection
+const handleDailySummary = async (chatId: number, telegramUserId: number, lang: string, period: 'today' | 'week' | 'month' = 'today') => {
+  const daily = await getExpenseBreakdown(telegramUserId, period);
+
+  const periodLabels: Record<string, Record<string, string>> = {
+    today: { uz: "Bugungi", ru: "Сегодня", en: "Today's" },
+    week: { uz: "Haftalik", ru: "За неделю", en: "This week's" },
+    month: { uz: "Oylik", ru: "За месяц", en: "This month's" },
+  };
 
   const header: Record<string, string> = {
-    uz: `📅 <b>Bugungi xarajatlar</b>\n\n📤 Jami: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
-    ru: `📅 <b>Расходы за сегодня</b>\n\n📤 Итого: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
-    en: `📅 <b>Today's expenses</b>\n\n📤 Total: ${formatNumber(daily.totalExpense)} ${daily.currency}`,
+    uz: `📅 <b>${periodLabels[period][lang]} xarajatlar</b>\n\n📤 Jami: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Daromad: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
+    ru: `📅 <b>Расходы ${periodLabels[period][lang].toLowerCase()}</b>\n\n📤 Итого: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Доход: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
+    en: `📅 <b>${periodLabels[period][lang]} expenses</b>\n\n📤 Total: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Income: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
   };
 
   if (!daily.top.length) {
     const empty: Record<string, string> = {
-      uz: header[lang] + `\n\n✅ Bugun xarajat yo'q`,
-      ru: header[lang] + `\n\n✅ Сегодня расходов нет`,
-      en: header[lang] + `\n\n✅ No expenses today`,
+      uz: header[lang] + `\n\n✅ Xarajat yo'q`,
+      ru: header[lang] + `\n\n✅ Расходов нет`,
+      en: header[lang] + `\n\n✅ No expenses`,
     };
     await sendMessage(chatId, empty[lang] || empty.en);
     return;
   }
 
   const lines = daily.top
-    .map((x) => {
+    .map((x: { categoryId: string; spent: number }) => {
       const emoji = CATEGORY_EMOJIS[x.categoryId] || '🧾';
       const name = getCategoryName(x.categoryId, lang);
       return `${emoji} ${name}: ${formatNumber(x.spent)} ${daily.currency}`;
     })
     .join('\n');
 
-  await sendMessage(chatId, `${header[lang] || header.en}\n\n${lines}`);
+  // Add period selection buttons
+  const periodKeyboard = {
+    inline_keyboard: [
+      [
+        { text: lang === 'uz' ? '📅 Bugun' : lang === 'ru' ? '📅 Сегодня' : '📅 Today', callback_data: 'period_today' },
+        { text: lang === 'uz' ? '📆 Hafta' : lang === 'ru' ? '📆 Неделя' : '📆 Week', callback_data: 'period_week' },
+        { text: lang === 'uz' ? '🗓 Oy' : lang === 'ru' ? '🗓 Месяц' : '🗓 Month', callback_data: 'period_month' },
+      ]
+    ]
+  };
+
+  await sendMessage(chatId, `${header[lang] || header.en}\n\n${lines}`, { reply_markup: periodKeyboard });
 };
 
 // Handle text message (parse as transaction)
