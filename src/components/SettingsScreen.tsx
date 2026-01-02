@@ -202,12 +202,12 @@ export const SettingsScreen = memo(() => {
           <MenuItem 
             icon={<HelpCircle className="w-5 h-5" />}
             label={lang === "ru" ? "Помощь" : lang === "uz" ? "Yordam" : "Help"}
-            onClick={openBot}
+            onClick={() => setActiveScreen("help")}
           />
           <MenuItem 
             icon={<GraduationCap className="w-5 h-5" />}
             label={lang === "ru" ? "Обучение" : lang === "uz" ? "O'rganish" : "Learn"}
-            onClick={openBot}
+            onClick={() => setActiveScreen("learn")}
             isLast
           />
         </motion.div>
@@ -262,20 +262,20 @@ export const SettingsScreen = memo(() => {
         />
       )}
 
-      {/* Reset Confirmation */}
+      {/* Reset Confirmation - Centered Modal */}
       {resetOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setResetOpen(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setResetOpen(false)}>
           <motion.div 
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-background rounded-3xl p-6 w-full max-w-sm shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold text-foreground mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2 text-center">
               {lang === "ru" ? "Сбросить все данные?" : lang === "uz" ? "Barcha ma'lumotlarni o'chirish?" : "Reset all data?"}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6 text-center">
               {lang === "ru" ? "Все транзакции, бюджеты и цели будут удалены." : 
                lang === "uz" ? "Barcha tranzaksiyalar, byudjetlar va maqsadlar o'chiriladi." : 
                "This will delete all your transactions, budgets, and goals."}
@@ -288,20 +288,20 @@ export const SettingsScreen = memo(() => {
         </div>
       )}
       
-      {/* Customize Preferences Confirmation */}
+      {/* Customize Preferences Confirmation - Centered Modal */}
       {customizeOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setCustomizeOpen(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setCustomizeOpen(false)}>
           <motion.div 
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-background rounded-3xl p-6 w-full max-w-sm shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold text-foreground mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2 text-center">
               {lang === "ru" ? "Перезапустить настройку?" : lang === "uz" ? "Qayta sozlashni boshlash?" : "Restart setup wizard?"}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6 text-center">
               {lang === "ru" ? "Вы сможете заново настроить быстрые расходы и предпочтения." : 
                lang === "uz" ? "Tez qo'shish va afzalliklarni qayta sozlashingiz mumkin." : 
                "You'll be able to reconfigure quick adds and preferences."}
@@ -354,7 +354,7 @@ const MenuItem = ({
   </button>
 );
 
-// Reusable Picker Modal with scrollable content
+// Reusable Picker Modal - Centered for all devices
 const PickerModal = ({ 
   title, 
   onClose, 
@@ -368,16 +368,16 @@ const PickerModal = ({
   selected: string;
   onSelect: (key: string) => void;
 }) => (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={onClose}>
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
     <motion.div 
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      className="bg-background rounded-t-3xl p-6 w-full max-w-lg safe-bottom max-h-[70vh] flex flex-col"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="bg-background rounded-3xl p-6 w-full max-w-sm max-h-[70vh] flex flex-col shadow-2xl"
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 className="text-xl font-bold text-foreground mb-4 flex-shrink-0">{title}</h3>
-      <div className="space-y-2 overflow-y-auto flex-1 pb-4 -mx-2 px-2 touch-pan-y">
+      <h3 className="text-xl font-bold text-foreground mb-4 flex-shrink-0 text-center">{title}</h3>
+      <div className="space-y-2 overflow-y-auto flex-1 pb-2 -mx-2 px-2 touch-pan-y">
         {options.map((opt) => {
           const IconComp = opt.icon;
           return (

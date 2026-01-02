@@ -755,6 +755,32 @@ serve(async (req) => {
     const update = await req.json();
     console.log('Received update:', JSON.stringify(update));
 
+    // Handle callback queries (inline button presses)
+    const callbackQuery = update.callback_query;
+    if (callbackQuery) {
+      const chatId = callbackQuery.message?.chat?.id;
+      const userId = callbackQuery.from?.id;
+      const lang = callbackQuery.from?.language_code || 'uz';
+      const data = callbackQuery.data;
+
+      console.log(`Callback query: ${data} from user ${userId}`);
+
+      // Answer the callback to remove loading state
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: callbackQuery.id }),
+      });
+
+      // Handle period selection
+      if (data?.startsWith('period_')) {
+        const period = data.replace('period_', '') as 'today' | 'week' | 'month';
+        await handleDailySummary(chatId, userId, lang, period);
+      }
+
+      return new Response('OK', { status: 200 });
+    }
+
     const message = update.message;
     if (!message) {
       return new Response('OK', { status: 200 });

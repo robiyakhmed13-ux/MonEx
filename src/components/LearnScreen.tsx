@@ -242,7 +242,7 @@ const LEARN_TRANSLATIONS: Record<string, Record<string, string>> = {
 const STORAGE_KEY = "hamyon_learn_completed";
 
 export const LearnScreen: React.FC = () => {
-  const { setActiveScreen, settings } = useApp();
+  const { setActiveScreen, lang } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
@@ -250,7 +250,7 @@ export const LearnScreen: React.FC = () => {
     safeJSON.get(STORAGE_KEY, [])
   );
 
-  const language = settings?.language || "en";
+  const language = lang || "en";
   const t = LEARN_TRANSLATIONS[language] || LEARN_TRANSLATIONS.en;
 
   const toggleCompleted = (id: string) => {
