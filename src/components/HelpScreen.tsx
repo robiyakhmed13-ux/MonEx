@@ -314,12 +314,12 @@ const HELP_TRANSLATIONS: Record<string, Record<string, string>> = {
 };
 
 export const HelpScreen: React.FC = () => {
-  const { setActiveScreen, settings } = useApp();
+  const { setActiveScreen, lang } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
 
-  const language = settings?.language || "en";
+  const language = lang || "en";
   const t = HELP_TRANSLATIONS[language] || HELP_TRANSLATIONS.en;
 
   const filteredArticles = useMemo(() => {
