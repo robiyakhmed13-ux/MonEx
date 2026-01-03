@@ -5,10 +5,12 @@ import { formatUZS, clamp, todayISO, safeJSON } from "@/lib/storage";
 import { VoiceInput } from "./VoiceInput";
 import { CategoryIcon } from "./CategoryIcon";
 import { AICopilotPanel } from "./AICopilotPanel";
+import { AIInsightsWidget } from "./AIInsightsWidget";
+import { FinancePlannerModal } from "./FinancePlannerModal";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Lightbulb, Plus,
   CreditCard, PieChart, Tv, Users, TrendingUp, FileText, Edit2, X, Check,
-  ChevronUp, ChevronDown, Brain, Sparkles
+  ChevronUp, ChevronDown, Brain, Sparkles, Target
 } from "lucide-react";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
@@ -161,6 +163,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
 
   // AI Copilot state
   const [showAICopilot, setShowAICopilot] = useState(false);
+  const [showFinancePlanner, setShowFinancePlanner] = useState(false);
   
   return (
     <>
@@ -318,6 +321,9 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
       </motion.div>
 
+      {/* AI Insights Widget - Auto-refreshing every 6 hours */}
+      <AIInsightsWidget onOpenFullPanel={() => setShowAICopilot(true)} />
+
       {/* AI Copilot Button */}
       <motion.button
         initial={{ opacity: 0, y: 10 }}
@@ -325,7 +331,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         transition={{ delay: 0.15 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => setShowAICopilot(true)}
-        className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center gap-4 hover:border-violet-500/40 transition-colors"
+        className="w-full mb-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center gap-4 hover:border-violet-500/40 transition-colors"
       >
         <motion.div 
           className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center"
@@ -349,6 +355,42 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           animate={{ x: [0, 4, 0] }}
           transition={{ duration: 1.5, repeat: Infinity }}
           className="text-violet-500"
+        >
+          →
+        </motion.div>
+      </motion.button>
+
+      {/* Finance Planner Button - PATH C */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => setShowFinancePlanner(true)}
+        className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors"
+      >
+        <motion.div 
+          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center"
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        >
+          <Target className="w-6 h-6 text-white" />
+        </motion.div>
+        <div className="flex-1 text-left">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-foreground">
+              {lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner'}
+            </span>
+            <Sparkles className="w-4 h-4 text-amber-500" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {lang === 'ru' ? '"Накопить на машину за год" → план' : lang === 'uz' ? '"1 yilda mashina uchun" → reja' : '"Save for car in 1 year" → plan'}
+          </p>
+        </div>
+        <motion.div
+          animate={{ x: [0, 4, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-emerald-500"
         >
           →
         </motion.div>
@@ -703,6 +745,9 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
 
   {/* AI Copilot Panel */}
   <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />
+
+  {/* Finance Planner Modal - PATH C */}
+  <FinancePlannerModal isOpen={showFinancePlanner} onClose={() => setShowFinancePlanner(false)} />
   </>
   );
 };

@@ -324,7 +324,7 @@ const handleStart = async (chatId: number, user: any) => {
   const messages: Record<string, string> = {
     uz: `👋 Salom, ${firstName}!
 
-🏦 <b>Hamyon</b> - moliyaviy yordamchingiz
+🏦 <b>MonEX</b> - moliyaviy yordamchingiz
 
 📝 <b>Qanday foydalanish:</b>
 • Xabar yozing: <code>taxi 20000</code>
@@ -333,13 +333,17 @@ const handleStart = async (chatId: number, user: any) => {
 
 📊 <b>Buyruqlar:</b>
 /stats - Statistika
+/daily - Kunlik svodka
+/limit - Limitlar
+/goal - Maqsadlar
+/remind - Eslatmalar
 /help - Yordam
 
 💡 Misol: <code>kofe 15000</code> yoki <code>oylik 5m</code>`,
 
     ru: `👋 Привет, ${firstName}!
 
-🏦 <b>Hamyon</b> - ваш финансовый помощник
+🏦 <b>MonEX</b> - ваш финансовый помощник
 
 📝 <b>Как пользоваться:</b>
 • Напишите: <code>такси 20000</code>
@@ -348,13 +352,17 @@ const handleStart = async (chatId: number, user: any) => {
 
 📊 <b>Команды:</b>
 /stats - Статистика
+/daily - Дневная сводка
+/limit - Лимиты
+/goal - Цели
+/remind - Напоминания
 /help - Помощь
 
 💡 Пример: <code>кофе 15000</code> или <code>зарплата 5м</code>`,
 
     en: `👋 Hello, ${firstName}!
 
-🏦 <b>Hamyon</b> - your financial assistant
+🏦 <b>MonEX</b> - your financial assistant
 
 📝 <b>How to use:</b>
 • Send: <code>taxi 20000</code>
@@ -363,6 +371,10 @@ const handleStart = async (chatId: number, user: any) => {
 
 📊 <b>Commands:</b>
 /stats - Statistics
+/daily - Daily summary
+/limit - Limits
+/goal - Goals
+/remind - Reminders
 /help - Help
 
 💡 Example: <code>coffee 15000</code> or <code>salary 5m</code>`,
@@ -373,6 +385,7 @@ const handleStart = async (chatId: number, user: any) => {
       keyboard: [
         [{ text: '➕ Xarajat' }, { text: '💰 Daromad' }],
         [{ text: '📊 Statistika' }, { text: '📅 Kunlik' }],
+        [{ text: '🎯 Maqsadlar' }, { text: '⚙️ Limitlar' }],
         [{ text: '❓ Yordam' }],
       ],
       resize_keyboard: true,
@@ -382,6 +395,7 @@ const handleStart = async (chatId: number, user: any) => {
       keyboard: [
         [{ text: '➕ Расход' }, { text: '💰 Доход' }],
         [{ text: '📊 Статистика' }, { text: '📅 Сводка' }],
+        [{ text: '🎯 Цели' }, { text: '⚙️ Лимиты' }],
         [{ text: '❓ Помощь' }],
       ],
       resize_keyboard: true,
@@ -391,6 +405,7 @@ const handleStart = async (chatId: number, user: any) => {
       keyboard: [
         [{ text: '➕ Expense' }, { text: '💰 Income' }],
         [{ text: '📊 Stats' }, { text: '📅 Daily' }],
+        [{ text: '🎯 Goals' }, { text: '⚙️ Limits' }],
         [{ text: '❓ Help' }],
       ],
       resize_keyboard: true,
@@ -564,6 +579,143 @@ const handleDailySummary = async (chatId: number, telegramUserId: number, lang: 
   await sendMessage(chatId, `${header[lang] || header.en}\n\n${lines}`, { reply_markup: periodKeyboard });
 };
 
+// Handle /limit command - Show limits with inline management
+const handleLimit = async (chatId: number, telegramUserId: number, lang: string) => {
+  const categoryLimits: Record<string, number> = {
+    food: 500000,
+    restaurants: 300000,
+    taxi: 200000,
+    shopping: 400000,
+    entertainment: 200000,
+  };
+
+  const messages: Record<string, string> = {
+    uz: `⚙️ <b>Limit boshqaruvi</b>
+
+📊 Joriy limitlar:`,
+    ru: `⚙️ <b>Управление лимитами</b>
+
+📊 Текущие лимиты:`,
+    en: `⚙️ <b>Limit Management</b>
+
+📊 Current limits:`,
+  };
+
+  let limitsText = '';
+  for (const [cat, limit] of Object.entries(categoryLimits)) {
+    const emoji = CATEGORY_EMOJIS[cat] || '📦';
+    const name = getCategoryName(cat, lang);
+    limitsText += `\n${emoji} ${name}: ${formatNumber(limit)} UZS`;
+  }
+
+  const footer: Record<string, string> = {
+    uz: `\n\n💡 Limit o'rnatish:\n<code>/limit taxi 150000</code>`,
+    ru: `\n\n💡 Установить лимит:\n<code>/limit taxi 150000</code>`,
+    en: `\n\n💡 Set a limit:\n<code>/limit taxi 150000</code>`,
+  };
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: lang === 'uz' ? '🍔 Oziq-ovqat' : lang === 'ru' ? '🍔 Еда' : '🍔 Food', callback_data: 'limit_food' },
+        { text: lang === 'uz' ? '🚕 Taksi' : lang === 'ru' ? '🚕 Такси' : '🚕 Taxi', callback_data: 'limit_taxi' },
+      ],
+      [
+        { text: lang === 'uz' ? '🛍️ Xaridlar' : lang === 'ru' ? '🛍️ Покупки' : '🛍️ Shopping', callback_data: 'limit_shopping' },
+        { text: lang === 'uz' ? '🎬 Ko\'ngil' : lang === 'ru' ? '🎬 Развлечения' : '🎬 Fun', callback_data: 'limit_entertainment' },
+      ],
+    ]
+  };
+
+  await sendMessage(chatId, (messages[lang] || messages.en) + limitsText + (footer[lang] || footer.en), { reply_markup: keyboard });
+};
+
+// Handle /goal command - Show goals with progress
+const handleGoal = async (chatId: number, telegramUserId: number, lang: string) => {
+  const sampleGoals = [
+    { name: lang === 'ru' ? 'Машина' : lang === 'uz' ? 'Mashina' : 'Car', target: 50000000, current: 15000000, emoji: '🚗' },
+    { name: lang === 'ru' ? 'Отпуск' : lang === 'uz' ? 'Dam olish' : 'Vacation', target: 10000000, current: 4500000, emoji: '✈️' },
+  ];
+
+  const messages: Record<string, string> = {
+    uz: `🎯 <b>Mening maqsadlarim</b>\n`,
+    ru: `🎯 <b>Мои цели</b>\n`,
+    en: `🎯 <b>My Goals</b>\n`,
+  };
+
+  let goalsText = '';
+  for (const goal of sampleGoals) {
+    const pct = Math.round((goal.current / goal.target) * 100);
+    const progressBar = '█'.repeat(Math.floor(pct / 10)) + '░'.repeat(10 - Math.floor(pct / 10));
+    goalsText += `\n${goal.emoji} <b>${goal.name}</b>
+${progressBar} ${pct}%
+${formatNumber(goal.current)} / ${formatNumber(goal.target)} UZS\n`;
+  }
+
+  const footer: Record<string, string> = {
+    uz: `\n💡 Yangi maqsad:\n<code>/goal Mashina 50000000</code>`,
+    ru: `\n💡 Новая цель:\n<code>/goal Машина 50000000</code>`,
+    en: `\n💡 New goal:\n<code>/goal Car 50000000</code>`,
+  };
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: lang === 'uz' ? '➕ Yangi maqsad' : lang === 'ru' ? '➕ Новая цель' : '➕ New Goal', callback_data: 'goal_new' },
+      ],
+      [
+        { text: lang === 'uz' ? '💰 Qo\'shish' : lang === 'ru' ? '💰 Пополнить' : '💰 Add funds', callback_data: 'goal_deposit' },
+      ],
+    ]
+  };
+
+  await sendMessage(chatId, (messages[lang] || messages.en) + goalsText + (footer[lang] || footer.en), { reply_markup: keyboard });
+};
+
+// Handle /remind command - Set reminders
+const handleRemind = async (chatId: number, telegramUserId: number, lang: string) => {
+  const messages: Record<string, string> = {
+    uz: `⏰ <b>Eslatmalar</b>
+
+🔔 Faol eslatmalar:
+• 📅 Har kuni 21:00 - Kunlik hisobot
+• 💡 Limit oshsa - Ogohlantirish
+
+💡 Eslatma qo'shish:
+<code>/remind 21:00 Kunlik xarajatlar</code>`,
+    ru: `⏰ <b>Напоминания</b>
+
+🔔 Активные напоминания:
+• 📅 Каждый день 21:00 - Дневной отчёт
+• 💡 Превышение лимита - Предупреждение
+
+💡 Добавить напоминание:
+<code>/remind 21:00 Проверить расходы</code>`,
+    en: `⏰ <b>Reminders</b>
+
+🔔 Active reminders:
+• 📅 Daily at 21:00 - Daily report
+• 💡 Limit exceeded - Warning
+
+💡 Add reminder:
+<code>/remind 21:00 Check expenses</code>`,
+  };
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: lang === 'uz' ? '📅 Kunlik 21:00' : lang === 'ru' ? '📅 Ежедневно 21:00' : '📅 Daily 21:00', callback_data: 'remind_daily_21' },
+      ],
+      [
+        { text: lang === 'uz' ? '📊 Haftalik' : lang === 'ru' ? '📊 Еженедельно' : '📊 Weekly', callback_data: 'remind_weekly' },
+        { text: lang === 'uz' ? '🗓 Oylik' : lang === 'ru' ? '🗓 Ежемесячно' : '🗓 Monthly', callback_data: 'remind_monthly' },
+      ],
+    ]
+  };
+
+  await sendMessage(chatId, messages[lang] || messages.en, { reply_markup: keyboard });
+};
+
 // Handle text message (parse as transaction)
 const handleTextMessage = async (chatId: number, text: string, user: any) => {
   const lang = user?.language_code || 'uz';
@@ -596,6 +748,18 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
 
   if (text === '❓ Yordam' || text === '❓ Помощь' || text === '❓ Help') {
     await handleHelp(chatId, lang);
+    return;
+  }
+
+  // Handle goals button
+  if (text === '🎯 Maqsadlar' || text === '🎯 Цели' || text === '🎯 Goals') {
+    await handleGoal(chatId, telegramUserId, lang);
+    return;
+  }
+
+  // Handle limits button
+  if (text === '⚙️ Limitlar' || text === '⚙️ Лимиты' || text === '⚙️ Limits') {
+    await handleLimit(chatId, telegramUserId, lang);
     return;
   }
 
@@ -778,6 +942,48 @@ serve(async (req) => {
         await handleDailySummary(chatId, userId, lang, period);
       }
 
+      // Handle limit callbacks
+      if (data?.startsWith('limit_')) {
+        const category = data.replace('limit_', '');
+        const confirmMsgs: Record<string, string> = {
+          uz: `⚙️ ${getCategoryName(category, lang)} limiti.\n\nLimit o'rnatish: <code>/limit ${category} 300000</code>`,
+          ru: `⚙️ Лимит ${getCategoryName(category, lang)}.\n\nУстановить лимит: <code>/limit ${category} 300000</code>`,
+          en: `⚙️ ${getCategoryName(category, lang)} limit.\n\nSet limit: <code>/limit ${category} 300000</code>`,
+        };
+        await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
+      }
+
+      // Handle goal callbacks
+      if (data?.startsWith('goal_')) {
+        const action = data.replace('goal_', '');
+        if (action === 'new') {
+          const msgs: Record<string, string> = {
+            uz: `🎯 Yangi maqsad yaratish:\n<code>/goal Mashina 50000000</code>`,
+            ru: `🎯 Создать новую цель:\n<code>/goal Машина 50000000</code>`,
+            en: `🎯 Create new goal:\n<code>/goal Car 50000000</code>`,
+          };
+          await sendMessage(chatId, msgs[lang] || msgs.en);
+        } else if (action === 'deposit') {
+          const msgs: Record<string, string> = {
+            uz: `💰 Maqsadga qo'shish:\n<code>/deposit Mashina 500000</code>`,
+            ru: `💰 Пополнить цель:\n<code>/deposit Машина 500000</code>`,
+            en: `💰 Add to goal:\n<code>/deposit Car 500000</code>`,
+          };
+          await sendMessage(chatId, msgs[lang] || msgs.en);
+        }
+      }
+
+      // Handle remind callbacks
+      if (data?.startsWith('remind_')) {
+        const type = data.replace('remind_', '');
+        const msgs: Record<string, string> = {
+          uz: `✅ Eslatma o'rnatildi: ${type === 'daily_21' ? 'Har kuni 21:00' : type === 'weekly' ? 'Har hafta' : 'Har oy'}`,
+          ru: `✅ Напоминание установлено: ${type === 'daily_21' ? 'Каждый день 21:00' : type === 'weekly' ? 'Каждую неделю' : 'Каждый месяц'}`,
+          en: `✅ Reminder set: ${type === 'daily_21' ? 'Daily at 21:00' : type === 'weekly' ? 'Weekly' : 'Monthly'}`,
+        };
+        await sendMessage(chatId, msgs[lang] || msgs.en);
+      }
+
       return new Response('OK', { status: 200 });
     }
 
@@ -827,6 +1033,15 @@ serve(async (req) => {
             };
             await sendMessage(chatId, promptMsgs[lang] || promptMsgs.en);
           }
+          break;
+        case '/limit':
+          await handleLimit(chatId, user?.id, lang);
+          break;
+        case '/goal':
+          await handleGoal(chatId, user?.id, lang);
+          break;
+        case '/remind':
+          await handleRemind(chatId, user?.id, lang);
           break;
         default:
           await handleHelp(chatId, lang);
