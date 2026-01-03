@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ai-copilot]
 verify_jwt = false
+
+[functions.finance-planner]
+verify_jwt = false
