@@ -179,7 +179,9 @@
   }
   
   .safe-bottom {
-    padding-bottom: calc(var(--safe-area-bottom) + 1rem);
+    /* For modals and panels that appear above bottom nav */
+    padding-bottom: calc(var(--safe-area-bottom) + 80px + 1rem);
+    /* safe area + bottom nav height + extra spacing */
   }
   
   /* Input styles */
@@ -301,8 +303,11 @@
   .modal-content {
     @apply bg-card rounded-t-3xl p-6;
     box-shadow: var(--shadow-xl);
-    max-height: 90vh;
+    max-height: 85vh;
     overflow-y: auto;
+    /* Add extra padding to prevent bottom nav overlap */
+    padding-bottom: calc(24px + 80px + var(--safe-area-bottom)) !important;
+    /* 24px base + 80px bottom nav height + safe area */
   }
   
   /* Skeleton loading */
