@@ -360,7 +360,7 @@ export const DebtAssessmentScreen = memo(() => {
                 </motion.div>
               )}
 
-              {assessmentStep > questions.length && (
+              {assessmentStep >= questions.length && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
