@@ -323,80 +323,8 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
       </motion.div>
 
-      {/* AI Insights Widget - Auto-refreshing every 6 hours */}
+      {/* AI Insights Widget - Auto-refreshing every 6 hours - Opens full AI Copilot on tap */}
       <AIInsightsWidget onOpenFullPanel={() => setShowAICopilot(true)} />
-
-      {/* AI Copilot Button */}
-      <motion.button
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => setShowAICopilot(true)}
-        className="w-full mb-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center gap-4 hover:border-violet-500/40 transition-colors"
-      >
-        <motion.div 
-          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <Brain className="w-6 h-6 text-white" />
-        </motion.div>
-        <div className="flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">
-              {lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot'}
-            </span>
-            <Sparkles className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {lang === 'ru' ? 'Анализ поведения и прогнозы' : lang === 'uz' ? 'Xulq tahlili va bashoratlar' : 'Behavioral analysis & predictions'}
-          </p>
-        </div>
-        <motion.div
-          animate={{ x: [0, 4, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-violet-500"
-        >
-          →
-        </motion.div>
-      </motion.button>
-
-      {/* Finance Planner Button - PATH C */}
-      <motion.button
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => setShowFinancePlanner(true)}
-        className="w-full mb-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors"
-      >
-        <motion.div 
-          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center"
-          animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        >
-          <Target className="w-6 h-6 text-white" />
-        </motion.div>
-        <div className="flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">
-              {lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner'}
-            </span>
-            <Sparkles className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {lang === 'ru' ? '"Накопить на машину за год" → план' : lang === 'uz' ? '"1 yilda mashina uchun" → reja' : '"Save for car in 1 year" → plan'}
-          </p>
-        </div>
-        <motion.div
-          animate={{ x: [0, 4, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-emerald-500"
-        >
-          →
-        </motion.div>
-      </motion.button>
 
       {/* Budget Simulator Button */}
       <motion.button
@@ -643,7 +571,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         </div>
       </section>
 
-      {/* Quick Access to New Features - Now with "Add" action */}
+      {/* Tools Grid - Accounts, Debts, Subscriptions, etc. */}
       <section className="mb-6">
         <h2 className="text-title-3 text-foreground mb-3">
           {lang === "ru" ? "Инструменты" : lang === "uz" ? "Asboblar" : "Tools"}
@@ -717,6 +645,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </motion.button>
         </div>
       </section>
+
       
       {/* Recent Transactions */}
       <section>
@@ -747,7 +676,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </motion.div>
         ) : (
           <div className="space-y-2">
-            {transactions.slice(0, 5).map((tx, index) => {
+            {transactions.slice(0, 3).map((tx, index) => {
               const cat = getCat(tx.categoryId);
               return (
                 <motion.div 
