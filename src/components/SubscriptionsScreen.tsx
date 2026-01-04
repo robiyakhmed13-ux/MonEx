@@ -304,26 +304,26 @@ export const SubscriptionsScreen = memo(({ openAddForm = false }: SubscriptionsS
         )}
       </section>
 
-      {/* Add/Edit Form Modal */}
+      {/* Add/Edit Form Modal - Centered */}
       <AnimatePresence>
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={() => setShowForm(false)}
           >
             <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="bg-background rounded-t-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
+              className="bg-background rounded-3xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">{editingId ? t.save : t.addNew}</h2>
-                <button onClick={() => setShowForm(false)} className="p-2">
+                <button onClick={() => setShowForm(false)} className="p-2 rounded-full hover:bg-secondary">
                   <X className="w-5 h-5" />
                 </button>
               </div>
