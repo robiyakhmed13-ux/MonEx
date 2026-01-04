@@ -23,6 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-
+# secrets
+.env
+.env.*
 **/*.keystore
 android/keystore.properties
+
+# android build/cache
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
