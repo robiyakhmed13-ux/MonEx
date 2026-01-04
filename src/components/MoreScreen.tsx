@@ -18,9 +18,15 @@ import {
   Settings,
   Search,
   Star,
-  X
+  X,
+  Brain,
+  Sparkles,
+  Zap
 } from "lucide-react";
 import { ScreenType } from "@/types";
+import { AICopilotPanel } from "./AICopilotPanel";
+import { FinancePlannerModal } from "./FinancePlannerModal";
+import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 
 interface ToolItem {
   screen: ScreenType;
@@ -138,11 +144,14 @@ interface ToolUsage {
 }
 
 export const MoreScreen: React.FC = () => {
-  const { setActiveScreen, t } = useApp();
+  const { setActiveScreen, t, lang } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [toolUsage, setToolUsage] = useState<ToolUsage>(() => 
     safeJSON.get(STORAGE_KEY, {})
   );
+  const [showAICopilot, setShowAICopilot] = useState(false);
+  const [showFinancePlanner, setShowFinancePlanner] = useState(false);
+  const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
 
   // Track tool usage when navigating
   const handleToolClick = (screen: ScreenType) => {
@@ -195,6 +204,96 @@ export const MoreScreen: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
           <h1 className="text-2xl font-bold">{getLabel("tools")}</h1>
+        </div>
+
+        {/* AI Features Section */}
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              {lang === "ru" ? "AI Возможности" : lang === "uz" ? "AI Imkoniyatlar" : "AI Features"}
+            </h2>
+          </div>
+
+          {/* AI Copilot */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowAICopilot(true)}
+            className="w-full p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center gap-4 hover:border-violet-500/40 transition-colors shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-foreground">
+                  {lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {lang === 'ru' ? 'Анализ поведения и прогнозы' : lang === 'uz' ? 'Xulq tahlili va bashoratlar' : 'Behavioral analysis & predictions'}
+              </p>
+            </div>
+            <motion.div
+              animate={{ x: [0, 4, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-violet-500 flex-shrink-0"
+            >
+              →
+            </motion.div>
+          </motion.button>
+
+          {/* Finance Planner */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowFinancePlanner(true)}
+            className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <span className="font-semibold text-foreground block">
+                {lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner'}
+              </span>
+              <p className="text-xs text-muted-foreground truncate">
+                {lang === 'ru' ? 'Генератор целей и планов' : lang === 'uz' ? 'Maqsad va reja yaratuvchi' : 'Goals & plans generator'}
+              </p>
+            </div>
+            <motion.div
+              animate={{ x: [0, 4, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-emerald-500 flex-shrink-0"
+            >
+              →
+            </motion.div>
+          </motion.button>
+
+          {/* Budget Simulator */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowBudgetSimulator(true)}
+            className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/20 flex items-center gap-4 hover:border-amber-500/40 transition-colors shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <span className="font-semibold text-foreground block">
+                {lang === 'ru' ? 'Симулятор бюджета' : lang === 'uz' ? 'Byudjet simulyatori' : 'Budget Simulator'}
+              </span>
+              <p className="text-xs text-muted-foreground truncate">
+                {lang === 'ru' ? 'Сценарии "что если"' : lang === 'uz' ? '"Nima bo\'lsa" stsenariylar' : '"What if" scenarios'}
+              </p>
+            </div>
+            <motion.div
+              animate={{ x: [0, 4, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="text-amber-500 flex-shrink-0"
+            >
+              →
+            </motion.div>
+          </motion.button>
         </div>
 
         {/* Search Bar */}
@@ -299,6 +398,11 @@ export const MoreScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* AI Modals */}
+      <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />
+      <FinancePlannerModal isOpen={showFinancePlanner} onClose={() => setShowFinancePlanner(false)} />
+      <BudgetSimulatorModal isOpen={showBudgetSimulator} onClose={() => setShowBudgetSimulator(false)} />
     </div>
   );
 };
