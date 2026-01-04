@@ -304,6 +304,7 @@ export const EnvelopesScreen = memo(() => {
               exit={{ y: "100%" }}
               onClick={e => e.stopPropagation()}
               className="bg-background rounded-t-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
+              style={{ paddingBottom: 'calc(1.5rem + 80px + env(safe-area-inset-bottom))' }}
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">{editingId ? t.save : t.addNew}</h2>
