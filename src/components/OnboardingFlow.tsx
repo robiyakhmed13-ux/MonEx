@@ -20,7 +20,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
   const [step, setStep] = useState(0);
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark" | "system">("light");
-  const [selectedLang, setSelectedLang] = useState<LangKey>(lang);
+  const [selectedLang, setSelectedLang] = useState<LangKey>(() => {
+    // Auto-detect browser language, default to English
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith('uz')) return 'uz';
+    if (browserLang.startsWith('ru')) return 'ru';
+    return 'en';
+  });
   const [selectedCurrency, setSelectedCurrency] = useState("UZS");
   const [quickAdds, setQuickAdds] = useState<QuickAddPreset[]>([]);
   const [editingPreset, setEditingPreset] = useState<{ categoryId: string; amount: string } | null>(null);
