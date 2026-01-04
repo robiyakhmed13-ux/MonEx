@@ -68,7 +68,16 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<LangKey>(() => safeJSON.get("hamyon_lang", "uz") as LangKey);
+  const [lang, setLang] = useState<LangKey>(() => {
+    // Auto-detect browser language, default to English
+    const saved = safeJSON.get("hamyon_lang", null);
+    if (saved) return saved as LangKey;
+    
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith('uz')) return 'uz';
+    if (browserLang.startsWith('ru')) return 'ru';
+    return 'en'; // Default to English
+  });
   const t = I18N[lang] || I18N.uz;
   
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
