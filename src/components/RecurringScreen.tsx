@@ -249,22 +249,22 @@ const AddRecurringModal = memo(({ isOpen, onClose, onSave }: AddRecurringModalPr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="modal-overlay"
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="absolute bottom-0 left-0 right-0 modal-content safe-bottom max-h-[85vh] overflow-y-auto"
+          className="bg-background rounded-3xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-6" />
           
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-title-1 text-foreground">{t.addRecurring || "Add Recurring"}</h2>
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-muted">
               ✕
             </button>
           </div>

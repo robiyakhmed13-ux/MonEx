@@ -7,10 +7,11 @@ import { CategoryIcon } from "./CategoryIcon";
 import { AICopilotPanel } from "./AICopilotPanel";
 import { AIInsightsWidget } from "./AIInsightsWidget";
 import { FinancePlannerModal } from "./FinancePlannerModal";
+import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Lightbulb, Plus,
   CreditCard, PieChart, Tv, Users, TrendingUp, FileText, Edit2, X, Check,
-  ChevronUp, ChevronDown, Brain, Sparkles, Target
+  ChevronUp, ChevronDown, Brain, Sparkles, Target, Calculator
 } from "lucide-react";
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
@@ -164,6 +165,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
   // AI Copilot state
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [showFinancePlanner, setShowFinancePlanner] = useState(false);
+  const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
   
   return (
     <>
@@ -367,7 +369,7 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
         transition={{ delay: 0.2 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => setShowFinancePlanner(true)}
-        className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors"
+        className="w-full mb-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors"
       >
         <motion.div 
           className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center"
@@ -391,6 +393,42 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           animate={{ x: [0, 4, 0] }}
           transition={{ duration: 1.5, repeat: Infinity }}
           className="text-emerald-500"
+        >
+          →
+        </motion.div>
+      </motion.button>
+
+      {/* Budget Simulator Button */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={() => setShowBudgetSimulator(true)}
+        className="w-full mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/20 flex items-center gap-4 hover:border-amber-500/40 transition-colors"
+      >
+        <motion.div 
+          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <Calculator className="w-6 h-6 text-white" />
+        </motion.div>
+        <div className="flex-1 text-left">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-foreground">
+              {lang === 'ru' ? 'Симулятор бюджета' : lang === 'uz' ? 'Byudjet simulyatori' : 'Budget Simulator'}
+            </span>
+            <Sparkles className="w-4 h-4 text-amber-500" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {lang === 'ru' ? '"Что если сократить такси на 50%?"' : lang === 'uz' ? '"Taksini 50% ga kamaytirsam?"' : '"What if I reduce taxi by 50%?"'}
+          </p>
+        </div>
+        <motion.div
+          animate={{ x: [0, 4, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-amber-500"
         >
           →
         </motion.div>
@@ -748,6 +786,9 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
 
   {/* Finance Planner Modal - PATH C */}
   <FinancePlannerModal isOpen={showFinancePlanner} onClose={() => setShowFinancePlanner(false)} />
+
+  {/* Budget Simulator Modal */}
+  <BudgetSimulatorModal isOpen={showBudgetSimulator} onClose={() => setShowBudgetSimulator(false)} />
   </>
   );
 };
