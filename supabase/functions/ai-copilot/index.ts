@@ -62,6 +62,12 @@ serve(async (req) => {
     const monthlyExpenses = thisMonthTx.filter(t => t.amount < 0);
     const monthlyIncome = thisMonthTx.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
     const monthlySpending = monthlyExpenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+    
+    // Calculate days until month end and daily spending EARLY (before usage)
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = daysInMonth - now.getDate();
+    const avgDailySpending = monthlySpending / (now.getDate() || 1);
+    const projectedMonthlySpending = avgDailySpending * daysInMonth;
 
     // Analyze patterns
     const categorySpending: Record<string, { count: number; total: number; times: string[]; dates: string[] }> = {};
@@ -144,11 +150,7 @@ serve(async (req) => {
       .filter(([_, data]) => data.count >= 3)
       .sort((a, b) => b[1].count - a[1].count);
 
-    // Calculate days until month end
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysLeft = daysInMonth - now.getDate();
-    const avgDailySpending = monthlySpending / (now.getDate() || 1);
-    const projectedMonthlySpending = avgDailySpending * daysInMonth;
+    // Note: avgDailySpending, daysInMonth, daysLeft, projectedMonthlySpending are calculated earlier (line 67-70)
 
     // Prepare context for AI
     const analysisContext = {
@@ -213,7 +215,7 @@ DETECTION FRAMEWORK:
 - Post-salary splurges = poor delayed gratification
 
 🔮 PREDICTIVE WARNINGS (BE SPECIFIC):
-- "At this rate, balance = 0 in ${daysUntilBalanceZero} days"
+- "At this rate, balance = 0 in ${analysisContext.daysUntilBalanceZero} days"
 - "You'll miss rent in 12 days if spending continues"
 - "4th taxi this week after 9pm - stress pattern detected"
 - "Weekend spending up 40% - possible burnout indicator"
@@ -225,10 +227,10 @@ DETECTION FRAMEWORK:
 - "Your stress spending costs you 300K/month - that's 3.6M/year"
 
 ⚡ REAL-TIME INSIGHTS:
-- Week-over-week spending change: ${weekOverWeekSpendingChange}%
+- Week-over-week spending change: ${analysisContext.weekOverWeekSpendingChange}%
 - Stress indicators detected: ${stressIndicators.length}
 - Days until financial zero: ${daysUntilZero}
-- Late-night transactions: ${lateNightSpendingCount}
+- Late-night transactions: ${analysisContext.lateNightSpendingCount}
 
 LANGUAGE: ${lang === 'uz' ? 'O\'zbekcha (Uzbek)' : lang === 'ru' ? 'Русский (Russian)' : 'English'}
 
