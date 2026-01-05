@@ -1,6 +1,6 @@
 // Authentication service for Supabase
 import { supabase } from '@/integrations/supabase/client';
-import { User, AuthError, Session } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 
 export interface AuthResponse {
   success: boolean;
@@ -38,7 +38,20 @@ export class AuthService {
       }
 
       // Create user profile
-      await this.createUserProfile(data.user.id, fullName, email);
+      if (data.user.id) {
+        try {
+          await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              full_name: fullName,
+              email: email,
+              created_at: new Date().toISOString()
+            });
+        } catch (profileError) {
+          console.log('Profile creation will be handled by trigger');
+        }
+      }
 
       return {
         success: true,
@@ -144,7 +157,7 @@ export class AuthService {
   }
 
   // Resend verification email
-  static async resendVerificationEmail(email: string): Promise<VerificationResponse> {
+  static async resendVerification(email: string): Promise<VerificationResponse> {
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -228,59 +241,11 @@ export class AuthService {
     }
   }
 
-  // Create user profile (called after registration)
-  private static async createUserProfile(userId: string, fullName: string, email: string) {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          full_name: fullName,
-          email: email,
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error creating profile:', error);
-      }
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    }
-  }
-
   // Listen for auth changes
   static onAuthStateChange(callback: (user: User | null, session: Session | null) => void) {
     return supabase.auth.onAuthStateChange((event, session) => {
       callback(session?.user || null, session);
     });
-  }
-
-  // Check if email is already registered
-  static async checkEmailExists(email: string): Promise<boolean> {
-    try {
-      // Try to sign in with a dummy password - if user exists, we'll get an error
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'dummy-password-check-123'
-      });
-
-      // If we get "Invalid login credentials" error, user exists
-      if (error && error.message.includes('Invalid login credentials')) {
-        return true;
-      }
-
-      // If no error (shouldn't happen with dummy password), user exists
-      if (data.user) {
-        // Sign them out immediately
-        await supabase.auth.signOut();
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Error checking email:', error);
-      return false;
-    }
   }
 
   // Social auth - Google
@@ -305,27 +270,6 @@ export class AuthService {
       };
     }
   }
-
-  // Delete account
-  static async deleteAccount(userId: string): Promise<VerificationResponse> {
-    try {
-      // Delete user data first
-      await supabase.from('transactions').delete().eq('user_id', userId);
-      await supabase.from('limits').delete().eq('user_id', userId);
-      await supabase.from('goals').delete().eq('user_id', userId);
-      await supabase.from('profiles').delete().eq('id', userId);
-
-      // Then delete auth account (requires admin privileges)
-      // This should be done via Edge Function for security
-      
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  }
 }
 
 // Export convenience functions
@@ -336,12 +280,10 @@ export const auth = {
   getCurrentUser: AuthService.getCurrentUser,
   getSession: AuthService.getSession,
   verifyEmail: AuthService.verifyEmail,
-  resendVerification: AuthService.resendVerificationEmail,
+  resendVerification: AuthService.resendVerification,
   resetPassword: AuthService.sendPasswordResetEmail,
   updatePassword: AuthService.updatePassword,
   updateProfile: AuthService.updateProfile,
   onAuthStateChange: AuthService.onAuthStateChange,
-  checkEmailExists: AuthService.checkEmailExists,
   signInWithGoogle: AuthService.signInWithGoogle,
-  deleteAccount: AuthService.deleteAccount,
 };
