@@ -272,10 +272,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
   // Auth handlers
   const handleNumpadInput = (num: string, isPinConfirm: boolean = false) => {
-    const targetPin = isPinConfirm ? confirmPin : pin;
-    const setTargetPin = isPinConfirm ? setConfirmPin : setPin;
-    
-    if (num === 'delete') {
+  const targetPin = isPinConfirm ? confirmPin : pin;
+  const setTargetPin = isPinConfirm ? setConfirmPin : setPin;
+  
+  // Clear error when user starts typing
+  if (error) setError('');
+  
+  if (num === 'delete') {
       let lastFilledIndex = -1;
       for (let i = targetPin.length - 1; i >= 0; i--) {
         if (targetPin[i] !== '') { lastFilledIndex = i; break; }
@@ -432,10 +435,12 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       const confirmPinValue = confirmPin.join('');
       
       if (pinValue !== confirmPinValue) {
-        setError(onboardingLang === 'ru' ? 'PIN-коды не совпадают' : onboardingLang === 'uz' ? 'PIN kodlar mos emas' : 'PINs do not match');
-        setConfirmPin(['', '', '', '']);
-        setIsConfirmingPin(false);
-        return;
+          setError(onboardingLang === 'ru' ? 'PIN-коды не совпадают' : onboardingLang === 'uz' ? 'PIN kodlar mos emas' : 'PINs do not match');
+          // Clear BOTH PINs to start fresh
+          setPin(['', '', '', '']);
+          setConfirmPin(['', '', '', '']);
+          setIsConfirmingPin(false);
+          return;
       }
 
       const user = await auth.getCurrentUser();
