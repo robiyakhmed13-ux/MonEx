@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
+import { auth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { QuickAddPreset } from "@/types";
 import { formatUZS } from "@/lib/storage";
 import { CURRENCIES } from "@/lib/exportData";
