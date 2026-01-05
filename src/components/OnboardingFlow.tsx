@@ -297,17 +297,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       setTargetPin(newPin);
 
       if (firstEmptyIndex === 3) {
-        setTimeout(() => {
-          if (!isConfirmingPin) {
-            setIsConfirmingPin(true);
-          } else {
-            if (pin.join('') === newPin.join('')) {
-              setAuthStep('biometric');
-            } else {
-              setError(t.pinMismatch);
-              setConfirmPin(['', '', '', '']);
-            }
-          }
+        setTimeout(async () => {
+          await handleSavePinReal();
         }, 300);
       }
     }
@@ -336,31 +327,164 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       setVerificationCode(newCode);
 
       if (firstEmptyIndex === 5) {
-        setIsLoading(true);
-        setTimeout(() => {
-          setIsLoading(false);
-          setAuthStep('create-pin');
-        }, 1500);
+        setTimeout(async () => {
+          await handleVerifyEmail();
+        }, 300);
       }
     }
   };
 
-  const handleAuth = async (type: 'login' | 'register') => {
-    setIsLoading(true);
+  // Real Authentication Handlers
+  const handleRegister = async () => {
     setError('');
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      if (type === 'register') {
-        setAuthStep('verify-code');
-      } else {
-        setAuthStep('create-pin');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
+    setIsLoading(true);
+
+    if (!authData.email || !authData.password || !authData.fullName) {
+      setError(onboardingLang === 'ru' ? 'Заполните все поля' : onboardingLang === 'uz' ? 'Barcha maydonlarni to\'ldiring' : 'Fill all fields');
       setIsLoading(false);
+      return;
+    }
+
+    if (authData.password.length < 6) {
+      setError(onboardingLang === 'ru' ? 'Пароль минимум 6 символов' : onboardingLang === 'uz' ? 'Parol kamida 6 ta belgi' : 'Password must be at least 6 characters');
+      setIsLoading(false);
+      return;
+    }
+
+    if (authData.password !== authData.confirmPassword) {
+      setError(onboardingLang === 'ru' ? 'Пароли не совпадают' : onboardingLang === 'uz' ? 'Parollar mos emas' : 'Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await auth.register(authData.email, authData.password, authData.fullName);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || (onboardingLang === 'ru' ? 'Ошибка регистрации' : onboardingLang === 'uz' ? 'Ro\'yxatdan o\'tish xatosi' : 'Registration error'));
+      return;
+    }
+
+    setAuthStep('verify-code');
+  };
+
+  const handleLogin = async () => {
+    setError('');
+    setIsLoading(true);
+
+    if (!authData.email || !authData.password) {
+      setError(onboardingLang === 'ru' ? 'Введите email и пароль' : onboardingLang === 'uz' ? 'Email va parolni kiriting' : 'Enter email and password');
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await auth.login(authData.email, authData.password);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || (onboardingLang === 'ru' ? 'Неверный email или пароль' : onboardingLang === 'uz' ? 'Email yoki parol noto\'g\'ri' : 'Invalid email or password'));
+      return;
+    }
+
+    if (result.session) {
+      localStorage.setItem('supabase_session', JSON.stringify(result.session));
+    }
+
+    setAuthStep('create-pin');
+  };
+
+  const handleVerifyEmail = async () => {
+    setError('');
+    setIsLoading(true);
+
+    const code = verificationCode.join('');
+    
+    if (code.length !== 6) {
+      setError(onboardingLang === 'ru' ? 'Введите 6-значный код' : onboardingLang === 'uz' ? '6 xonali kodni kiriting' : 'Enter 6-digit code');
+      setIsLoading(false);
+      return;
+    }
+
+    const result = await auth.verifyEmail(authData.email, code);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || (onboardingLang === 'ru' ? 'Неверный код' : onboardingLang === 'uz' ? 'Noto\'g\'ri kod' : 'Invalid code'));
+      return;
+    }
+
+    setAuthStep('create-pin');
+  };
+
+  const handleResendCode = async () => {
+    setIsLoading(true);
+    const result = await auth.resendVerification(authData.email);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || (onboardingLang === 'ru' ? 'Ошибка отправки' : onboardingLang === 'uz' ? 'Yuborish xatosi' : 'Send error'));
+    }
+  };
+
+  const handleSavePinReal = async () => {
+    if (isConfirmingPin) {
+      const pinValue = pin.join('');
+      const confirmPinValue = confirmPin.join('');
+      
+      if (pinValue !== confirmPinValue) {
+        setError(onboardingLang === 'ru' ? 'PIN-коды не совпадают' : onboardingLang === 'uz' ? 'PIN kodlar mos emas' : 'PINs do not match');
+        setConfirmPin(['', '', '', '']);
+        setIsConfirmingPin(false);
+        return;
+      }
+
+      const user = await auth.getCurrentUser();
+      if (user) {
+        const pinHash = btoa(pinValue);
+        
+        await supabase
+          .from('profiles')
+          .update({ pin_hash: pinHash })
+          .eq('id', user.id);
+
+        localStorage.setItem('user_pin_hash', pinHash);
+      }
+
+      setAuthStep('biometric');
+    } else {
+      setIsConfirmingPin(true);
+    }
+  };
+
+  const handleEnableBiometric = async () => {
+    const user = await auth.getCurrentUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ biometric_enabled: true })
+        .eq('id', user.id);
+
+      localStorage.setItem('biometric_enabled', 'true');
+    }
+
+    setAuthStep('complete');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    const result = await auth.signInWithGoogle();
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || (onboardingLang === 'ru' ? 'Ошибка входа' : onboardingLang === 'uz' ? 'Kirish xatosi' : 'Sign in error'));
+    }
+  };
+
+  const handleAuth = async (type: 'login' | 'register') => {
+    if (type === 'register') {
+      await handleRegister();
+    } else {
+      await handleLogin();
     }
   };
 
