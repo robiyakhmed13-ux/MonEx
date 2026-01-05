@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -53,8 +53,8 @@ const downloadFile = async (filePath: string): Promise<ArrayBuffer> => {
 
 // Transcribe voice using OpenAI Whisper
 const transcribeVoice = async (audioBuffer: ArrayBuffer, lang: string = 'uz'): Promise<string | null> => {
-  if (!OPENAI_API_KEY) {
-    console.error('OPENAI_API_KEY not set');
+  if (!GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY not set');
     return null;
   }
 
@@ -68,7 +68,7 @@ const transcribeVoice = async (audioBuffer: ArrayBuffer, lang: string = 'uz'): P
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
       },
       body: formData,
     });
@@ -89,8 +89,8 @@ const transcribeVoice = async (audioBuffer: ArrayBuffer, lang: string = 'uz'): P
 
 // Parse transaction from text using OpenAI
 const parseTransaction = async (text: string, lang: string = 'uz') => {
-  if (!OPENAI_API_KEY) {
-    console.error('OPENAI_API_KEY not set');
+  if (!GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY not set');
     return null;
   }
 
@@ -134,7 +134,7 @@ If unclear: { "error": "message" }`;
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
