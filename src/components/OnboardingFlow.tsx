@@ -45,6 +45,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [confirmPin, setConfirmPin] = useState<string[]>(['', '', '', '']);
   const [isConfirmingPin, setIsConfirmingPin] = useState(false);
+  // Store the first entered PIN to avoid stale state reads during confirmation
+  const firstPinRef = useRef<string>('');
   const [verificationCode, setVerificationCode] = useState<string[]>(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -271,14 +273,17 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   }, [onboardingLang]);
 
   // Auth handlers
-  const handleNumpadInput = (num: string, isPinConfirm: boolean = false) => {
-  const targetPin = isPinConfirm ? confirmPin : pin;
-  const setTargetPin = isPinConfirm ? setConfirmPin : setPin;
-  
-  // Clear error when user starts typing
-  if (error) setError('');
-  
-  if (num === 'delete') {
+  const handleNumpadInput = async (num: string, isPinConfirm: boolean = false) => {
+    const targetPin = isPinConfirm ? confirmPin : pin;
+    const setTargetPin = isPinConfirm ? setConfirmPin : setPin;
+
+    // Clear error when user starts typing
+    if (error) setError('');
+
+    const allFilled = targetPin.every((d) => d !== '');
+    const currentValue = targetPin.join('');
+
+    if (num === 'delete') {
       let lastFilledIndex = -1;
       for (let i = targetPin.length - 1; i >= 0; i--) {
         if (targetPin[i] !== '') { lastFilledIndex = i; break; }
@@ -291,18 +296,24 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       return;
     }
 
-    if (num === 'next') return;
+    // "Next" button: if PIN is complete, proceed; otherwise ignore
+    if (num === 'next') {
+      if (allFilled) {
+        await handlePinCompleted(currentValue, isPinConfirm);
+      }
+      return;
+    }
 
-    const firstEmptyIndex = targetPin.findIndex(d => d === '');
+    // Add digit
+    const firstEmptyIndex = targetPin.findIndex((d) => d === '');
     if (firstEmptyIndex >= 0 && firstEmptyIndex < 4) {
       const newPin = [...targetPin];
       newPin[firstEmptyIndex] = num;
       setTargetPin(newPin);
 
       if (firstEmptyIndex === 3) {
-        setTimeout(async () => {
-          await handleSavePinReal();
-        }, 300);
+        // Pass the completed PIN directly to avoid stale state
+        await handlePinCompleted(newPin.join(''), isPinConfirm);
       }
     }
   };
@@ -429,35 +440,63 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
     }
   };
 
-  const handleSavePinReal = async () => {
-    if (isConfirmingPin) {
-      const pinValue = pin.join('');
-      const confirmPinValue = confirmPin.join('');
-      
-      if (pinValue !== confirmPinValue) {
-          setError(onboardingLang === 'ru' ? 'PIN-коды не совпадают' : onboardingLang === 'uz' ? 'PIN kodlar mos emas' : 'PINs do not match');
-          // Clear BOTH PINs to start fresh
-          setPin(['', '', '', '']);
-          setConfirmPin(['', '', '', '']);
-          setIsConfirmingPin(false);
-          return;
-      }
-
-      const user = await auth.getCurrentUser();
-      if (user) {
-        const pinHash = btoa(pinValue);
-        
-        await supabase
-          .from('profiles')
-          .update({ pin_hash: pinHash })
-          .eq('id', user.id);
-
-        localStorage.setItem('user_pin_hash', pinHash);
-      }
-
-      setAuthStep('biometric');
-    } else {
+  const handlePinCompleted = async (enteredPin: string, isConfirmation: boolean) => {
+    // Step 1: First entry -> move to confirmation
+    if (!isConfirmation) {
+      firstPinRef.current = enteredPin;
       setIsConfirmingPin(true);
+      setConfirmPin(['', '', '', '']);
+      return;
+    }
+
+    // Step 2: Confirmation -> compare with the first entry
+    const firstPin = firstPinRef.current;
+
+    if (!firstPin || firstPin.length !== 4) {
+      // Something went wrong; restart PIN flow safely
+      setError(onboardingLang === 'ru' ? 'Повторите ввод PIN' : onboardingLang === 'uz' ? 'PINni qayta kiriting' : 'Please re-enter your PIN');
+      setPin(['', '', '', '']);
+      setConfirmPin(['', '', '', '']);
+      setIsConfirmingPin(false);
+      firstPinRef.current = '';
+      return;
+    }
+
+    if (enteredPin !== firstPin) {
+      setError(t.pinMismatch);
+      setPin(['', '', '', '']);
+      setConfirmPin(['', '', '', '']);
+      setIsConfirmingPin(false);
+      firstPinRef.current = '';
+      return;
+    }
+
+    // Persist PIN
+    try {
+      const user = await auth.getCurrentUser();
+      if (!user) {
+        setError(onboardingLang === 'ru' ? 'Сессия истекла. Войдите снова.' : onboardingLang === 'uz' ? 'Sessiya tugadi. Qayta kiring.' : 'Session expired. Please log in again.');
+        setAuthStep('login');
+        return;
+      }
+
+      // NOTE: This is NOT a secure hash; replace with a proper KDF on the backend for production.
+      const pinHash = btoa(enteredPin);
+
+      const { error: upsertErr } = await supabase
+        .from('profiles')
+        .update({ pin_hash: pinHash })
+        .eq('id', user.id);
+
+      if (upsertErr) {
+        setError(upsertErr.message || (onboardingLang === 'ru' ? 'Не удалось сохранить PIN' : onboardingLang === 'uz' ? 'PIN saqlanmadi' : 'Failed to save PIN'));
+        return;
+      }
+
+      localStorage.setItem('user_pin_hash', pinHash);
+      setAuthStep('biometric');
+    } catch (e: any) {
+      setError(e?.message || (onboardingLang === 'ru' ? 'Ошибка' : onboardingLang === 'uz' ? 'Xatolik' : 'Error'));
     }
   };
 
@@ -732,7 +771,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
               <Button
                 variant="outline"
-                onClick={() => setAuthStep('create-pin')}
+                onClick={handleGoogleSignIn}
                 className="w-full h-14 rounded-2xl text-base font-medium gap-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -990,7 +1029,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
               ))}
             </div>
 
-            <button className="text-primary text-sm font-medium mb-4">
+            <button onClick={handleResendCode} className="text-primary text-sm font-medium mb-4">
               {t.resendCode}
             </button>
 
@@ -1090,7 +1129,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
           <div className="w-full max-w-sm space-y-3">
             <Button
-              onClick={() => setAuthStep('complete')}
+              onClick={handleEnableBiometric}
               className="w-full h-14 rounded-2xl text-lg font-semibold"
             >
               {t.enableBiometric}
