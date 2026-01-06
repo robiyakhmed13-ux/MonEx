@@ -204,14 +204,14 @@ const Auth: React.FC = () => {
                         Full Name
                       </Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none z-10" />
                         <Input
                           id="fullName"
                           type="text"
                           placeholder="John Doe"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
-                          className="pl-11 h-12 rounded-xl bg-secondary/30 border-border/50"
+                          className="!pl-12 h-12 rounded-xl bg-secondary/30 border-border/50"
                         />
                       </div>
                     </div>
@@ -224,14 +224,14 @@ const Auth: React.FC = () => {
                   Email
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none z-10" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 rounded-xl bg-secondary/30 border-border/50"
+                    className="!pl-12 h-12 rounded-xl bg-secondary/30 border-border/50"
                     required
                   />
                 </div>
@@ -242,21 +242,21 @@ const Auth: React.FC = () => {
                   Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none z-10" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 pr-11 h-12 rounded-xl bg-secondary/30 border-border/50"
+                    className="!pl-12 !pr-12 h-12 rounded-xl bg-secondary/30 border-border/50"
                     required
                     minLength={6}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors z-10"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
