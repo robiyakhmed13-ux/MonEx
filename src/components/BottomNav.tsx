@@ -1,98 +1,110 @@
-import React from "react";
+import React, { memo } from "react";
 import { useApp } from "@/context/AppContext";
+import { Home, Activity, Brain, Target, MoreHorizontal, Plus } from "lucide-react";
 import { ScreenType } from "@/types";
-import { Home, List, Target, LayoutGrid, Plus } from "lucide-react";
 
 /**
  * Bottom Navigation - Design System Rules:
  * - Icon + label only
  * - Selected tab = subtle tint, not bright
- * - No floating buttons over tabs (except center add)
- * - No dramatic animations
+ * - No badges everywhere
+ * - No floating buttons over tabs
+ * - iOS-approved animations only (fade, no bounce)
  */
 
 interface NavItem {
-  screen: ScreenType;
-  label: (t: any) => string;
+  id: ScreenType;
   icon: React.ComponentType<{ className?: string }>;
+  labelKey: string;
 }
 
+// Tabs: Home → awareness, Activity → history, Goals → planning, AI → guidance, More → everything else
 const NAV_ITEMS: NavItem[] = [
-  { screen: "home", label: (t) => t.home, icon: Home },
-  { screen: "transactions", label: (t) => t.transactions, icon: List },
-  { screen: "goals", label: (t) => t.goals || "Goals", icon: Target },
-  { screen: "more", label: (t) => t.more || "More", icon: LayoutGrid },
+  { id: "home", icon: Home, labelKey: "home" },
+  { id: "transactions", icon: Activity, labelKey: "activity" },
+  { id: "goals", icon: Target, labelKey: "goals" },
+  { id: "analytics", icon: Brain, labelKey: "ai" },
+  { id: "more", icon: MoreHorizontal, labelKey: "more" },
 ];
 
 interface BottomNavProps {
   onAddClick: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ onAddClick }) => {
-  const { t, activeScreen, setActiveScreen } = useApp();
+export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
+  const { activeScreen, setActiveScreen, lang } = useApp();
 
+  const getLabel = (key: string): string => {
+    const labels: Record<string, Record<string, string>> = {
+      home: { uz: "Bosh", ru: "Главная", en: "Home" },
+      activity: { uz: "Faoliyat", ru: "Активность", en: "Activity" },
+      goals: { uz: "Maqsadlar", ru: "Цели", en: "Goals" },
+      ai: { uz: "AI", ru: "AI", en: "AI" },
+      more: { uz: "Ko'proq", ru: "Ещё", en: "More" },
+    };
+    return labels[key]?.[lang] || labels[key]?.en || key;
+  };
+
+  // Map screens to nav items for highlighting
+  const getActiveNav = (screen: ScreenType): ScreenType => {
+    if (screen === "home") return "home";
+    if (screen === "transactions") return "transactions";
+    if (["goals", "limits"].includes(screen)) return "goals";
+    if (["analytics", "reports"].includes(screen)) return "analytics";
+    return "more";
+  };
+
+  const activeNav = getActiveNav(activeScreen);
   const leftItems = NAV_ITEMS.slice(0, 2);
-  const rightItems = NAV_ITEMS.slice(2, 4);
+  const rightItems = NAV_ITEMS.slice(2);
 
   return (
     <nav className="bottom-nav">
       <div className="flex items-center justify-around px-2 py-2">
-        
         {/* Left items */}
-        {leftItems.map((item) => (
-          <NavButton
-            key={item.screen}
-            item={item}
-            isActive={activeScreen === item.screen}
-            onClick={() => setActiveScreen(item.screen)}
-            t={t}
-          />
-        ))}
+        {leftItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.id === activeNav;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveScreen(item.id)}
+              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Icon className="bottom-nav-item-icon" />
+              <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
+            </button>
+          );
+        })}
 
         {/* Center Add Button */}
         <button
           onClick={onAddClick}
-          className="w-12 h-12 -mt-4 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md active:opacity-80 transition-opacity"
+          className="w-12 h-12 -mt-4 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md active:opacity-80"
         >
           <Plus className="w-6 h-6" />
         </button>
 
         {/* Right items */}
-        {rightItems.map((item) => (
-          <NavButton
-            key={item.screen}
-            item={item}
-            isActive={activeScreen === item.screen}
-            onClick={() => setActiveScreen(item.screen)}
-            t={t}
-          />
-        ))}
+        {rightItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.id === activeNav;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveScreen(item.id)}
+              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Icon className="bottom-nav-item-icon" />
+              <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );
-};
+});
 
-interface NavButtonProps {
-  item: NavItem;
-  isActive: boolean;
-  onClick: () => void;
-  t: any;
-}
+BottomNav.displayName = "BottomNav";
 
-const NavButton: React.FC<NavButtonProps> = ({ item, isActive, onClick, t }) => {
-  const Icon = item.icon;
-  
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-xl transition-colors active:opacity-70 ${
-        isActive 
-          ? 'text-primary bg-primary/8' 
-          : 'text-muted-foreground'
-      }`}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="text-[10px] font-medium">{item.label(t)}</span>
-    </button>
-  );
-};
+export default BottomNav;

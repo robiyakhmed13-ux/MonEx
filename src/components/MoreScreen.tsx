@@ -1,27 +1,11 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { safeJSON } from "@/lib/storage";
 import { 
-  Target, 
-  CreditCard, 
-  PieChart, 
-  Wallet, 
-  TrendingUp,
-  Calculator,
-  Receipt,
-  Users,
-  Repeat,
-  FileText,
-  DollarSign,
-  ArrowLeft,
-  Settings,
-  Search,
-  Star,
-  X,
-  Brain,
-  Sparkles,
-  Zap
+  Target, CreditCard, PieChart, Wallet, TrendingUp, Calculator,
+  Receipt, Users, Repeat, FileText, DollarSign, ArrowLeft,
+  Settings, Search, Star, X, Brain, Sparkles
 } from "lucide-react";
 import { ScreenType } from "@/types";
 import { AICopilotPanel } from "./AICopilotPanel";
@@ -37,151 +21,50 @@ interface ToolItem {
 }
 
 const TOOLS: ToolItem[] = [
-  {
-    screen: "analytics",
-    labelKey: "toolAnalytics",
-    descKey: "toolAnalyticsDesc",
-    icon: <PieChart className="w-6 h-6" />,
-    color: "from-amber-500 to-orange-500",
-  },
-  {
-    screen: "limits",
-    labelKey: "toolLimits",
-    descKey: "toolLimitsDesc",
-    icon: <Target className="w-6 h-6" />,
-    color: "from-red-500 to-rose-500",
-  },
-  {
-    screen: "accounts",
-    labelKey: "toolAccounts",
-    descKey: "toolAccountsDesc",
-    icon: <Wallet className="w-6 h-6" />,
-    color: "from-cyan-500 to-blue-500",
-  },
-  {
-    screen: "reports",
-    labelKey: "toolReports",
-    descKey: "toolReportsDesc",
-    icon: <FileText className="w-6 h-6" />,
-    color: "from-violet-500 to-purple-500",
-  },
-  {
-    screen: "subscriptions",
-    labelKey: "toolSubscriptions",
-    descKey: "toolSubscriptionsDesc",
-    icon: <Repeat className="w-6 h-6" />,
-    color: "from-pink-500 to-rose-500",
-  },
-  {
-    screen: "recurring",
-    labelKey: "toolRecurring",
-    descKey: "toolRecurringDesc",
-    icon: <Receipt className="w-6 h-6" />,
-    color: "from-amber-500 to-orange-500",
-  },
-  {
-    screen: "bill-split",
-    labelKey: "toolBillSplit",
-    descKey: "toolBillSplitDesc",
-    icon: <Users className="w-6 h-6" />,
-    color: "from-green-500 to-emerald-500",
-  },
-  {
-    screen: "net-worth",
-    labelKey: "toolNetWorth",
-    descKey: "toolNetWorthDesc",
-    icon: <TrendingUp className="w-6 h-6" />,
-    color: "from-blue-500 to-indigo-500",
-  },
-  {
-    screen: "investments",
-    labelKey: "toolInvestments",
-    descKey: "toolInvestmentsDesc",
-    icon: <PieChart className="w-6 h-6" />,
-    color: "from-emerald-500 to-teal-500",
-  },
-  {
-    screen: "cash-flow",
-    labelKey: "toolCashFlow",
-    descKey: "toolCashFlowDesc",
-    icon: <DollarSign className="w-6 h-6" />,
-    color: "from-lime-500 to-green-500",
-  },
-  {
-    screen: "envelopes",
-    labelKey: "toolEnvelopes",
-    descKey: "toolEnvelopesDesc",
-    icon: <CreditCard className="w-6 h-6" />,
-    color: "from-yellow-500 to-amber-500",
-  },
-  {
-    screen: "debt-assessment",
-    labelKey: "toolDebtAssessment",
-    descKey: "toolDebtAssessmentDesc",
-    icon: <Calculator className="w-6 h-6" />,
-    color: "from-red-600 to-red-400",
-  },
-  {
-    screen: "debt-payoff",
-    labelKey: "toolDebtPayoff",
-    descKey: "toolDebtPayoffDesc",
-    icon: <Target className="w-6 h-6" />,
-    color: "from-orange-500 to-red-500",
-  },
-  {
-    screen: "settings",
-    labelKey: "toolSettings",
-    descKey: "toolSettingsDesc",
-    icon: <Settings className="w-6 h-6" />,
-    color: "from-slate-500 to-zinc-600",
-  },
+  { screen: "analytics", labelKey: "toolAnalytics", descKey: "toolAnalyticsDesc", icon: <PieChart className="w-6 h-6" />, color: "#F59E0B" },
+  { screen: "limits", labelKey: "toolLimits", descKey: "toolLimitsDesc", icon: <Target className="w-6 h-6" />, color: "#EF4444" },
+  { screen: "accounts", labelKey: "toolAccounts", descKey: "toolAccountsDesc", icon: <Wallet className="w-6 h-6" />, color: "#3B82F6" },
+  { screen: "reports", labelKey: "toolReports", descKey: "toolReportsDesc", icon: <FileText className="w-6 h-6" />, color: "#8B5CF6" },
+  { screen: "subscriptions", labelKey: "toolSubscriptions", descKey: "toolSubscriptionsDesc", icon: <Repeat className="w-6 h-6" />, color: "#EC4899" },
+  { screen: "recurring", labelKey: "toolRecurring", descKey: "toolRecurringDesc", icon: <Receipt className="w-6 h-6" />, color: "#F97316" },
+  { screen: "bill-split", labelKey: "toolBillSplit", descKey: "toolBillSplitDesc", icon: <Users className="w-6 h-6" />, color: "#10B981" },
+  { screen: "net-worth", labelKey: "toolNetWorth", descKey: "toolNetWorthDesc", icon: <TrendingUp className="w-6 h-6" />, color: "#6366F1" },
+  { screen: "investments", labelKey: "toolInvestments", descKey: "toolInvestmentsDesc", icon: <PieChart className="w-6 h-6" />, color: "#14B8A6" },
+  { screen: "cash-flow", labelKey: "toolCashFlow", descKey: "toolCashFlowDesc", icon: <DollarSign className="w-6 h-6" />, color: "#84CC16" },
+  { screen: "envelopes", labelKey: "toolEnvelopes", descKey: "toolEnvelopesDesc", icon: <CreditCard className="w-6 h-6" />, color: "#EAB308" },
+  { screen: "debt-assessment", labelKey: "toolDebtAssessment", descKey: "toolDebtAssessmentDesc", icon: <Calculator className="w-6 h-6" />, color: "#DC2626" },
+  { screen: "debt-payoff", labelKey: "toolDebtPayoff", descKey: "toolDebtPayoffDesc", icon: <Target className="w-6 h-6" />, color: "#EA580C" },
+  { screen: "settings", labelKey: "toolSettings", descKey: "toolSettingsDesc", icon: <Settings className="w-6 h-6" />, color: "#64748B" },
 ];
 
 const STORAGE_KEY = "hamyon_tool_usage";
 
-interface ToolUsage {
-  [screen: string]: number;
-}
-
 export const MoreScreen: React.FC = () => {
   const { setActiveScreen, t, lang } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
-  const [toolUsage, setToolUsage] = useState<ToolUsage>(() => 
-    safeJSON.get(STORAGE_KEY, {})
-  );
+  const [toolUsage, setToolUsage] = useState<Record<string, number>>(() => safeJSON.get(STORAGE_KEY, {}));
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [showFinancePlanner, setShowFinancePlanner] = useState(false);
   const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
 
-  // Track tool usage when navigating
   const handleToolClick = (screen: ScreenType) => {
-    const newUsage = {
-      ...toolUsage,
-      [screen]: (toolUsage[screen] || 0) + 1
-    };
+    const newUsage = { ...toolUsage, [screen]: (toolUsage[screen] || 0) + 1 };
     setToolUsage(newUsage);
     safeJSON.set(STORAGE_KEY, newUsage);
     setActiveScreen(screen);
   };
 
-  // Get frequently used tools (top 4 with at least 1 usage)
   const frequentlyUsed = useMemo(() => {
-    const entries = Object.entries(toolUsage)
+    return Object.entries(toolUsage)
       .filter(([_, count]) => count > 0)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-    
-    return entries
+      .slice(0, 4)
       .map(([screen]) => TOOLS.find(t => t.screen === screen))
       .filter(Boolean) as ToolItem[];
   }, [toolUsage]);
 
-  // Get translated label
-  const getLabel = (key: string): string => {
-    return (t as any)[key] || key;
-  };
+  const getLabel = (key: string): string => (t as any)[key] || key;
 
-  // Filter tools by search
   const filteredTools = useMemo(() => {
     if (!searchQuery.trim()) return TOOLS;
     const query = searchQuery.toLowerCase();
@@ -193,211 +76,186 @@ export const MoreScreen: React.FC = () => {
 
   return (
     <div className="screen-container">
-      <div className="pt-0">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+      {/* Large Title */}
+      <header className="screen-header">
+        <div className="flex items-center gap-4">
+          <button
             onClick={() => setActiveScreen("home")}
-            className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-sm"
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </motion.button>
-          <h1 className="text-2xl font-bold">{getLabel("tools")}</h1>
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <h1 className="text-large-title text-foreground">{getLabel("tools")}</h1>
         </div>
+      </header>
 
-        {/* AI Features Section */}
-        <div className="mb-6 space-y-3">
-          <div className="flex items-center gap-2 mb-3">
+      {/* AI Features Section */}
+      <section className="mb-6">
+        <div className="section-header">
+          <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            <h2 className="text-sm font-semibold text-muted-foreground">
+            <h2 className="section-title">
               {lang === "ru" ? "AI Возможности" : lang === "uz" ? "AI Imkoniyatlar" : "AI Features"}
             </h2>
           </div>
+        </div>
 
+        <div className="space-y-3">
           {/* AI Copilot */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => setShowAICopilot(true)}
-            className="w-full p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center gap-4 hover:border-violet-500/40 transition-colors shadow-sm"
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <Brain className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
+              <Brain className="w-6 h-6 text-violet-500" />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">
-                  {lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot'}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {lang === 'ru' ? 'Анализ поведения и прогнозы' : lang === 'uz' ? 'Xulq tahlili va bashoratlar' : 'Behavioral analysis & predictions'}
+              <p className="text-body-medium text-foreground">
+                {lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot'}
+              </p>
+              <p className="text-caption truncate">
+                {lang === 'ru' ? 'Анализ поведения и прогнозы' : lang === 'uz' ? 'Xulq tahlili' : 'Behavioral analysis'}
               </p>
             </div>
-            <motion.div
-              animate={{ x: [0, 4, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-violet-500 flex-shrink-0"
-            >
-              →
-            </motion.div>
-          </motion.button>
+            <span className="text-muted-foreground">→</span>
+          </button>
 
           {/* Finance Planner */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => setShowFinancePlanner(true)}
-            className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20 flex items-center gap-4 hover:border-emerald-500/40 transition-colors shadow-sm"
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-emerald-500" />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <span className="font-semibold text-foreground block">
+              <p className="text-body-medium text-foreground">
                 {lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner'}
-              </span>
-              <p className="text-xs text-muted-foreground truncate">
-                {lang === 'ru' ? 'Генератор целей и планов' : lang === 'uz' ? 'Maqsad va reja yaratuvchi' : 'Goals & plans generator'}
+              </p>
+              <p className="text-caption truncate">
+                {lang === 'ru' ? 'Генератор целей и планов' : lang === 'uz' ? 'Maqsad yaratuvchi' : 'Goals & plans generator'}
               </p>
             </div>
-            <motion.div
-              animate={{ x: [0, 4, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-emerald-500 flex-shrink-0"
-            >
-              →
-            </motion.div>
-          </motion.button>
+            <span className="text-muted-foreground">→</span>
+          </button>
 
           {/* Budget Simulator */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => setShowBudgetSimulator(true)}
-            className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/20 flex items-center gap-4 hover:border-amber-500/40 transition-colors shadow-sm"
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center flex-shrink-0">
-              <Calculator className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-6 h-6 text-amber-500" />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <span className="font-semibold text-foreground block">
+              <p className="text-body-medium text-foreground">
                 {lang === 'ru' ? 'Симулятор бюджета' : lang === 'uz' ? 'Byudjet simulyatori' : 'Budget Simulator'}
-              </span>
-              <p className="text-xs text-muted-foreground truncate">
-                {lang === 'ru' ? 'Сценарии "что если"' : lang === 'uz' ? '"Nima bo\'lsa" stsenariylar' : '"What if" scenarios'}
+              </p>
+              <p className="text-caption truncate">
+                {lang === 'ru' ? 'Сценарии "что если"' : lang === 'uz' ? '"Nima bo\'lsa"' : '"What if" scenarios'}
               </p>
             </div>
-            <motion.div
-              animate={{ x: [0, 4, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-amber-500 flex-shrink-0"
-            >
-              →
-            </motion.div>
-          </motion.button>
+            <span className="text-muted-foreground">→</span>
+          </button>
         </div>
+      </section>
 
-        {/* Search Bar */}
-        <div className="relative mb-5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={getLabel("search") + "..."}
-            className="w-full pl-10 pr-10 py-3 rounded-xl bg-card border border-border/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-
-        {/* Frequently Used Section */}
-        <AnimatePresence>
-          {frequentlyUsed.length > 0 && !searchQuery && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-5"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Star className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-semibold text-muted-foreground">
-                  {getLabel("frequentlyUsed")}
-                </h2>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                {frequentlyUsed.map((tool) => (
-                  <motion.button
-                    key={tool.screen}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleToolClick(tool.screen)}
-                    className="flex-shrink-0 bg-card rounded-xl p-3 flex items-center gap-3 min-w-[160px] shadow-sm border border-border/30"
-                  >
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${tool.color} flex items-center justify-center text-white`}>
-                      {tool.icon}
-                    </div>
-                    <span className="font-medium text-sm text-foreground">
-                      {getLabel(tool.labelKey)}
-                    </span>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* All Tools Section Header */}
-        {!searchQuery && (
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-            {getLabel("allTools")}
-          </h2>
-        )}
-
-        {/* Tools Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {filteredTools.map((tool, index) => (
-            <motion.button
-              key={tool.screen}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleToolClick(tool.screen)}
-              className="bg-card rounded-2xl p-4 text-left relative overflow-hidden shadow-sm border border-border/30"
-            >
-              {/* Gradient accent */}
-              <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${tool.color} opacity-10 rounded-full -translate-y-6 translate-x-6`} />
-              
-              {/* Icon */}
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center text-white mb-3`}>
-                {tool.icon}
-              </div>
-              
-              {/* Text */}
-              <h3 className="font-semibold text-foreground mb-1">
-                {getLabel(tool.labelKey)}
-              </h3>
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {getLabel(tool.descKey)}
-              </p>
-            </motion.button>
-          ))}
-        </div>
-
-        {/* Empty state for search */}
-        {filteredTools.length === 0 && searchQuery && (
-          <div className="text-center py-12">
-            <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-muted-foreground">{t.empty}</p>
-          </div>
+      {/* Search Bar */}
+      <div className="relative mb-6">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={`${getLabel("search")}...`}
+          className="input-clean pl-12 pr-10"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground active:opacity-70"
+          >
+            <X className="w-5 h-5" />
+          </button>
         )}
       </div>
+
+      {/* Frequently Used */}
+      <AnimatePresence>
+        {frequentlyUsed.length > 0 && !searchQuery && (
+          <motion.section
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6"
+          >
+            <div className="section-header">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                <h2 className="section-title">{getLabel("frequentlyUsed")}</h2>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+              {frequentlyUsed.map((tool) => (
+                <button
+                  key={tool.screen}
+                  onClick={() => handleToolClick(tool.screen)}
+                  className="card-info min-w-[140px] flex items-center gap-3 active:opacity-70"
+                >
+                  <div 
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+                    style={{ backgroundColor: tool.color }}
+                  >
+                    {tool.icon}
+                  </div>
+                  <span className="text-body-medium text-foreground">{getLabel(tool.labelKey)}</span>
+                </button>
+              ))}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* All Tools Section */}
+      {!searchQuery && (
+        <div className="section-header">
+          <h2 className="section-title">{getLabel("allTools")}</h2>
+        </div>
+      )}
+
+      {/* Tools Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {filteredTools.map((tool, index) => (
+          <motion.button
+            key={tool.screen}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.02, duration: 0.2 }}
+            onClick={() => handleToolClick(tool.screen)}
+            className="card-info text-left relative overflow-hidden active:opacity-70"
+          >
+            {/* Icon */}
+            <div 
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-white mb-3"
+              style={{ backgroundColor: tool.color }}
+            >
+              {tool.icon}
+            </div>
+            
+            {/* Text */}
+            <h3 className="text-body-medium text-foreground mb-1">{getLabel(tool.labelKey)}</h3>
+            <p className="text-caption line-clamp-2">{getLabel(tool.descKey)}</p>
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Empty state */}
+      {filteredTools.length === 0 && searchQuery && (
+        <div className="text-center py-12">
+          <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-caption">{t.empty}</p>
+        </div>
+      )}
 
       {/* AI Modals */}
       <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />

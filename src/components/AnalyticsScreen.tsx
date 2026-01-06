@@ -1,31 +1,28 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
+import { ArrowLeft, TrendingDown, TrendingUp } from "lucide-react";
 import {
   AreaChart,
   Area,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   BarChart,
   Bar,
-  Legend,
 } from "recharts";
 
 export const AnalyticsScreen: React.FC = () => {
-  const { t, transactions, getCat, catLabel, lang } = useApp();
+  const { t, transactions, getCat, catLabel, lang, setActiveScreen } = useApp();
   
   // Calculate weekly data (last 7 days)
   const weeklyData = useMemo(() => {
     const days: Record<string, { date: string; expenses: number; income: number; label: string }> = {};
     const today = new Date();
     
-    // Initialize last 7 days
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
@@ -35,15 +32,9 @@ export const AnalyticsScreen: React.FC = () => {
         : lang === 'uz'
         ? ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh']
         : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      days[key] = { 
-        date: key, 
-        expenses: 0, 
-        income: 0, 
-        label: dayNames[d.getDay()] 
-      };
+      days[key] = { date: key, expenses: 0, income: 0, label: dayNames[d.getDay()] };
     }
     
-    // Fill with transaction data
     transactions.forEach((tx) => {
       if (days[tx.date]) {
         if (tx.amount < 0) {
@@ -57,7 +48,7 @@ export const AnalyticsScreen: React.FC = () => {
     return Object.values(days);
   }, [transactions, lang]);
   
-  // Calculate monthly data (last 4 weeks)
+  // Monthly data (last 4 weeks)
   const monthlyData = useMemo(() => {
     const weeks: Array<{ week: string; expenses: number; income: number }> = [];
     const today = new Date();
@@ -88,7 +79,7 @@ export const AnalyticsScreen: React.FC = () => {
     return weeks;
   }, [transactions, lang]);
   
-  // Category breakdown for pie chart
+  // Category breakdown
   const categoryData = useMemo(() => {
     const cats: Record<string, { id: string; value: number; color: string }> = {};
     const thisMonth = new Date().toISOString().slice(0, 7);
@@ -106,10 +97,7 @@ export const AnalyticsScreen: React.FC = () => {
     return Object.values(cats)
       .sort((a, b) => b.value - a.value)
       .slice(0, 6)
-      .map((c) => ({
-        ...c,
-        name: catLabel(getCat(c.id)),
-      }));
+      .map((c) => ({ ...c, name: catLabel(getCat(c.id)) }));
   }, [transactions, getCat, catLabel]);
   
   // Summary stats
@@ -131,7 +119,6 @@ export const AnalyticsScreen: React.FC = () => {
     });
     
     const change = lastMonthExp > 0 ? ((thisMonthExp - lastMonthExp) / lastMonthExp) * 100 : 0;
-    
     return { thisMonthExp, thisMonthInc, change };
   }, [transactions]);
   
@@ -142,214 +129,185 @@ export const AnalyticsScreen: React.FC = () => {
   };
 
   return (
-    <div className="screen-container pb-32">
-      {/* Header */}
-      <div className="safe-top px-4 pt-4 pb-6">
-        <h1 className="text-title-1 text-foreground">{t.analytics}</h1>
-        <p className="text-sm text-muted-foreground">{t.monthSpending}</p>
-      </div>
-      
-      {/* Summary Cards */}
-      <div className="px-4 mb-6">
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-4"
+    <div className="screen-container">
+      {/* Large Title */}
+      <header className="screen-header">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setActiveScreen("home")}
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
           >
-            <p className="text-xs text-muted-foreground mb-1">{t.expenses}</p>
-            <p className="text-xl font-bold text-expense">
-              -{formatAmount(stats.thisMonthExp)}
-            </p>
-            {stats.change !== 0 && (
-              <div className={`flex items-center gap-1 mt-1 text-xs ${stats.change > 0 ? 'text-expense' : 'text-income'}`}>
-                <span>{stats.change > 0 ? '↑' : '↓'}</span>
-                <span>{Math.abs(stats.change).toFixed(0)}%</span>
-              </div>
-            )}
-          </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-card p-4"
-          >
-            <p className="text-xs text-muted-foreground mb-1">{t.income}</p>
-            <p className="text-xl font-bold text-income">
-              +{formatAmount(stats.thisMonthInc)}
-            </p>
-          </motion.div>
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <div>
+            <h1 className="text-large-title text-foreground">{t.analytics}</h1>
+            <p className="text-caption">{t.monthSpending}</p>
+          </div>
         </div>
+      </header>
+      
+      {/* Summary Cards (Info Card pattern) */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-info"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-4 h-4 text-destructive" />
+            <span className="text-caption">{t.expenses}</span>
+          </div>
+          <p className="text-title amount-expense">-{formatAmount(stats.thisMonthExp)}</p>
+          {stats.change !== 0 && (
+            <p className={`text-caption mt-1 ${stats.change > 0 ? 'amount-expense' : 'amount-income'}`}>
+              {stats.change > 0 ? '↑' : '↓'} {Math.abs(stats.change).toFixed(0)}% vs last month
+            </p>
+          )}
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="card-info"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-[hsl(var(--income))]" />
+            <span className="text-caption">{t.income}</span>
+          </div>
+          <p className="text-title amount-income">+{formatAmount(stats.thisMonthInc)}</p>
+        </motion.div>
       </div>
       
       {/* Weekly Trend Chart */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="px-4 mb-6"
+        transition={{ delay: 0.1 }}
+        className="card-info mb-6"
       >
-        <div className="glass-card p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{t.weekSpending}</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={weeklyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--expense))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--expense))" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--income))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--income))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis 
-                  dataKey="label" 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  tickFormatter={formatAmount}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  }}
-                  formatter={(value: number) => [formatAmount(value), '']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="expenses"
-                  stroke="hsl(var(--expense))"
-                  strokeWidth={2}
-                  fill="url(#expenseGradient)"
-                  name={t.expenses}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="income"
-                  stroke="hsl(var(--income))"
-                  strokeWidth={2}
-                  fill="url(#incomeGradient)"
-                  name={t.income}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+        <h3 className="text-body-medium text-foreground mb-4">{t.weekSpending}</h3>
+        <div className="h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={weeklyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--expense))" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="hsl(var(--expense))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--income))" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="hsl(var(--income))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis 
+                dataKey="label" 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={formatAmount}
+              />
+              <Area
+                type="monotone"
+                dataKey="expenses"
+                stroke="hsl(var(--expense))"
+                strokeWidth={2}
+                fill="url(#expenseGradient)"
+              />
+              <Area
+                type="monotone"
+                dataKey="income"
+                stroke="hsl(var(--income))"
+                strokeWidth={2}
+                fill="url(#incomeGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
       
       {/* Monthly Bar Chart */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="px-4 mb-6"
+        transition={{ delay: 0.15 }}
+        className="card-info mb-6"
       >
-        <div className="glass-card p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{t.monthSpending}</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis 
-                  dataKey="week" 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  tickFormatter={formatAmount}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  }}
-                  formatter={(value: number) => [formatAmount(value), '']}
-                />
-                <Bar dataKey="expenses" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} name={t.expenses} />
-                <Bar dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} name={t.income} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <h3 className="text-body-medium text-foreground mb-4">{t.monthSpending}</h3>
+        <div className="h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <XAxis 
+                dataKey="week" 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                tickFormatter={formatAmount}
+              />
+              <Bar dataKey="expenses" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
       
       {/* Category Pie Chart */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="px-4 mb-6"
+        transition={{ delay: 0.2 }}
+        className="card-info mb-6"
       >
-        <div className="glass-card p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{t.topCategories}</h3>
-          {categoryData.length > 0 ? (
-            <div className="flex items-center gap-4">
-              <div className="w-36 h-36">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={55}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '12px',
-                      }}
-                      formatter={(value: number) => [formatAmount(value), '']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex-1 space-y-2">
-                {categoryData.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: cat.color }} 
-                    />
-                    <span className="text-xs text-foreground truncate flex-1">{cat.name}</span>
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {formatAmount(cat.value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        <h3 className="text-body-medium text-foreground mb-4">{t.topCategories}</h3>
+        {categoryData.length > 0 ? (
+          <div className="flex items-center gap-4">
+            <div className="w-32 h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={50}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              {t.empty}
+            <div className="flex-1 space-y-2">
+              {categoryData.map((cat) => (
+                <div key={cat.id} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0" 
+                    style={{ backgroundColor: cat.color }} 
+                  />
+                  <span className="text-caption flex-1 truncate">{cat.name}</span>
+                  <span className="text-caption">{formatAmount(cat.value)}</span>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <p className="text-caption">{t.empty}</p>
+          </div>
+        )}
       </motion.div>
     </div>
   );
