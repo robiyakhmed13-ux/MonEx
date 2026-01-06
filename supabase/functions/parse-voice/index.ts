@@ -5,9 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Direct Gemini API key (your own)
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
 const SYSTEM_PROMPT = `You are a voice command parser for a finance app. Parse the user's voice command to extract:
 1. Transaction type (expense or income)
 2. Category (from the list below)
@@ -39,38 +36,6 @@ Return JSON format:
 If you can't parse the command, return:
 { "error": "Could not understand command" }`;
 
-// Call Gemini API directly
-async function callGemini(userPrompt: string): Promise<string> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `${SYSTEM_PROMPT}\n\n---\n\n${userPrompt}` }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 200,
-        }
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Gemini API error:", response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -86,6 +51,7 @@ serve(async (req) => {
       );
     }
 
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
       return new Response(
         JSON.stringify({ error: "AI service not configured" }),
@@ -95,8 +61,42 @@ serve(async (req) => {
 
     console.log(`Parsing voice command: "${text}" (lang: ${lang})`);
 
-    const content = await callGemini(`Parse this voice command (language: ${lang || 'en'}): "${text}"`);
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `Parse this voice command (language: ${lang || 'en'}): "${text}"` }
+        ],
+        max_tokens: 200,
+      }),
+    });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`AI error: ${response.status} - ${errorText}`);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded" }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: "Failed to process command" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
     if (!content) {
       return new Response(
         JSON.stringify({ error: "No response from AI" }),

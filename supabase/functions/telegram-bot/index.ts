@@ -36,43 +36,58 @@ const sendMessage = async (chatId: number, text: string, options?: { reply_marku
   return response;
 };
 
-// Call Gemini API directly for text parsing
-async function callGemini(prompt: string): Promise<string> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 200,
-        }
-      }),
-    }
-  );
+// Get voice file from Telegram
+const getFile = async (fileId: string) => {
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.result?.file_path;
+};
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Gemini API error:", response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
+// Download file from Telegram
+const downloadFile = async (filePath: string): Promise<ArrayBuffer> => {
+  const url = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`;
+  const response = await fetch(url);
+  return await response.arrayBuffer();
+};
+
+// Transcribe voice using OpenAI Whisper
+const transcribeVoice = async (audioBuffer: ArrayBuffer, lang: string = 'uz'): Promise<string | null> => {
+  if (!GEMINI_API_KEY) {
+    console.error('GEMINI_API_KEY not set');
+    return null;
   }
 
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
+  try {
+    const formData = new FormData();
+    const blob = new Blob([audioBuffer], { type: 'audio/ogg' });
+    formData.append('file', blob, 'voice.ogg');
+    formData.append('model', 'whisper-1');
+    formData.append('language', lang === 'uz' ? 'uz' : lang === 'ru' ? 'ru' : 'en');
 
-// Note: Voice transcription requires OpenAI Whisper API (OPENAI_API_KEY)
-// Gemini does not support audio transcription via simple API calls
-// For now, voice messages will show an error asking user to type instead
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
+      },
+      body: formData,
+    });
 
-// Parse transaction from text using Gemini
+    if (!response.ok) {
+      console.error('Whisper API error:', await response.text());
+      return null;
+    }
+
+    const result = await response.json();
+    console.log(`Transcribed: "${result.text}"`);
+    return result.text;
+  } catch (error) {
+    console.error('Transcription error:', error);
+    return null;
+  }
+};
+
+// Parse transaction from text using OpenAI
 const parseTransaction = async (text: string, lang: string = 'uz') => {
   if (!GEMINI_API_KEY) {
     console.error('GEMINI_API_KEY not set');
@@ -103,7 +118,7 @@ Handle shortcuts:
 - "k", "ming", "тысяч" = thousand (e.g., "15k" = 15000)
 - "m", "mln", "миллион" = million (e.g., "5m" = 5000000)
 
-Return JSON only (no markdown):
+Return JSON:
 {
   "type": "expense" | "income",
   "categoryId": "category_id",
@@ -116,7 +131,29 @@ If unclear: { "error": "message" }`;
   try {
     console.log(`Parsing transaction: "${text}" (lang: ${lang})`);
     
-    const content = await callGemini(`${SYSTEM_PROMPT}\n\n---\n\nParse (language: ${lang}): "${text}"`);
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `Parse (language: ${lang}): "${text}"` }
+        ],
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`OpenAI error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
     
     if (!content) return null;
 
@@ -783,19 +820,89 @@ ${emoji} <b>Category:</b> ${catName}
   await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
 };
 
-// Handle voice message - currently voice transcription is not supported without OpenAI
+// Handle voice message
 const handleVoiceMessage = async (chatId: number, voice: any, user: any) => {
   const lang = user?.language_code || 'uz';
+  const telegramUserId = user?.id;
   
-  // Voice transcription requires OpenAI Whisper which needs OPENAI_API_KEY
-  // Gemini does not support audio transcription via API
-  const notSupportedMsgs: Record<string, string> = {
-    uz: `🎤 Ovozli xabarlar hozircha qo'llab-quvvatlanmaydi.\n\n📝 Iltimos, matn yozing:\n<code>taxi 20000</code>`,
-    ru: `🎤 Голосовые сообщения пока не поддерживаются.\n\n📝 Пожалуйста, напишите текстом:\n<code>такси 20000</code>`,
-    en: `🎤 Voice messages are not supported yet.\n\n📝 Please type your message:\n<code>taxi 20000</code>`,
+  // Send processing message
+  const processingMsgs: Record<string, string> = {
+    uz: '🎤 Ovozli xabaringizni qayta ishlayman...',
+    ru: '🎤 Обрабатываю голосовое сообщение...',
+    en: '🎤 Processing your voice message...',
   };
-  
-  await sendMessage(chatId, notSupportedMsgs[lang] || notSupportedMsgs.en);
+  await sendMessage(chatId, processingMsgs[lang] || processingMsgs.en);
+
+  try {
+    // Get file path
+    const filePath = await getFile(voice.file_id);
+    if (!filePath) {
+      throw new Error('Could not get file path');
+    }
+
+    // Download file
+    const audioBuffer = await downloadFile(filePath);
+    
+    // Transcribe
+    const transcription = await transcribeVoice(audioBuffer, lang);
+    if (!transcription) {
+      throw new Error('Transcription failed');
+    }
+
+    // Parse as transaction
+    const parsed = await parseTransaction(transcription, lang);
+    
+    if (!parsed || parsed.error) {
+      const errorMsgs: Record<string, string> = {
+        uz: `🎤 Eshitdim: "<i>${transcription}</i>"\n\n❌ Tranzaksiya tushunilmadi. Masalan ayting: "Taksi yigirma ming"`,
+        ru: `🎤 Услышал: "<i>${transcription}</i>"\n\n❌ Не удалось понять транзакцию. Например скажите: "Такси двадцать тысяч"`,
+        en: `🎤 Heard: "<i>${transcription}</i>"\n\n❌ Couldn't understand transaction. Try saying: "Taxi twenty thousand"`,
+      };
+      await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+      return;
+    }
+
+    // Save to database
+    const saved = await saveTransaction(telegramUserId, parsed);
+    if (!saved) {
+      throw new Error('Failed to save transaction');
+    }
+
+    // Success message
+    const emoji = CATEGORY_EMOJIS[parsed.categoryId] || '📝';
+    const catName = getCategoryName(parsed.categoryId, lang);
+    const typeEmoji = parsed.type === 'expense' ? '📤' : '📥';
+
+    const successMsgs: Record<string, string> = {
+      uz: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Saqlandi!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} so'm`,
+
+      ru: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Сохранено!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} сум`,
+
+      en: `🎤 "<i>${transcription}</i>"
+
+✅ <b>Saved!</b>
+${typeEmoji} ${catName} ${emoji}
+💵 ${formatNumber(parsed.amount)} UZS`,
+    };
+
+    await sendMessage(chatId, successMsgs[lang] || successMsgs.en);
+  } catch (error) {
+    console.error('Voice processing error:', error);
+    const errorMsgs: Record<string, string> = {
+      uz: `❌ Ovozli xabarni qayta ishlashda xatolik. Iltimos, matn yozing.`,
+      ru: `❌ Ошибка обработки голосового сообщения. Пожалуйста, напишите текстом.`,
+      en: `❌ Error processing voice message. Please type your message.`,
+    };
+    await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+  }
 };
 
 serve(async (req) => {

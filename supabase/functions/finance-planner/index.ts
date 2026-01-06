@@ -5,11 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Direct Gemini API key (your own)
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+// Lovable AI Gateway key (auto-provisioned in this environment)
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 interface PlanRequest {
-  prompt: string;
+  prompt: string; // Natural language goal like "I want to save for a car in 1 year"
   currentBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -25,8 +25,8 @@ interface FinancialPlan {
   timeframeMonths: number;
   deadline: string;
   feasibility: 'easy' | 'moderate' | 'challenging' | 'difficult';
-  feasibilityScore: number;
-  savingsRate: number;
+  feasibilityScore: number; // 0-100
+  savingsRate: number; // % of income
   recommendations: string[];
   milestones: Array<{ month: number; amount: number; description: string }>;
   warnings: string[];
@@ -34,38 +34,6 @@ interface FinancialPlan {
     ifCutExpenses: { by: number; newTimeframe: number };
     ifIncreaseIncome: { by: number; newTimeframe: number };
   };
-}
-
-// Call Gemini API directly
-async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `${systemPrompt}\n\n---\n\n${userPrompt}` }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2000,
-        }
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Gemini API error:", response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 serve(async (req) => {
@@ -84,12 +52,12 @@ serve(async (req) => {
       existingGoals 
     }: PlanRequest = await req.json();
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const monthlyNet = monthlyIncome - monthlyExpenses;
-    const savingsCapacity = Math.max(0, monthlyNet * 0.8);
+    const savingsCapacity = Math.max(0, monthlyNet * 0.8); // 80% of net as realistic savings
 
     const systemPrompt = `You are MonEX Financial Planner AI. Generate a personalized financial plan from natural language goals.
 
@@ -113,30 +81,68 @@ Return JSON (DO NOT wrap in markdown):
 {
   "goalName": "Short goal name",
   "targetAmount": number,
-  "monthlyRequired": number,
+  "monthlyRequired": number (how much to save per month),
   "timeframeMonths": number,
   "deadline": "YYYY-MM-DD",
   "feasibility": "easy" | "moderate" | "challenging" | "difficult",
-  "feasibilityScore": 0-100,
-  "savingsRate": number,
-  "recommendations": ["actionable tip 1", "tip 2"],
+  "feasibilityScore": 0-100 (100 = very easy, 0 = impossible),
+  "savingsRate": number (% of income),
+  "recommendations": ["actionable tip 1", "tip 2", ...],
   "milestones": [
-    { "month": 3, "amount": X, "description": "First milestone" }
+    { "month": 3, "amount": X, "description": "First milestone" },
+    { "month": 6, "amount": Y, "description": "Halfway point" },
+    ...
   ],
-  "warnings": ["any concerns"],
+  "warnings": ["any concerns or risks"],
   "adjustments": {
     "ifCutExpenses": { "by": amount, "newTimeframe": months },
     "ifIncreaseIncome": { "by": amount, "newTimeframe": months }
   }
-}`;
+}
+
+Be realistic:
+- If monthly savings < required, mark as "difficult" and suggest alternatives
+- If timeframe is very short, calculate if it's actually possible
+- Provide 3-5 milestones for tracking progress
+- Give specific, actionable recommendations (not generic advice)`;
 
     console.log(`Processing plan request: "${prompt}" (lang: ${lang})`);
 
-    const content = await callGemini(systemPrompt, `Create a financial plan for: "${prompt}"`);
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Create a financial plan for: "${prompt}"` },
+        ],
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limited, please try again later" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      throw new Error(`AI gateway error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '{}';
     
     // Parse the plan
     let plan: FinancialPlan;
     try {
+      // Extract JSON from response (handle markdown code blocks)
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
                         content.match(/```\s*([\s\S]*?)\s*```/) ||
                         [null, content];
@@ -144,6 +150,7 @@ Return JSON (DO NOT wrap in markdown):
       plan = JSON.parse(jsonStr);
     } catch (e) {
       console.error("Failed to parse AI response:", e, content);
+      // Generate fallback plan
       plan = generateFallbackPlan(prompt, currentBalance, monthlyIncome, monthlyExpenses, currency, lang);
     }
 
@@ -172,11 +179,12 @@ function generateFallbackPlan(
   currency: string,
   lang: string
 ): FinancialPlan {
+  // Try to extract numbers from prompt
   const amountMatch = prompt.match(/(\d+[\d\s]*)/);
   const targetAmount = amountMatch ? parseInt(amountMatch[1].replace(/\s/g, '')) : 10000000;
   
   const monthlyNet = income - expenses;
-  const monthlyRequired = Math.round(monthlyNet * 0.3);
+  const monthlyRequired = Math.round(monthlyNet * 0.3); // 30% of net
   const timeframeMonths = Math.ceil(targetAmount / monthlyRequired);
   
   const deadline = new Date();
@@ -185,14 +193,17 @@ function generateFallbackPlan(
   const feasibilityScore = Math.min(100, Math.round((monthlyNet / monthlyRequired) * 50));
   
   const recommendations = lang === 'ru' ? [
-    'Откладывайте деньги в начале месяца',
+    'Откладывайте деньги в начале месяца, сразу после зарплаты',
     'Создайте отдельный накопительный счёт',
+    'Отслеживайте прогресс каждую неделю',
   ] : lang === 'uz' ? [
-    'Oylik maoshdan keyin pul ajrating',
+    'Oylik maoshdan keyin darhol pul ajrating',
     'Alohida jamg\'arma hisobi oching',
+    'Har hafta taraqqiyotni kuzating',
   ] : [
     'Set aside money at the start of each month',
     'Create a separate savings account',
+    'Track your progress weekly',
   ];
 
   return {
