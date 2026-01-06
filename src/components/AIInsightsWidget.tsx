@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { 
-  Brain, 
+  Brain,
   AlertTriangle, 
   TrendingUp, 
   Target,
@@ -88,18 +88,16 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-copilot', {
-        body: {
-          transactions: transactions.slice(0, 50),
-          balance,
-          currency,
-          limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
-          goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
-          lang,
-        }
+      const data = await api.aiCopilot({
+        transactions: transactions.slice(0, 50),
+        balance,
+        currency,
+        limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
+        goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
+        lang,
       });
 
-      if (!error && data?.insights) {
+      if (data?.insights && !data?.error) {
         const newInsights = data.insights.slice(0, 3); // Max 3 for widget
         setInsights(newInsights);
         setLastFetch(new Date());

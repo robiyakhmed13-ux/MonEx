@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { 
-  Brain, 
+  Brain,
   X, 
   AlertTriangle, 
   TrendingUp, 
@@ -81,26 +81,20 @@ export const AICopilotPanel: React.FC<AICopilotPanelProps> = ({ isOpen, onClose 
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('ai-copilot', {
-        body: {
-          transactions: transactions.slice(0, 100), // Last 100 transactions
-          balance,
-          currency,
-          limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
-          goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
-          lang,
-        }
+      const data = await api.aiCopilot({
+        transactions: transactions.slice(0, 100), // Last 100 transactions
+        balance,
+        currency,
+        limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
+        goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
+        lang,
       });
 
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
-
-      if (data?.insights) {
+      if (data?.error) {
+        setError(data.error);
+      } else if (data?.insights) {
         setInsights(data.insights);
         setLastAnalyzed(new Date());
-      } else if (data?.error) {
-        setError(data.error);
       }
     } catch (err) {
       console.error('AI Copilot error:', err);

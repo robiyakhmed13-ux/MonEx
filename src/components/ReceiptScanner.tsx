@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 interface ParsedReceipt {
   amount?: number;
@@ -46,19 +46,12 @@ export const ReceiptScanner = memo(({ onScanComplete, onClose, isOpen }: Receipt
         r.readAsDataURL(file);
       });
 
-      // Call the Supabase edge function for receipt scanning
-      const { data: result, error: funcError } = await supabase.functions.invoke('scan-receipt', {
-        body: {
-          image: base64,
-          userId: tgUser?.id,
-          mimeType: file.type,
-        },
+      // Call the Railway backend for receipt scanning
+      const result = await api.scanReceipt({
+        image: base64,
+        userId: tgUser?.id,
+        mimeType: file.type,
       });
-
-      if (funcError) {
-        console.error("Edge function error:", funcError);
-        throw new Error(funcError.message || "Failed to process receipt");
-      }
 
       if (result?.error) {
         throw new Error(result.error);

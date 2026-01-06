@@ -357,6 +357,168 @@ app.post('/api/get-stock-price', async (req, res) => {
   }
 });
 
+// AI Copilot Endpoint - Financial behavioral analysis
+const AI_COPILOT_PROMPT = `You are MonEX AI Copilot - a behavioral finance assistant that helps users understand their spending patterns and build better financial habits.
+
+Analyze the user's transaction data and provide 2-4 actionable insights. Focus on:
+1. Spending patterns and anomalies
+2. Behavioral nudges (not just numbers)
+3. Achievable micro-actions
+4. Positive reinforcement when appropriate
+
+Return JSON array of insights:
+[
+  {
+    "type": "pattern" | "warning" | "achievement" | "suggestion",
+    "severity": "low" | "medium" | "high",
+    "icon": "emoji",
+    "title": "Short title",
+    "message": "Detailed message with specific numbers and actionable advice"
+  }
+]`;
+
+app.post('/api/ai-copilot', async (req, res) => {
+  try {
+    const { transactions, balance, currency, limits, goals, lang } = req.body;
+    
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API key not configured" });
+    }
+
+    const userPrompt = `Analyze this financial data (respond in ${lang === 'ru' ? 'Russian' : lang === 'uz' ? 'Uzbek' : 'English'}):
+
+Balance: ${balance} ${currency}
+Recent transactions: ${JSON.stringify(transactions?.slice(0, 20) || [])}
+Spending limits: ${JSON.stringify(limits || [])}
+Savings goals: ${JSON.stringify(goals || [])}
+
+Provide behavioral insights and actionable suggestions.`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: AI_COPILOT_PROMPT },
+          { role: "user", content: userPrompt }
+        ],
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI error: ${response.status} - ${errorText}`);
+      return res.status(500).json({ error: "Failed to generate insights" });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return res.status(500).json({ error: "No response from AI" });
+    }
+
+    let insights;
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        content.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, content];
+      insights = JSON.parse((jsonMatch[1] || content).trim());
+    } catch {
+      insights = [{ type: "suggestion", severity: "low", icon: "💡", title: "Tip", message: content }];
+    }
+
+    res.json({ insights });
+
+  } catch (error) {
+    console.error("Error in ai-copilot:", error);
+    res.status(500).json({ error: error.message || "Unknown error" });
+  }
+});
+
+// Finance Planner Endpoint - Natural language goal planning
+const FINANCE_PLANNER_PROMPT = `You are a financial goal planner. Parse the user's natural language goal and create a structured savings plan.
+
+Return JSON:
+{
+  "name": "Goal name",
+  "targetAmount": number,
+  "deadline": "YYYY-MM-DD",
+  "monthlyRequired": number,
+  "weeklyRequired": number,
+  "dailyRequired": number,
+  "emoji": "relevant emoji",
+  "tips": ["tip1", "tip2", "tip3"],
+  "feasibility": "easy" | "moderate" | "challenging" | "difficult",
+  "message": "Encouraging message about the goal"
+}`;
+
+app.post('/api/finance-planner', async (req, res) => {
+  try {
+    const { prompt, balance, currency, lang } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ error: "No prompt provided" });
+    }
+
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: "OpenAI API key not configured" });
+    }
+
+    console.log(`Planning goal: "${prompt}" (lang: ${lang})`);
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: FINANCE_PLANNER_PROMPT },
+          { role: "user", content: `Current balance: ${balance} ${currency}. Goal: "${prompt}". Respond in ${lang === 'ru' ? 'Russian' : lang === 'uz' ? 'Uzbek' : 'English'}.` }
+        ],
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI error: ${response.status} - ${errorText}`);
+      return res.status(500).json({ error: "Failed to create plan" });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return res.status(500).json({ error: "No response from AI" });
+    }
+
+    let plan;
+    try {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        content.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, content];
+      plan = JSON.parse((jsonMatch[1] || content).trim());
+    } catch {
+      return res.status(400).json({ error: "Could not parse plan" });
+    }
+
+    res.json(plan);
+
+  } catch (error) {
+    console.error("Error in finance-planner:", error);
+    res.status(500).json({ error: error.message || "Unknown error" });
+  }
+});
+
 // =====================================================
 // DATABASE HELPER FUNCTIONS
 // =====================================================

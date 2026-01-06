@@ -5,7 +5,7 @@ import { Investment } from "@/types";
 import { safeJSON, uid } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
 import { Plus, X, TrendingUp, TrendingDown, RefreshCw, Trash2, Edit2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 const INVESTMENT_TYPES = [
   { value: "stock", label: "Stock", emoji: "📈" },
@@ -76,11 +76,12 @@ export const InvestmentsScreen = memo(() => {
 
   const fetchPrice = async (symbol: string, invType: Investment["type"]): Promise<number | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-stock-price', {
-        body: { symbol, type: invType === 'crypto' ? 'crypto' : 'stock' }
+      const data = await api.getStockPrice({ 
+        symbol, 
+        type: invType === 'crypto' ? 'crypto' : 'stock' 
       });
       
-      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       return data?.price || null;
     } catch (e) {
       console.error('Failed to fetch price:', e);
