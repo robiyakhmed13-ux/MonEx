@@ -1,43 +1,28 @@
-const API_BASE_RAW = import.meta.env.VITE_API_URL || "https://telegram-finance-hub-production.up.railway.app";
+import { supabase } from "@/integrations/supabase/client";
 
-// Normalize common deployment mistakes (extra quotes/spaces, trailing slash)
-const API_BASE = API_BASE_RAW.trim().replace(/^"|"$/g, "").replace(/\/$/, "");
-
-async function fetchJson(path: string, data: unknown): Promise<any> {
-  const url = `${API_BASE}${path}`;
-
-  let res: Response;
+// Call Supabase Edge Functions directly (works independently of Railway)
+async function invokeEdgeFunction(functionName: string, data: unknown): Promise<any> {
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+    const { data: result, error } = await supabase.functions.invoke(functionName, {
+      body: data,
     });
+
+    if (error) {
+      console.error(`Edge function ${functionName} error:`, error);
+      throw new Error(error.message || `Error calling ${functionName}`);
+    }
+
+    return result;
   } catch (err) {
-    // Network/CORS/DNS/etc.
-    throw new Error(`Network error calling ${url}. ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`Failed to invoke ${functionName}:`, err);
+    throw err;
   }
-
-  let payload: any = null;
-  try {
-    payload = await res.json();
-  } catch {
-    // ignore
-  }
-
-  if (!res.ok) {
-    const msg = payload?.error || payload?.message || `HTTP ${res.status}`;
-    throw new Error(`API error from ${url}: ${msg}`);
-  }
-
-  return payload;
 }
 
-
 export const api = {
-  scanReceipt: (data: any) => fetchJson("/api/scan-receipt", data),
-  parseVoice: (data: any) => fetchJson("/api/parse-voice", data),
-  getStockPrice: (data: any) => fetchJson("/api/get-stock-price", data),
-  aiCopilot: (data: any) => fetchJson("/api/ai-copilot", data),
-  financePlanner: (data: any) => fetchJson("/api/finance-planner", data),
+  scanReceipt: (data: any) => invokeEdgeFunction("scan-receipt", data),
+  parseVoice: (data: any) => invokeEdgeFunction("parse-voice", data),
+  getStockPrice: (data: any) => invokeEdgeFunction("get-stock-price", data),
+  aiCopilot: (data: any) => invokeEdgeFunction("ai-copilot", data),
+  financePlanner: (data: any) => invokeEdgeFunction("finance-planner", data),
 };
