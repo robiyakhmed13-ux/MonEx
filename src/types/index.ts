@@ -281,6 +281,7 @@ export type ScreenType =
   | "goals" 
   | "debts" 
   | "analytics" 
+  | "ai"
   | "recurring"
   | "settings"
   | "accounts"

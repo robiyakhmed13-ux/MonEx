@@ -23,7 +23,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "home", icon: Home, labelKey: "home" },
   { id: "transactions", icon: Activity, labelKey: "activity" },
-  { id: "analytics", icon: Brain, labelKey: "ai" },
+  { id: "ai", icon: Brain, labelKey: "ai" },
   { id: "more", icon: MoreHorizontal, labelKey: "more" },
 ];
 
@@ -49,7 +49,7 @@ export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
   const getActiveNav = (screen: ScreenType): ScreenType => {
     if (screen === "home") return "home";
     if (screen === "transactions") return "transactions";
-    if (["analytics", "reports"].includes(screen)) return "analytics";
+    if (["ai", "debt-assessment", "cash-flow", "net-worth", "investments"].includes(screen)) return "ai";
     return "more";
   };
 
