@@ -471,28 +471,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       return;
     }
 
-    // Persist PIN
+    // Persist PIN (local-only for now)
     try {
-      const user = await auth.getCurrentUser();
-      if (!user) {
-        setError(onboardingLang === 'ru' ? 'Сессия истекла. Войдите снова.' : onboardingLang === 'uz' ? 'Sessiya tugadi. Qayta kiring.' : 'Session expired. Please log in again.');
-        setAuthStep('login');
-        return;
-      }
-
       // NOTE: This is NOT a secure hash; replace with a proper KDF on the backend for production.
       const pinHash = btoa(enteredPin);
-
-      const { error: upsertErr } = await supabase
-        .from('profiles')
-        .update({ pin_hash: pinHash })
-        .eq('id', user.id);
-
-      if (upsertErr) {
-        setError(upsertErr.message || (onboardingLang === 'ru' ? 'Не удалось сохранить PIN' : onboardingLang === 'uz' ? 'PIN saqlanmadi' : 'Failed to save PIN'));
-        return;
-      }
-
       localStorage.setItem('user_pin_hash', pinHash);
       setAuthStep('biometric');
     } catch (e: any) {
@@ -501,16 +483,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   };
 
   const handleEnableBiometric = async () => {
-    const user = await auth.getCurrentUser();
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ biometric_enabled: true })
-        .eq('id', user.id);
-
-      localStorage.setItem('biometric_enabled', 'true');
-    }
-
+    localStorage.setItem('biometric_enabled', 'true');
     setAuthStep('complete');
   };
 

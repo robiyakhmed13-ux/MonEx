@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 interface Transaction {
   id: string;
@@ -44,8 +44,8 @@ serve(async (req) => {
   try {
     const { transactions, balance, currency, limits, goals, lang }: AnalysisRequest = await req.json();
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Prepare spending analysis data
@@ -264,14 +264,17 @@ Be the AI that PREVENTS financial disaster, not just reports it.`;
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this financial data and provide behavioral insights:\n\n${JSON.stringify(analysisContext, null, 2)}` }
+          {
+            role: "user",
+            content: `Analyze this financial data and provide behavioral insights:\n\n${JSON.stringify(analysisContext, null, 2)}`,
+          },
         ],
         max_tokens: 1500,
       }),
