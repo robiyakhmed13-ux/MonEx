@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { 
-  X, 
+  X,
   Sparkles, 
   Target, 
   TrendingUp, 
@@ -111,25 +111,32 @@ export const FinancePlannerModal: React.FC<FinancePlannerModalProps> = ({ isOpen
     setPlan(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('finance-planner', {
-        body: {
-          prompt: goalPrompt,
-          currentBalance: balance,
-          monthlyIncome,
-          monthlyExpenses,
-          currency,
-          lang,
-        }
+      const data = await api.financePlanner({
+        prompt: goalPrompt,
+        balance,
+        monthlyIncome,
+        monthlyExpenses,
+        currency,
+        lang,
       });
 
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
-
-      if (data?.plan) {
-        setPlan(data.plan);
-      } else if (data?.error) {
+      if (data?.error) {
         setError(data.error);
+      } else if (data) {
+        // Map response to expected structure
+        setPlan({
+          goalName: data.name || goalPrompt,
+          targetAmount: data.targetAmount || 0,
+          monthlyRequired: data.monthlyRequired || 0,
+          timeframeMonths: Math.ceil((new Date(data.deadline).getTime() - Date.now()) / (30 * 24 * 60 * 60 * 1000)) || 12,
+          deadline: data.deadline || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          feasibility: data.feasibility || 'moderate',
+          feasibilityScore: data.feasibility === 'easy' ? 80 : data.feasibility === 'moderate' ? 60 : data.feasibility === 'challenging' ? 40 : 20,
+          savingsRate: Math.round((data.monthlyRequired / monthlyIncome) * 100) || 0,
+          recommendations: data.tips || [],
+          milestones: [],
+          warnings: data.feasibility === 'difficult' ? [data.message || 'This goal may be challenging'] : [],
+        });
       }
     } catch (err) {
       console.error('Finance Planner error:', err);

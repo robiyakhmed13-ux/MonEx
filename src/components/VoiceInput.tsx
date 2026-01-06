@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/integrations/supabase/client";
-import { todayISO } from "@/lib/storage";
+import { api } from "@/lib/api";
 
 interface VoiceInputProps {
   onTransactionParsed: (data: { type: "expense" | "income"; categoryId: string; amount: number; description: string }) => void;
@@ -37,11 +36,8 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTransactionParsed }) =
       setIsProcessing(true);
 
       try {
-        const { data, error } = await supabase.functions.invoke('parse-voice', {
-          body: { text, lang },
-        });
+        const data = await api.parseVoice({ text, lang });
 
-        if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
         if (data?.type && data?.categoryId && data?.amount) {
