@@ -831,7 +831,7 @@ async function handleAIQuery(text: string, user: any, chatId: number, supabase: 
     .reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
   // Use Lovable AI Gateway
-  if (!LOVABLE_API_KEY) {
+  if (!OPENAI_API_KEY) {
     await sendMessage(chatId, `Tushunmadim. Sinab ko'ring:
 • <code>taxi 50000</code> — xarajat qo'shish
 • /stats — statistika
@@ -843,7 +843,7 @@ async function handleAIQuery(text: string, user: any, chatId: number, supabase: 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -921,7 +921,7 @@ async function handlePhotoMessage(message: TelegramMessage, user: any, supabase:
   const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBytes)))
 
   // Use Lovable AI for vision
-  if (!LOVABLE_API_KEY) {
+  if (!OPENAI_API_KEY) {
     await sendMessage(chatId, `🧾 Chek aniqlandi, lekin AI sozlanmagan.
 
 Qo'lda kiriting: <code>xarid 50000</code>`)
@@ -932,7 +932,7 @@ Qo'lda kiriting: <code>xarid 50000</code>`)
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
