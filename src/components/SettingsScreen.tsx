@@ -1,21 +1,26 @@
 import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { exportTransactionsCSV, CURRENCIES } from "@/lib/exportData";
 import { 
   ArrowLeft, RefreshCw, FileSpreadsheet, Zap, Trash2,
   Sun, Moon, Monitor, Cloud, User, HelpCircle,
-  CreditCard, GraduationCap, ChevronRight, Star, Share2
+  CreditCard, GraduationCap, ChevronRight, Star, Share2,
+  LogIn, LogOut, Mail
 } from "lucide-react";
 
 export const SettingsScreen = memo(() => {
+  const navigate = useNavigate();
   const { 
     t, lang, setLang,
     dataMode, setDataMode, useRemote, syncFromRemote, 
     setActiveScreen, setBalance, setTransactions, setLimits, setGoals, 
     theme, setTheme, setOnboardingComplete,
     transactions, allCats, catLabel, currency, setCurrency,
-    reminderDays, setReminderDays, tgUser
+    reminderDays, setReminderDays, tgUser,
+    // Auth
+    user, profile, isAuthenticated, signOut
   } = useApp();
   
   const [resetOpen, setResetOpen] = useState(false);
@@ -100,39 +105,80 @@ export const SettingsScreen = memo(() => {
         >
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-primary-foreground text-2xl font-bold">
-              {(tgUser?.first_name || "U").charAt(0)}
+              {isAuthenticated 
+                ? (profile?.full_name || user?.email || "U").charAt(0).toUpperCase()
+                : (tgUser?.first_name || "U").charAt(0)
+              }
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">{tgUser?.first_name || "User"}</h2>
-              {tgUser?.username && (
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-foreground">
+                {isAuthenticated 
+                  ? (profile?.full_name || user?.email?.split('@')[0] || "User")
+                  : (tgUser?.first_name || "Guest")
+                }
+              </h2>
+              {isAuthenticated ? (
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Mail className="w-3 h-3" />
+                  {user?.email}
+                </p>
+              ) : tgUser?.username ? (
                 <p className="text-sm text-muted-foreground">@{tgUser.username}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {lang === "ru" ? "Гость" : lang === "uz" ? "Mehmon" : "Guest"}
+                </p>
               )}
             </div>
           </div>
+
+          {/* Auth Button */}
+          {isAuthenticated ? (
+            <button
+              onClick={async () => {
+                await signOut();
+                navigate('/auth');
+              }}
+              className="w-full py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive font-medium flex items-center justify-center gap-2 hover:bg-destructive/20 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              {lang === "ru" ? "Выйти" : lang === "uz" ? "Chiqish" : "Sign Out"}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/auth')}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              {lang === "ru" ? "Войти / Регистрация" : lang === "uz" ? "Kirish / Ro'yxat" : "Sign In / Sign Up"}
+            </button>
+          )}
           
-          {/* Plan & Referral Cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
-              <div className="flex items-center gap-2 mb-1">
-                <Star className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">Standard</span>
+          {/* Plan & Referral Cards - only show when authenticated */}
+          {isAuthenticated && (
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+                <div className="flex items-center gap-2 mb-1">
+                  <Star className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">Standard</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "ru" ? "Ваш план" : lang === "uz" ? "Sizning rejangiz" : "Your plan"}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {lang === "ru" ? "Ваш план" : lang === "uz" ? "Sizning rejangiz" : "Your plan"}
-              </p>
-            </div>
-            <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
-              <div className="flex items-center gap-2 mb-1">
-                <Share2 className="w-4 h-4 text-income" />
-                <span className="text-sm font-semibold text-foreground">
-                  {lang === "ru" ? "Рефералы" : lang === "uz" ? "Tavsiyalar" : "Referrals"}
-                </span>
+              <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+                <div className="flex items-center gap-2 mb-1">
+                  <Cloud className="w-4 h-4 text-income" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {lang === "ru" ? "Синхрон" : lang === "uz" ? "Sinxron" : "Synced"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {lang === "ru" ? "Данные в облаке" : lang === "uz" ? "Ma'lumotlar bulutda" : "Data in cloud"}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {lang === "ru" ? "Пригласи друзей" : lang === "uz" ? "Do'stlarni taklif qil" : "Invite friends"}
-              </p>
             </div>
-          </div>
+          )}
         </motion.div>
       </div>
 
