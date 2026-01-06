@@ -113,7 +113,7 @@ export const FinancePlannerModal: React.FC<FinancePlannerModalProps> = ({ isOpen
     try {
       const data = await api.financePlanner({
         prompt: goalPrompt,
-        balance,
+        currentBalance: balance,
         monthlyIncome,
         monthlyExpenses,
         currency,
