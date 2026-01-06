@@ -4,7 +4,7 @@ import { useApp } from "@/context/AppContext";
 import { CashFlowForecast, CashFlowEvent, Subscription, RecurringTransaction } from "@/types";
 import { safeJSON } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
-import { TrendingUp, TrendingDown, Calendar, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, AlertTriangle, ArrowLeft } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, ComposedChart, Bar, Line } from "recharts";
 
 export const CashFlowScreen = memo(() => {
@@ -160,21 +160,28 @@ export const CashFlowScreen = memo(() => {
   const totalOutflows = forecast.reduce((s, f) => s + f.outflows, 0);
 
   return (
-    <div className="min-h-screen bg-background pb-32 px-4 pt-4">
+    <div className="screen-container">
       {/* Header */}
-      <header className="flex items-center gap-3 mb-6">
-        <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
-        <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
+      <header className="screen-header">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setActiveScreen("home")} 
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80"
+          >
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <h1 className="text-large-title text-foreground">{t.title}</h1>
+        </div>
       </header>
 
       {/* Forecast Period Selector */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-section">
         {[7, 14, 30, 60, 90].map(days => (
           <button
             key={days}
             onClick={() => setForecastDays(days)}
-            className={`flex-1 py-2 rounded-xl text-sm font-medium ${
-              forecastDays === days ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
+            className={`flex-1 py-2.5 rounded-xl text-body-medium transition-opacity active:opacity-80 ${
+              forecastDays === days ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
             }`}
           >
             {days} {t.days}
@@ -183,87 +190,54 @@ export const CashFlowScreen = memo(() => {
       </div>
 
       {/* Summary Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-6 rounded-3xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent border border-primary/20 mb-6"
-      >
-        <p className="text-sm text-muted-foreground mb-2">{t.projected}</p>
+      <div className="card-elevated mb-section p-5">
+        <p className="text-caption mb-2">{t.projected}</p>
         <div className="flex items-baseline gap-3 mb-4">
-          <h2 className="text-3xl font-bold text-foreground">
+          <h2 className="text-display text-foreground">
             {formatCurrency(endBalance, currency)}
           </h2>
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
-              balanceChange >= 0 ? 'bg-income/20 text-income' : 'bg-expense/20 text-expense'
-            }`}
-          >
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-body-medium ${
+            balanceChange >= 0 ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'
+          }`}>
             {balanceChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
             <span>{balanceChange >= 0 ? '+' : ''}{formatCurrency(balanceChange, currency)}</span>
-          </motion.div>
+          </div>
         </div>
 
         {lowBalanceWarnings.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-3 rounded-xl bg-destructive/20 border border-destructive/30 flex items-center gap-3"
-          >
+          <div className="p-3 rounded-xl bg-destructive/10 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive" />
             <div>
-              <p className="text-sm font-medium text-destructive">{t.warning}</p>
-              <p className="text-xs text-muted-foreground">
-                {lowBalanceWarnings[0].date}
-              </p>
+              <p className="text-body-medium text-destructive">{t.warning}</p>
+              <p className="text-caption">{lowBalanceWarnings[0].date}</p>
             </div>
-          </motion.div>
+          </div>
         )}
-      </motion.div>
+      </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-3 rounded-xl bg-income/10 border border-income/20"
-        >
-          <p className="text-xs text-muted-foreground">{t.totalIn}</p>
-          <p className="text-lg font-bold text-income">+{formatCurrency(totalInflows, currency)}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-3 rounded-xl bg-expense/10 border border-expense/20"
-        >
-          <p className="text-xs text-muted-foreground">{t.totalOut}</p>
-          <p className="text-lg font-bold text-expense">-{formatCurrency(totalOutflows, currency)}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-3 rounded-xl bg-primary/10 border border-primary/20"
-        >
-          <p className="text-xs text-muted-foreground">{t.netChange}</p>
-          <p className={`text-lg font-bold ${balanceChange >= 0 ? 'text-income' : 'text-expense'}`}>
+      {/* Summary Stats - Info Cards */}
+      <div className="grid grid-cols-3 gap-3 mb-section">
+        <div className="card-info">
+          <p className="text-caption">{t.totalIn}</p>
+          <p className="text-title text-income">+{formatCurrency(totalInflows, currency)}</p>
+        </div>
+        <div className="card-info">
+          <p className="text-caption">{t.totalOut}</p>
+          <p className="text-title text-expense">-{formatCurrency(totalOutflows, currency)}</p>
+        </div>
+        <div className="card-info">
+          <p className="text-caption">{t.netChange}</p>
+          <p className={`text-title ${balanceChange >= 0 ? 'text-income' : 'text-expense'}`}>
             {balanceChange >= 0 ? '+' : ''}{formatCurrency(balanceChange, currency)}
           </p>
-        </motion.div>
+        </div>
       </div>
 
       {/* Daily Balance Chart */}
       {dailyChartData.length > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-4 rounded-2xl bg-card border border-border mb-6"
-        >
-          <h3 className="text-sm font-semibold text-foreground mb-3">{t.dailyChart}</h3>
-          <div className="h-48">
+        <div className="card-elevated mb-section">
+          <h3 className="text-title text-foreground mb-4">{t.dailyChart}</h3>
+          <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyChartData}>
                 <defs>
@@ -301,19 +275,14 @@ export const CashFlowScreen = memo(() => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Inflow/Outflow Chart */}
       {flowChartData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-4 rounded-2xl bg-card border border-border mb-6"
-        >
-          <h3 className="text-sm font-semibold text-foreground mb-3">{t.flowChart}</h3>
-          <div className="h-40">
+        <div className="card-elevated mb-section">
+          <h3 className="text-title text-foreground mb-4">{t.flowChart}</h3>
+          <div className="h-36">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={flowChartData}>
                 <XAxis 
@@ -340,40 +309,37 @@ export const CashFlowScreen = memo(() => {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Upcoming Events */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3">{t.upcoming}</h3>
+        <h3 className="text-title text-foreground mb-4">{t.upcoming}</h3>
         {upcomingEvents.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground bg-secondary rounded-xl">
-            <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>{t.noData}</p>
+          <div className="card-insight justify-center py-8">
+            <Calendar className="w-6 h-6 text-muted-foreground" />
+            <p className="text-body text-muted-foreground">{t.noData}</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {upcomingEvents.map((event, index) => (
-              <motion.div
+              <div
                 key={`${event.id}-${index}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="p-3 rounded-xl bg-card border border-border flex items-center gap-3"
+                className="card-info flex items-center gap-3"
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  event.amount >= 0 ? 'bg-income/20 text-income' : 'bg-expense/20 text-expense'
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  event.amount >= 0 ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'
                 }`}>
                   {event.amount >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">{event.name}</p>
-                  <p className="text-sm text-muted-foreground">{event.date}</p>
+                  <p className="text-body-medium text-foreground">{event.name}</p>
+                  <p className="text-caption">{event.date}</p>
                 </div>
-                <p className={`font-bold ${event.amount >= 0 ? 'text-income' : 'text-expense'}`}>
+                <p className={`text-body-medium ${event.amount >= 0 ? 'text-income' : 'text-expense'}`}>
                   {event.amount >= 0 ? '+' : ''}{formatCurrency(event.amount, currency)}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}

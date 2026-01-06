@@ -2,15 +2,19 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { 
+  ChevronRight, RefreshCw, AlertTriangle, TrendingUp, 
+  Lightbulb, Trophy, Target, Zap, CheckCircle
+} from "lucide-react";
 
 /**
  * AI Insights Widget - Design System Rules:
- * - Insight Card pattern: 1 sentence max + optional emoji
+ * - Insight Card pattern: 1 sentence max + premium icon
  * - AI speaks rarely but wisely
  * - Max 1-2 sentences, no paragraphs
  * - Always actionable or silent
  * - Auto-refresh every 6 hours
+ * - ICONS instead of emojis (premium feel)
  */
 
 interface Insight {
@@ -28,15 +32,35 @@ interface AIInsightsWidgetProps {
   onOpenFullPanel: () => void;
 }
 
+// Map insight types to premium Lucide icons
+const getInsightIcon = (type: Insight['type'], severity: Insight['severity']) => {
+  switch (type) {
+    case 'warning':
+      return <AlertTriangle className="w-5 h-5 text-destructive" />;
+    case 'pattern':
+      return <TrendingUp className="w-5 h-5 text-primary" />;
+    case 'prediction':
+      return <Target className="w-5 h-5 text-primary" />;
+    case 'suggestion':
+      return <Lightbulb className="w-5 h-5 text-amber-500" />;
+    case 'achievement':
+      return <Trophy className="w-5 h-5 text-income" />;
+    default:
+      return <Zap className="w-5 h-5 text-primary" />;
+  }
+};
+
 export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPanel }) => {
   const { transactions, balance, currency, limits, goals, lang } = useApp();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Labels in correct language based on lang setting
   const labels = {
     title: lang === 'ru' ? 'Инсайты' : lang === 'uz' ? 'Tushunchalar' : 'Insights',
     viewAll: lang === 'ru' ? 'Ещё' : lang === 'uz' ? 'Ko\'proq' : 'More',
     noInsights: lang === 'ru' ? 'Всё в порядке' : lang === 'uz' ? 'Hammasi yaxshi' : 'All good',
+    analyzing: lang === 'ru' ? 'Анализ...' : lang === 'uz' ? 'Tahlil...' : 'Analyzing...',
   };
 
   const fetchInsights = useCallback(async (force = false) => {
@@ -68,7 +92,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
         currency,
         limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
         goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
-        lang,
+        lang, // Pass language to API
       });
 
       if (data?.insights && !data?.error) {
@@ -93,21 +117,21 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
     return () => clearInterval(interval);
   }, [fetchInsights]);
 
-  // Loading state - minimal
+  // Loading state - minimal with icon
   if (loading && insights.length === 0) {
     return (
       <div className="card-insight mb-6 animate-pulse">
-        <span className="text-xl">🧠</span>
-        <span className="text-body text-muted-foreground">Analyzing...</span>
+        <Zap className="w-5 h-5 text-primary" />
+        <span className="text-body text-muted-foreground">{labels.analyzing}</span>
       </div>
     );
   }
 
-  // No insights - show simple "all good" message
+  // No insights - show simple "all good" message with icon
   if (insights.length === 0) {
     return (
       <div className="card-insight mb-6">
-        <span className="text-xl">✓</span>
+        <CheckCircle className="w-5 h-5 text-income" />
         <span className="text-body text-foreground">{labels.noInsights}</span>
       </div>
     );
@@ -133,7 +157,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
         </button>
       </div>
 
-      {/* Insight Cards - ONE idea per card, max 1-2 text sizes */}
+      {/* Insight Cards - Premium icons, ONE idea per card */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {insights.map((insight, index) => (
@@ -146,7 +170,9 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
               onClick={onOpenFullPanel}
               className="card-insight w-full text-left active:opacity-80"
             >
-              <span className="text-lg flex-shrink-0">{insight.icon || '💡'}</span>
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                {getInsightIcon(insight.type, insight.severity)}
+              </div>
               <p className="card-insight-text flex-1 line-clamp-1">{insight.message || insight.title}</p>
               <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </motion.button>

@@ -10,7 +10,7 @@ import { FinancePlannerModal } from "./FinancePlannerModal";
 import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Plus,
-  ChevronUp, ChevronDown, X, Check
+  ChevronUp, ChevronDown, X, Check, TrendingUp
 } from "lucide-react";
 
 // Animations: fade-in, slide-up only (iOS-approved)
@@ -196,14 +196,16 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
           </motion.div>
         </div>
         
-        {/* === Week Insight (Insight Card pattern) === */}
+        {/* === Week Insight (Insight Card pattern with icon) === */}
         <motion.div
           initial={slideUp}
           animate={slideUpTo}
           transition={{ delay: 0.15, duration: 0.25 }}
           className="card-insight mb-6"
         >
-          <span className="text-xl">💡</span>
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-primary" />
+          </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="text-body-medium text-foreground">{t.weekSpending}: {formatUZS(weekSpend)}</span>

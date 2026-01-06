@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { DebtItem } from "@/types";
 import { formatCurrency } from "@/lib/exportData";
+import { ArrowLeft, Check, AlertTriangle, XCircle, Plus, Brain } from "lucide-react";
 
 const DEBT_QUESTIONS = {
   uz: [
@@ -360,18 +361,27 @@ export const DebtAssessmentScreen = memo(() => {
                 </motion.div>
               )}
 
-              {assessmentStep >= questions.length && (
+              {/* Result - only show AFTER all questions answered */}
+              {assessmentStep > questions.length && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex-1 flex flex-col items-center justify-center text-center"
                 >
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 ${
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${
                     riskLevel.level === "low" ? "bg-income/20" : 
                     riskLevel.level === "medium" ? "bg-yellow-500/20" :
                     riskLevel.level === "high" ? "bg-orange-500/20" : "bg-expense/20"
                   }`}>
-                    {riskLevel.level === "low" ? "✅" : riskLevel.level === "medium" ? "⚠️" : riskLevel.level === "high" ? "🔶" : "🛑"}
+                    {riskLevel.level === "low" ? (
+                      <Check className="w-12 h-12 text-income" />
+                    ) : riskLevel.level === "medium" ? (
+                      <AlertTriangle className="w-12 h-12 text-yellow-500" />
+                    ) : riskLevel.level === "high" ? (
+                      <AlertTriangle className="w-12 h-12 text-orange-500" />
+                    ) : (
+                      <XCircle className="w-12 h-12 text-expense" />
+                    )}
                   </div>
                   
                   <h2 className="text-2xl font-bold text-foreground mb-2">{labels.result}</h2>

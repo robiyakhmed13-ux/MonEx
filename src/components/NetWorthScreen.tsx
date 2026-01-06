@@ -1,17 +1,19 @@
 import React, { useState, useMemo, memo, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { NetWorthSnapshot, Account, DebtItem } from "@/types";
 import { safeJSON } from "@/lib/storage";
 import { formatCurrency } from "@/lib/exportData";
-import { TrendingUp, TrendingDown, Wallet, CreditCard, PiggyBank, Building2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, CreditCard, PiggyBank, Building2, ArrowLeft, Plus, X } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 export const NetWorthScreen = memo(() => {
-  const { lang, currency, setActiveScreen, balance } = useApp();
-  const [accounts] = useState<Account[]>(() => safeJSON.get("hamyon_accounts", []));
+  const { lang, currency, setActiveScreen, balance, showToast } = useApp();
+  const [accounts, setAccounts] = useState<Account[]>(() => safeJSON.get("hamyon_accounts", []));
   const [debts] = useState<DebtItem[]>(() => safeJSON.get("hamyon_debts", []));
   const [history, setHistory] = useState<NetWorthSnapshot[]>(() => safeJSON.get("hamyon_netWorthHistory", []));
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [accountForm, setAccountForm] = useState({ name: "", balance: "", type: "bank" as Account["type"] });
 
   const t = {
     title: lang === "ru" ? "Чистая стоимость" : lang === "uz" ? "Sof qiymat" : "Net Worth",
@@ -23,6 +25,12 @@ export const NetWorthScreen = memo(() => {
     trend: lang === "ru" ? "Тренд" : lang === "uz" ? "Trend" : "Trend",
     noData: lang === "ru" ? "Нет данных" : lang === "uz" ? "Ma'lumot yo'q" : "No data yet",
     mainBalance: lang === "ru" ? "Основной баланс" : lang === "uz" ? "Asosiy balans" : "Main Balance",
+    addAccount: lang === "ru" ? "Добавить счёт" : lang === "uz" ? "Hisob qo'shish" : "Add Account",
+    accountName: lang === "ru" ? "Название" : lang === "uz" ? "Nomi" : "Name",
+    accountBalance: lang === "ru" ? "Баланс" : lang === "uz" ? "Balans" : "Balance",
+    accountType: lang === "ru" ? "Тип" : lang === "uz" ? "Turi" : "Type",
+    save: lang === "ru" ? "Сохранить" : lang === "uz" ? "Saqlash" : "Save",
+    cancel: lang === "ru" ? "Отмена" : lang === "uz" ? "Bekor" : "Cancel",
   };
 
   // Calculate totals
@@ -85,62 +93,83 @@ export const NetWorthScreen = memo(() => {
     }
   };
 
+  // Save accounts to storage
+  const saveAccounts = (newAccounts: Account[]) => {
+    setAccounts(newAccounts);
+    safeJSON.set("hamyon_accounts", newAccounts);
+  };
+
+  // Handle adding new account
+  const handleAddAccount = () => {
+    if (!accountForm.name || !accountForm.balance) return;
+    
+    const emojis = { bank: "🏦", card: "💳", savings: "🐷", cash: "💵", wallet: "👛" };
+    const newAccount: Account = {
+      id: Date.now().toString(),
+      name: accountForm.name,
+      balance: Number(accountForm.balance),
+      currency,
+      type: accountForm.type,
+      color: "#3B82F6",
+      emoji: emojis[accountForm.type] || "💰",
+    };
+    
+    saveAccounts([...accounts, newAccount]);
+    setShowAddAccount(false);
+    setAccountForm({ name: "", balance: "", type: "bank" });
+    showToast("✓", true);
+  };
+
   return (
-    <div className="min-h-screen bg-background pb-32 px-4 pt-4">
+    <div className="screen-container">
       {/* Header */}
-      <header className="flex items-center gap-3 mb-6">
-        <button onClick={() => setActiveScreen("home")} className="text-2xl">←</button>
-        <h1 className="text-xl font-bold text-foreground">{t.title}</h1>
+      <header className="screen-header">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setActiveScreen("home")} 
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80"
+          >
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <h1 className="text-large-title text-foreground">{t.title}</h1>
+        </div>
       </header>
 
       {/* Net Worth Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-6 rounded-3xl bg-gradient-to-br from-primary/30 via-primary/10 to-transparent border border-primary/20 mb-6"
-      >
-        <p className="text-sm text-muted-foreground mb-2">{t.netWorth}</p>
+      <div className="card-elevated p-5 mb-section">
+        <p className="text-caption mb-2">{t.netWorth}</p>
         <div className="flex items-baseline gap-3 mb-4">
-          <h2 className={`text-4xl font-bold ${netWorth >= 0 ? 'text-income' : 'text-expense'}`}>
+          <h2 className={`text-display ${netWorth >= 0 ? 'text-income' : 'text-expense'}`}>
             {formatCurrency(netWorth, currency)}
           </h2>
           {netWorthChange !== 0 && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
-                netWorthChange > 0 ? 'bg-income/20 text-income' : 'bg-expense/20 text-expense'
-              }`}
-            >
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-body-medium ${
+              netWorthChange > 0 ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'
+            }`}>
               {netWorthChange > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
               <span>{changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%</span>
-            </motion.div>
+            </div>
           )}
         </div>
 
         {/* Assets vs Liabilities */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 rounded-xl bg-income/10 border border-income/20">
-            <p className="text-xs text-muted-foreground mb-1">{t.assets}</p>
-            <p className="text-lg font-bold text-income">+{formatCurrency(totalAssets, currency)}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl bg-income/10">
+            <p className="text-caption mb-1">{t.assets}</p>
+            <p className="text-title text-income">+{formatCurrency(totalAssets, currency)}</p>
           </div>
-          <div className="p-3 rounded-xl bg-expense/10 border border-expense/20">
-            <p className="text-xs text-muted-foreground mb-1">{t.liabilities}</p>
-            <p className="text-lg font-bold text-expense">-{formatCurrency(totalLiabilities, currency)}</p>
+          <div className="p-3 rounded-xl bg-expense/10">
+            <p className="text-caption mb-1">{t.liabilities}</p>
+            <p className="text-title text-expense">-{formatCurrency(totalLiabilities, currency)}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Trend Chart */}
       {chartData.length > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-4 rounded-2xl bg-card border border-border mb-6"
-        >
-          <h3 className="text-sm font-medium text-foreground mb-4">{t.trend}</h3>
-          <div className="h-40">
+        <div className="card-elevated mb-section">
+          <h3 className="text-title text-foreground mb-4">{t.trend}</h3>
+          <div className="h-36">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -176,86 +205,167 @@ export const NetWorthScreen = memo(() => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Assets Breakdown */}
-      <section className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground mb-3">{t.assets}</h3>
-        <div className="space-y-2">
-          {/* Main Balance */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="p-4 rounded-xl bg-card border border-border flex items-center gap-3"
+      <section className="mb-section">
+        <div className="section-header">
+          <h3 className="section-title">{t.assets}</h3>
+          <button 
+            onClick={() => setShowAddAccount(true)}
+            className="section-action flex items-center gap-1"
           >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+            <Plus className="w-3.5 h-3.5" />
+            {t.addAccount}
+          </button>
+        </div>
+        <div className="space-y-3">
+          {/* Main Balance */}
+          <div className="card-info flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <Wallet className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-foreground">{t.mainBalance}</p>
-              <p className="text-sm text-muted-foreground">Hamyon</p>
+              <p className="text-body-medium text-foreground">{t.mainBalance}</p>
+              <p className="text-caption">Hamyon</p>
             </div>
-            <p className="font-bold text-income">+{formatCurrency(balance, currency)}</p>
-          </motion.div>
+            <p className="text-body-medium text-income">+{formatCurrency(balance, currency)}</p>
+          </div>
 
           {/* Other Accounts */}
-          {accounts.map((account, index) => (
-            <motion.div
+          {accounts.map((account) => (
+            <div
               key={account.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (index + 1) * 0.05 }}
-              className="p-4 rounded-xl bg-card border border-border flex items-center gap-3"
+              className="card-info flex items-center gap-3"
             >
               <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: `${account.color}20`, color: account.color }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${account.color}15`, color: account.color }}
               >
                 {getAccountIcon(account.type)}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-foreground">{account.name}</p>
-                <p className="text-sm text-muted-foreground">{account.type}</p>
+                <p className="text-body-medium text-foreground">{account.name}</p>
+                <p className="text-caption">{account.type}</p>
               </div>
-              <p className="font-bold text-income">+{formatCurrency(account.balance, account.currency)}</p>
-            </motion.div>
+              <p className="text-body-medium text-income">+{formatCurrency(account.balance, account.currency)}</p>
+            </div>
           ))}
 
           {accounts.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">{t.noData}</p>
+            <button 
+              onClick={() => setShowAddAccount(true)}
+              className="card-info w-full border-2 border-dashed border-border text-center py-6 active:opacity-80"
+              style={{ boxShadow: 'none' }}
+            >
+              <Plus className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-caption">{t.addAccount}</p>
+            </button>
           )}
         </div>
       </section>
 
       {/* Liabilities Breakdown */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-3">{t.liabilities}</h3>
-        <div className="space-y-2">
-          {debts.map((debt, index) => (
-            <motion.div
+        <h3 className="section-title mb-4">{t.liabilities}</h3>
+        <div className="space-y-3">
+          {debts.map((debt) => (
+            <div
               key={debt.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="p-4 rounded-xl bg-card border border-border flex items-center gap-3"
+              className="card-info flex items-center gap-3"
             >
-              <div className="w-10 h-10 rounded-full bg-expense/20 flex items-center justify-center text-expense">
+              <div className="w-10 h-10 rounded-xl bg-expense/10 flex items-center justify-center text-expense">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-foreground">{debt.name}</p>
-                <p className="text-sm text-muted-foreground">{debt.lender}</p>
+                <p className="text-body-medium text-foreground">{debt.name}</p>
+                <p className="text-caption">{debt.lender}</p>
               </div>
-              <p className="font-bold text-expense">-{formatCurrency(debt.remainingAmount, currency)}</p>
-            </motion.div>
+              <p className="text-body-medium text-expense">-{formatCurrency(debt.remainingAmount, currency)}</p>
+            </div>
           ))}
 
           {debts.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">{t.noData}</p>
+            <div className="card-insight justify-center py-6">
+              <p className="text-caption">{t.noData}</p>
+            </div>
           )}
         </div>
       </section>
+
+      {/* Add Account Modal */}
+      <AnimatePresence>
+        {showAddAccount && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal-overlay"
+            onClick={() => setShowAddAccount(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              className="absolute bottom-0 left-0 right-0 modal-content"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-title text-foreground">{t.addAccount}</h3>
+                <button 
+                  onClick={() => setShowAddAccount(false)}
+                  className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <input
+                type="text"
+                placeholder={t.accountName}
+                value={accountForm.name}
+                onChange={e => setAccountForm({ ...accountForm, name: e.target.value })}
+                className="input-clean mb-3"
+              />
+              
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder={t.accountBalance}
+                value={accountForm.balance}
+                onChange={e => setAccountForm({ ...accountForm, balance: e.target.value.replace(/[^0-9]/g, '') })}
+                className="input-clean mb-3"
+              />
+              
+              {/* Account Type Selection */}
+              <div className="flex gap-2 mb-6">
+                {(["bank", "card", "savings", "cash"] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setAccountForm({ ...accountForm, type })}
+                    className={`flex-1 py-3 rounded-xl text-body-medium flex flex-col items-center gap-2 transition-colors ${
+                      accountForm.type === type ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
+                    }`}
+                  >
+                    {getAccountIcon(type)}
+                    <span className="text-xs capitalize">{type}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setShowAddAccount(false)} className="btn-secondary flex-1">
+                  {t.cancel}
+                </button>
+                <button onClick={handleAddAccount} className="btn-primary flex-1">
+                  {t.save}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
