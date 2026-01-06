@@ -75,13 +75,22 @@ export class TelegramSync {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'transactions',
-          filter: `telegram_id=eq.${telegramId}`
+          table: 'telegram_transactions',
+          filter: `telegram_user_id=eq.${telegramId}`
         },
         (payload) => {
           console.log('Transaction added via Telegram:', payload);
           if (this.onTransactionAdded && payload.new) {
-            this.onTransactionAdded(payload.new as Transaction);
+            // Map telegram_transactions to Transaction format
+            const tx = payload.new as any;
+            this.onTransactionAdded({
+              id: tx.id,
+              amount: tx.amount,
+              categoryId: tx.category_id,
+              date: tx.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+              description: tx.description,
+              type: tx.type,
+            } as Transaction);
           }
         }
       )
@@ -90,13 +99,21 @@ export class TelegramSync {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'transactions',
-          filter: `telegram_id=eq.${telegramId}`
+          table: 'telegram_transactions',
+          filter: `telegram_user_id=eq.${telegramId}`
         },
         (payload) => {
           console.log('Transaction updated via Telegram:', payload);
           if (this.onTransactionUpdated && payload.new) {
-            this.onTransactionUpdated(payload.new as Transaction);
+            const tx = payload.new as any;
+            this.onTransactionUpdated({
+              id: tx.id,
+              amount: tx.amount,
+              categoryId: tx.category_id,
+              date: tx.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+              description: tx.description,
+              type: tx.type,
+            } as Transaction);
           }
         }
       )
@@ -105,8 +122,8 @@ export class TelegramSync {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'transactions',
-          filter: `telegram_id=eq.${telegramId}`
+          table: 'telegram_transactions',
+          filter: `telegram_user_id=eq.${telegramId}`
         },
         (payload) => {
           console.log('Transaction deleted via Telegram:', payload);
