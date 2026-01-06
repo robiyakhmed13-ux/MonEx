@@ -1,112 +1,103 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Revolut-inspired Design System - Clean White Theme */
+/* 
+ * MONEX DESIGN SYSTEM
+ * Based on Apple HIG + Revolut principles
+ * Rules: Calm, Clean, Consistent
+ */
 
 @layer base {
   :root {
-    /* Core Background Colors */
+    /* Core Colors - Neutral background with ONE accent */
     --background: 0 0% 98%;
     --foreground: 222 47% 11%;
     
-    /* Card Surfaces */
+    /* Card - Pure white for elevation */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     
-    /* Popover */
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    
-    /* Primary - Revolut Blue */
-    --primary: 217 91% 47%;
+    /* Primary - Single accent color */
+    --primary: 217 91% 50%;
     --primary-foreground: 0 0% 100%;
     
-    /* Secondary - Soft Gray */
+    /* Secondary - Soft gray for backgrounds */
     --secondary: 220 14% 96%;
     --secondary-foreground: 220 9% 46%;
     
-    /* Muted */
+    /* Muted - For secondary text */
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
     
-    /* Accent */
+    /* Accent - Subtle primary tint */
     --accent: 217 91% 97%;
     --accent-foreground: 217 91% 47%;
     
-    /* Destructive - Red */
-    --destructive: 0 84% 60%;
+    /* Semantic Colors - Red = danger, Green = success ONLY */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Success - Green */
-    --success: 160 84% 39%;
-    --success-foreground: 0 0% 100%;
-    
-    /* Warning - Amber */
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --expense: 0 72% 51%;
+    --income: 142 76% 36%;
     
     /* Borders & Inputs */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 217 91% 47%;
+    --ring: 217 91% 50%;
     
-    /* Radius */
+    /* Radius - 16-20px as per design system */
     --radius: 1rem;
+    --radius-lg: 1.25rem;
     
-    /* Custom Tokens */
-    --surface-elevated: 0 0% 100%;
-    --surface-sunken: 220 14% 96%;
-    --text-primary: 222 47% 11%;
-    --text-secondary: 220 9% 46%;
-    --text-tertiary: 220 9% 66%;
-    --expense: 0 84% 60%;
-    --income: 160 84% 39%;
-    --progress-bg: 220 14% 92%;
-    
-    /* Shadows as CSS vars (for reuse) */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.03);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.03);
+    /* Shadows - Very soft */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.06);
     
     /* Safe areas for mobile */
     --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
+    
+    /* Spacing Scale (8, 12, 16, 24, 32 ONLY) */
+    --space-xs: 0.5rem;   /* 8px */
+    --space-sm: 0.75rem;  /* 12px */
+    --space-md: 1rem;     /* 16px */
+    --space-lg: 1.5rem;   /* 24px */
+    --space-xl: 2rem;     /* 32px */
+    
+    /* Typography - Strict hierarchy */
+    --text-large-title: 1.75rem; /* 28px - Screen purpose */
+    --text-title: 1.125rem;      /* 18px - Section name */
+    --text-body: 0.9375rem;      /* 15px - Content */
+    --text-caption: 0.8125rem;   /* 13px - Secondary info */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
   }
 
   .dark {
-    --background: 222 47% 7%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 222 47% 10%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
     --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 217 33% 15%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 60%;
+    --accent: 217 33% 18%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 210 40% 98%;
-    --success: 160 64% 29%;
-    --success-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --expense: 0 62% 55%;
+    --income: 142 70% 45%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
     --ring: 217 91% 60%;
-    --surface-elevated: 222 47% 13%;
-    --surface-sunken: 222 47% 5%;
-    --text-primary: 210 40% 98%;
-    --text-secondary: 215 20% 65%;
-    --text-tertiary: 215 20% 45%;
-    --progress-bg: 217 33% 20%;
   }
 }
 
@@ -136,155 +127,243 @@
     min-height: 100dvh;
   }
   
-  /* Prevent iOS zoom on input focus */
+  /* Prevent iOS zoom */
   input, textarea, select {
     font-size: 16px !important;
-    touch-action: manipulation;
-  }
-  
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 100px;
   }
 }
 
 @layer components {
-  /* Revolut-style card with elevation */
+  /* ================================
+   * CARD SYSTEM - Core of the design
+   * Rules: radius 16-20, padding 16, spacing 12-16, no borders
+   * ================================ */
+  
+  /* Info Card: Big number + small label */
+  .card-info {
+    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    box-shadow: var(--shadow-card);
+  }
+  
+  .card-info-number {
+    font-size: var(--text-large-title);
+    font-weight: 600;
+    line-height: 1.2;
+    @apply text-foreground;
+  }
+  
+  .card-info-label {
+    font-size: var(--text-caption);
+    @apply text-muted-foreground mt-1;
+  }
+  
+  /* Insight Card: 1 sentence + optional emoji */
+  .card-insight {
+    @apply bg-card p-4 rounded-[var(--radius-lg)] flex items-center gap-3;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .card-insight-text {
+    font-size: var(--text-body);
+    @apply text-foreground;
+  }
+  
+  /* Action Card: Short sentence + 1-2 buttons */
+  .card-action {
+    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    box-shadow: var(--shadow-card);
+  }
+  
+  .card-action-text {
+    font-size: var(--text-body);
+    @apply text-foreground mb-3;
+  }
+  
+  .card-action-buttons {
+    @apply flex gap-2;
+  }
+  
+  /* Elevated card for primary content */
   .card-elevated {
-    @apply bg-card rounded-2xl;
-    box-shadow: var(--shadow-md);
+    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    box-shadow: var(--shadow-elevated);
   }
   
-  .card-elevated-lg {
-    @apply bg-card rounded-3xl;
-    box-shadow: var(--shadow-lg);
+  /* ================================
+   * TYPOGRAPHY HIERARCHY - Strict
+   * Large Title: 28px - Screen purpose
+   * Title: 18px - Section name
+   * Body: 15px - Content
+   * Caption: 13px - Secondary
+   * ================================ */
+  
+  .text-large-title {
+    font-size: var(--text-large-title);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
   }
   
-  /* Glass effect for overlays */
-  .glass {
-    background-color: hsl(var(--card) / 0.8);
-    @apply backdrop-blur-xl;
-    box-shadow: var(--shadow-xl);
+  .text-title {
+    font-size: var(--text-title);
+    font-weight: 600;
+    line-height: 1.3;
   }
   
-  /* Safe area padding */
-  .safe-top {
-    padding-top: calc(var(--safe-area-top) + 0.5rem);
+  .text-body {
+    font-size: var(--text-body);
+    font-weight: 400;
+    line-height: 1.4;
   }
   
-  .safe-bottom {
-    /* For modals and panels that appear above bottom nav */
-    padding-bottom: calc(var(--safe-area-bottom) + 80px + 1rem);
-    /* safe area + bottom nav height + extra spacing */
+  .text-body-medium {
+    font-size: var(--text-body);
+    font-weight: 500;
+    line-height: 1.4;
   }
   
-  /* Input styles */
-  .input-clean {
-    @apply w-full px-4 py-4 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground;
-    @apply border-2 border-transparent transition-all duration-200;
-    @apply focus:outline-none focus:border-primary focus:bg-card;
+  .text-caption {
+    font-size: var(--text-caption);
+    font-weight: 400;
+    line-height: 1.4;
+    @apply text-muted-foreground;
   }
   
-  /* Button presets */
+  /* Big number - calm power */
+  .text-display {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  
+  /* ================================
+   * SPACING - Use only 8, 12, 16, 24, 32
+   * ================================ */
+  
+  .gap-xs { gap: var(--space-xs); }
+  .gap-sm { gap: var(--space-sm); }
+  .gap-md { gap: var(--space-md); }
+  .gap-lg { gap: var(--space-lg); }
+  .gap-xl { gap: var(--space-xl); }
+  
+  .p-card { padding: var(--space-md); }
+  .mb-section { margin-bottom: var(--space-lg); }
+  
+  /* ================================
+   * BUTTONS - Clear, Short
+   * ================================ */
+  
   .btn-primary {
-    @apply bg-primary text-primary-foreground font-semibold px-6 py-4 rounded-xl;
-    @apply transition-all duration-200 active:scale-[0.98];
-    box-shadow: 0 4px 14px 0 hsl(var(--primary) / 0.25);
+    @apply bg-primary text-primary-foreground font-medium px-4 py-2.5 rounded-xl;
+    @apply transition-opacity duration-150 active:opacity-80;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground font-medium px-6 py-4 rounded-xl;
-    @apply transition-all duration-200 active:scale-[0.98];
+    @apply bg-secondary text-foreground font-medium px-4 py-2.5 rounded-xl;
+    @apply transition-opacity duration-150 active:opacity-80;
   }
   
   .btn-ghost {
-    @apply bg-transparent text-foreground font-medium px-4 py-2 rounded-lg;
-    @apply transition-colors duration-200 hover:bg-secondary;
+    @apply text-muted-foreground font-medium px-4 py-2.5 rounded-xl;
+    @apply transition-opacity duration-150 active:opacity-60;
   }
   
-  /* Chip/Badge */
-  .chip {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold;
-    @apply bg-secondary text-secondary-foreground;
-  }
+  /* ================================
+   * BOTTOM NAVIGATION
+   * Rules: Icon + label only, selected = subtle tint
+   * ================================ */
   
-  .chip-primary {
-    @apply bg-accent text-accent-foreground;
-  }
-  
-  /* Progress bar */
-  .progress-bar {
-    @apply h-2 rounded-full bg-[hsl(var(--progress-bg))] overflow-hidden;
-  }
-  
-  .progress-fill {
-    @apply h-full rounded-full transition-all duration-500 ease-out;
-  }
-  
-  /* Bottom navigation */
   .bottom-nav {
     @apply fixed bottom-0 inset-x-0 z-50;
     padding-bottom: max(var(--safe-area-bottom), 8px);
+    background: hsl(var(--card) / 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 -1px 0 hsl(var(--border) / 0.5);
   }
   
-  .bottom-nav-inner {
-    @apply mx-auto max-w-lg backdrop-blur-xl border-t;
-    border-color: hsl(var(--border) / 0.5);
-    background-color: hsl(var(--card) / 0.98);
-    box-shadow: 0 -4px 20px rgb(0 0 0 / 0.05);
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-1 py-2 px-4;
+    @apply text-muted-foreground transition-colors duration-150;
   }
   
-  /* Screen container with proper scroll */
+  .bottom-nav-item.active {
+    @apply text-primary;
+  }
+  
+  .bottom-nav-item-icon {
+    @apply w-6 h-6;
+  }
+  
+  .bottom-nav-item-label {
+    font-size: 0.625rem;
+    font-weight: 500;
+  }
+  
+  /* ================================
+   * SCREEN LAYOUT
+   * Order: Large Title → Primary Section → Secondary → Empty Space
+   * ================================ */
+  
   .screen-container {
-    @apply bg-background overflow-y-auto overscroll-contain;
+    @apply bg-background overflow-y-auto;
     height: 100%;
     min-height: 100dvh;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
     padding-top: max(var(--safe-area-top), 16px);
-    padding-left: max(var(--safe-area-left), 16px);
-    padding-right: max(var(--safe-area-right), 16px);
-    /* Increased bottom padding to ensure content is visible above bottom nav */
-    padding-bottom: calc(140px + var(--safe-area-bottom));
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+    padding-bottom: calc(120px + var(--safe-area-bottom));
   }
   
-  /* Scrollbar hide utility */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .screen-header {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-lg);
   }
   
-  /* Animated list item */
-  .list-item {
-    @apply flex items-center gap-4 p-4 bg-card rounded-2xl;
-    @apply transition-all duration-200;
-    box-shadow: var(--shadow-sm);
+  .section-header {
+    @apply flex items-center justify-between mb-3;
   }
   
-  .list-item:active {
-    @apply scale-[0.99] bg-secondary;
+  .section-title {
+    font-size: var(--text-title);
+    font-weight: 600;
+    @apply text-foreground;
   }
   
-  /* Category icon wrapper */
-  .category-icon {
-    @apply w-12 h-12 rounded-xl flex items-center justify-center text-xl;
-    @apply transition-transform duration-200;
+  .section-action {
+    font-size: var(--text-caption);
+    font-weight: 500;
+    @apply text-primary;
   }
   
-  /* Amount display */
+  /* ================================
+   * PROGRESS BAR
+   * ================================ */
+  
+  .progress-bar {
+    @apply h-2 rounded-full bg-secondary overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-300 ease-out;
+    background: hsl(var(--primary));
+  }
+  
+  .progress-fill-danger {
+    background: hsl(var(--destructive));
+  }
+  
+  .progress-fill-success {
+    background: hsl(var(--income));
+  }
+  
+  /* ================================
+   * SEMANTIC COLORS
+   * Red = danger only, Green = success only
+   * ================================ */
+  
   .amount-expense {
     color: hsl(var(--expense));
   }
@@ -293,41 +372,51 @@
     color: hsl(var(--income));
   }
   
-  /* Quick action button */
-  .quick-action {
-    @apply flex flex-col items-center gap-2 p-4 rounded-2xl bg-card;
-    @apply transition-all duration-200 active:scale-[0.97];
-    box-shadow: var(--shadow-sm);
+  /* ================================
+   * ANIMATIONS - iOS-approved only
+   * Fade in/out, Slide up/down, Micro tap feedback
+   * NO bounce, elastic, overshoot
+   * ================================ */
+  
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   
-  /* Modal overlay */
+  @keyframes slide-up {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.25s ease-out;
+  }
+  
+  /* ================================
+   * MODAL
+   * ================================ */
+  
   .modal-overlay {
-    @apply fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm;
+    @apply fixed inset-0 z-[100] bg-black/40;
+    backdrop-filter: blur(4px);
   }
   
   .modal-content {
-    @apply bg-card rounded-t-3xl p-6;
-    box-shadow: var(--shadow-xl);
+    @apply bg-card rounded-t-[var(--radius-lg)] p-4;
+    box-shadow: var(--shadow-elevated);
     max-height: 85vh;
     overflow-y: auto;
-    /* Add extra padding to prevent bottom nav overlap */
-    padding-bottom: calc(24px + 80px + var(--safe-area-bottom)) !important;
-    /* 24px base + 80px bottom nav height + safe area */
+    padding-bottom: calc(var(--space-lg) + 80px + var(--safe-area-bottom));
   }
   
-  /* Skeleton loading */
-  .skeleton {
-    @apply bg-secondary animate-pulse rounded-lg;
-  }
-}
-
-@layer utilities {
-  /* Text utilities */
-  .text-balance {
-    text-wrap: balance;
-  }
+  /* ================================
+   * UTILITIES
+   * ================================ */
   
-  /* Hide scrollbar */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -337,17 +426,52 @@
     scrollbar-width: none;
   }
   
-  /* Gradient text */
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 60%) 100%);
+  /* Category icon */
+  .category-icon {
+    @apply w-10 h-10 rounded-xl flex items-center justify-center text-base;
+  }
+  
+  /* List item with subtle tap */
+  .list-item {
+    @apply flex items-center gap-3 p-4 bg-card rounded-[var(--radius)];
+    box-shadow: var(--shadow-card);
+    @apply transition-opacity duration-100 active:opacity-80;
+  }
+  
+  /* Quick action */
+  .quick-action {
+    @apply flex flex-col items-center gap-2 p-4 bg-card rounded-[var(--radius)];
+    box-shadow: var(--shadow-card);
+    @apply transition-opacity duration-100 active:opacity-80;
+  }
+  
+  /* Input */
+  .input-clean {
+    @apply w-full px-4 py-3 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+  
+  /* Chip */
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply bg-secondary text-secondary-foreground;
+  }
+  
+  .chip-primary {
+    @apply bg-primary/10 text-primary;
   }
 }
 
-/* Framer motion compatibility */
-@supports (animation-timeline: scroll()) {
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 100px;
 }
