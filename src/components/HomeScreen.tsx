@@ -10,7 +10,7 @@ import { FinancePlannerModal } from "./FinancePlannerModal";
 import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Plus,
-  ChevronUp, ChevronDown, X, Check, TrendingUp
+  ChevronUp, ChevronDown, X, Check, TrendingUp, Pencil
 } from "lucide-react";
 
 // Animations: fade-in, slide-up only (iOS-approved)
@@ -361,28 +361,40 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
                         </div>
                       </motion.div>
                     ) : (
-                      <motion.button
+                      <motion.div
                         key="view"
                         initial={fadeIn}
                         animate={fadeInTo}
                         exit={fadeIn}
-                        onClick={() => handleQuickAdd(item.categoryId, item.amount)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setEditingQuickAdd(item.id);
-                          setEditAmount(item.amount.toString());
-                        }}
-                        className="w-full flex flex-col items-center active:opacity-70"
+                        className="w-full flex flex-col items-center relative"
                       >
-                        <div 
-                          className="category-icon mb-2"
-                          style={{ backgroundColor: `${cat.color}15` }}
+                        {/* Edit button - visible tap target */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingQuickAdd(item.id);
+                            setEditAmount(item.amount.toString());
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-secondary flex items-center justify-center z-10"
                         >
-                          <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
-                        </div>
-                        <p className="text-xs font-medium text-foreground">{catLabel(cat)}</p>
-                        <p className="text-caption">{formatUZS(item.amount)}</p>
-                      </motion.button>
+                          <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                        </button>
+                        
+                        {/* Main tap area - adds transaction */}
+                        <button
+                          onClick={() => handleQuickAdd(item.categoryId, item.amount)}
+                          className="w-full flex flex-col items-center active:opacity-70"
+                        >
+                          <div 
+                            className="category-icon mb-2"
+                            style={{ backgroundColor: `${cat.color}15` }}
+                          >
+                            <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{catLabel(cat)}</p>
+                          <p className="text-caption">{formatUZS(item.amount)}</p>
+                        </button>
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>

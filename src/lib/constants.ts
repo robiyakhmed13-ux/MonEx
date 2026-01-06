@@ -108,6 +108,8 @@ export const I18N = {
     allTools: "Barcha asboblar",
     search: "Qidirish",
     // Tool labels
+    toolGoals: "Maqsadlar",
+    toolGoalsDesc: "Moliyaviy maqsadlar",
     toolAnalytics: "Analitika",
     toolAnalyticsDesc: "Xarajatlar bo'yicha tahlil",
     toolLimits: "Xarajat limitlari",
@@ -245,6 +247,8 @@ export const I18N = {
     allTools: "Все инструменты",
     search: "Поиск",
     // Tool labels
+    toolGoals: "Цели",
+    toolGoalsDesc: "Финансовые цели",
     toolAnalytics: "Аналитика",
     toolAnalyticsDesc: "Анализ расходов",
     toolLimits: "Лимиты расходов",
@@ -382,6 +386,8 @@ export const I18N = {
     allTools: "All Tools",
     search: "Search",
     // Tool labels
+    toolGoals: "Goals",
+    toolGoalsDesc: "Financial goals",
     toolAnalytics: "Analytics",
     toolAnalyticsDesc: "Spending insights",
     toolLimits: "Spending Limits",

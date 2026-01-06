@@ -5,7 +5,7 @@ import { safeJSON } from "@/lib/storage";
 import { 
   Target, CreditCard, PieChart, Wallet, TrendingUp, Calculator,
   Receipt, Users, Repeat, FileText, DollarSign, ArrowLeft,
-  Settings, Search, Star, X, Brain, Sparkles
+  Settings, Search, Star, X, Brain, Sparkles, Flag
 } from "lucide-react";
 import { ScreenType } from "@/types";
 import { AICopilotPanel } from "./AICopilotPanel";
@@ -21,6 +21,7 @@ interface ToolItem {
 }
 
 const TOOLS: ToolItem[] = [
+  { screen: "goals", labelKey: "toolGoals", descKey: "toolGoalsDesc", icon: <Flag className="w-6 h-6" />, color: "#22C55E" },
   { screen: "analytics", labelKey: "toolAnalytics", descKey: "toolAnalyticsDesc", icon: <PieChart className="w-6 h-6" />, color: "#F59E0B" },
   { screen: "limits", labelKey: "toolLimits", descKey: "toolLimitsDesc", icon: <Target className="w-6 h-6" />, color: "#EF4444" },
   { screen: "accounts", labelKey: "toolAccounts", descKey: "toolAccountsDesc", icon: <Wallet className="w-6 h-6" />, color: "#3B82F6" },
