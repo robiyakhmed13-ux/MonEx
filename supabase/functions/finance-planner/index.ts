@@ -38,20 +38,56 @@ interface FinancialPlan {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle non-POST requests gracefully
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed. Use POST with JSON body.',
+      usage: {
+        method: 'POST',
+        body: { prompt: 'string', currentBalance: 'number', monthlyIncome: 'number', monthlyExpenses: 'number', currency: 'string', lang: 'uz|ru|en' }
+      }
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { 
-      prompt, 
-      currentBalance, 
-      monthlyIncome, 
-      monthlyExpenses, 
-      currency, 
-      lang,
-      existingGoals 
-    }: PlanRequest = await req.json();
+    // Parse JSON body with error handling
+    let body: PlanRequest;
+    try {
+      const text = await req.text();
+      if (!text || text.trim() === '') {
+        return new Response(JSON.stringify({ error: 'Empty request body. Please provide JSON data.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      body = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { prompt, currentBalance, monthlyIncome, monthlyExpenses, currency, lang, existingGoals } = body;
+
+    // Validate required fields
+    if (!prompt || currentBalance === undefined || monthlyIncome === undefined || monthlyExpenses === undefined) {
+      return new Response(JSON.stringify({ 
+        error: 'Missing required fields: prompt, currentBalance, monthlyIncome, monthlyExpenses' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!OPENAI_API_KEY) {
       throw new Error("OPENAI_API_KEY is not configured");
