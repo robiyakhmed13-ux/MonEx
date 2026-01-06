@@ -1,10 +1,30 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from "react";
+import { User, Session } from '@supabase/supabase-js';
 import { I18N, DEFAULT_CATEGORIES, LangKey, Translation, Category } from "@/lib/constants";
-import { safeJSON, uid, todayISO, startOfWeekISO, monthPrefix, clamp, sb } from "@/lib/storage";
+import { safeJSON, uid, todayISO, startOfWeekISO, clamp } from "@/lib/storage";
 import { Transaction, Limit, Goal, TelegramUser, ScreenType, QuickAddPreset } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
+interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  telegram_id: number | null;
+  telegram_username: string | null;
+}
+
 interface AppState {
+  // Auth
+  user: User | null;
+  session: Session | null;
+  profile: Profile | null;
+  authLoading: boolean;
+  isAuthenticated: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+  
+  // App state
   lang: LangKey;
   t: Translation;
   setLang: (l: LangKey) => void;
@@ -57,6 +77,7 @@ interface AppState {
   setReminderDays: (days: number) => void;
   syncFromRemote: () => Promise<void>;
   syncTelegramTransactions: () => Promise<void>;
+  linkTelegramAccount: (telegramId: number, username?: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -68,15 +89,99 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Initialize auth
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+        
+        // Fetch profile after auth state change
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    if (!error && data) {
+      setProfile(data as Profile);
+    }
+  };
+
+  const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: { full_name: fullName || '' }
+        }
+      });
+      return { error: error as Error | null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  }, []);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error as Error | null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+  }, []);
+
+  const isAuthenticated = !!session;
+
+  // App state
   const [lang, setLang] = useState<LangKey>(() => {
-    // Auto-detect browser language, default to English
     const saved = safeJSON.get("hamyon_lang", null);
     if (saved) return saved as LangKey;
-    
     const browserLang = navigator.language.toLowerCase();
     if (browserLang.startsWith('uz')) return 'uz';
     if (browserLang.startsWith('ru')) return 'ru';
-    return 'en'; // Default to English
+    return 'en';
   });
   const t = I18N[lang] || I18N.uz;
   
@@ -136,6 +241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
   
+  // Telegram WebApp init
   useEffect(() => {
     let u: TelegramUser | null = null;
     if (window.Telegram?.WebApp) {
@@ -144,7 +250,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tg.expand();
       tg.setHeaderColor("#FAFAFA");
       tg.setBackgroundColor("#FAFAFA");
-      // NOTE: do NOT disable vertical swipes; it breaks scrolling in many screens/modals.
       u = tg.initDataUnsafe?.user || null;
     }
     if (!u) {
@@ -154,6 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTgUser(u);
   }, []);
   
+  // Persist to localStorage
   useEffect(() => safeJSON.set("hamyon_lang", lang), [lang]);
   useEffect(() => safeJSON.set("hamyon_dataMode", dataMode), [dataMode]);
   useEffect(() => safeJSON.set("hamyon_balance", balance), [balance]);
@@ -162,34 +268,69 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => safeJSON.set("hamyon_goals", goals), [goals]);
   useEffect(() => safeJSON.set("hamyon_categories", categories), [categories]);
   
+  // Fetch data from Supabase when authenticated
   useEffect(() => {
-    (async () => {
-      if (!sb.enabled()) {
-        setRemoteOk(false);
-        return;
-      }
+    if (!isAuthenticated || !user?.id) return;
+    
+    const fetchData = async () => {
       try {
-        await sb.req("users?select=id&limit=1");
+        const [txResult, limResult, goalResult] = await Promise.all([
+          supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(500),
+          supabase.from('limits').select('*').eq('user_id', user.id),
+          supabase.from('goals').select('*').eq('user_id', user.id),
+        ]);
+
+        if (txResult.data && txResult.data.length > 0) {
+          const mappedTx = txResult.data.map((tx: any) => ({
+            id: tx.id,
+            type: tx.type as 'expense' | 'income',
+            amount: Number(tx.amount),
+            description: tx.description || '',
+            categoryId: tx.category_id,
+            date: tx.date,
+            source: tx.source || 'app',
+          }));
+          setTransactions(mappedTx);
+          setBalance(mappedTx.reduce((sum, tx) => sum + tx.amount, 0));
+        }
+
+        if (limResult.data) {
+          setLimits(limResult.data.map((l: any) => ({
+            id: l.id,
+            categoryId: l.category_id,
+            amount: Number(l.amount),
+          })));
+        }
+
+        if (goalResult.data) {
+          setGoals(goalResult.data.map((g: any) => ({
+            id: g.id,
+            name: g.name,
+            target: Number(g.target),
+            current: Number(g.current || 0),
+            emoji: '🎯',
+            deadline: g.deadline,
+          })));
+        }
+        
         setRemoteOk(true);
-      } catch {
-        setRemoteOk(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
-    })();
-  }, []);
+    };
+
+    fetchData();
+  }, [isAuthenticated, user?.id]);
   
   const useRemote = useMemo(() => {
+    if (!isAuthenticated) return false;
     if (dataMode === "local") return false;
-    if (dataMode === "remote") return remoteOk && sb.enabled();
-    return remoteOk && sb.enabled();
-  }, [dataMode, remoteOk]);
+    return remoteOk;
+  }, [dataMode, remoteOk, isAuthenticated]);
   
   const allCats = useMemo(() => {
     const c = categories || DEFAULT_CATEGORIES;
-    return {
-      expense: c.expense || [],
-      income: c.income || [],
-      debt: c.debt || [],
-    };
+    return { expense: c.expense || [], income: c.income || [], debt: c.debt || [] };
   }, [categories]);
   
   const getCat = useCallback((id: string): Category => {
@@ -230,14 +371,63 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .reduce((s, x) => s + Math.abs(x.amount), 0);
   }, [txMonth]);
   
+  // Transaction operations
   const addTransaction = useCallback(async (txData: Omit<Transaction, "id">) => {
-    const tx: Transaction = { ...txData, id: uid() };
-    setTransactions((prev) => [tx, ...prev]);
-    setBalance((b) => b + tx.amount);
+    if (isAuthenticated && user?.id) {
+      // Save to Supabase
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: txData.type,
+          amount: txData.amount,
+          category_id: txData.categoryId,
+          description: txData.description,
+          date: txData.date,
+          source: txData.source || 'app',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding transaction:', error);
+        showToast(t.syncFail || 'Error', false);
+        return;
+      }
+
+      const tx: Transaction = {
+        id: data.id,
+        type: data.type as 'expense' | 'income',
+        amount: Number(data.amount),
+        description: data.description || '',
+        categoryId: data.category_id,
+        date: data.date,
+        source: data.source || 'app',
+      };
+
+      setTransactions((prev) => [tx, ...prev]);
+      setBalance((b) => b + tx.amount);
+    } else {
+      // Local only
+      const tx: Transaction = { ...txData, id: uid() };
+      setTransactions((prev) => [tx, ...prev]);
+      setBalance((b) => b + tx.amount);
+    }
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast, t]);
   
-  const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
+  const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+    if (isAuthenticated && user?.id) {
+      const dbUpdates: any = {};
+      if (updates.type) dbUpdates.type = updates.type;
+      if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+      if (updates.categoryId) dbUpdates.category_id = updates.categoryId;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.date) dbUpdates.date = updates.date;
+
+      await supabase.from('transactions').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+    }
+
     setTransactions((prev) => {
       const old = prev.find((x) => x.id === id);
       if (!old) return prev;
@@ -247,192 +437,272 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return prev.map((x) => (x.id === id ? { ...x, ...updates } : x));
     });
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
   const deleteTransaction = useCallback(async (id: string) => {
     const tx = transactions.find((x) => x.id === id);
     if (tx) {
+      if (isAuthenticated && user?.id) {
+        await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
+      }
       setTransactions((prev) => prev.filter((x) => x.id !== id));
       setBalance((b) => b - tx.amount);
       showToast("✓", true);
     }
-  }, [transactions, showToast]);
+  }, [transactions, isAuthenticated, user?.id, showToast]);
   
-  const addLimit = useCallback((limitData: Omit<Limit, "id">) => {
-    setLimits((prev) => [{ ...limitData, id: uid() }, ...prev]);
+  // Limit operations
+  const addLimit = useCallback(async (limitData: Omit<Limit, "id">) => {
+    if (isAuthenticated && user?.id) {
+      const { data, error } = await supabase
+        .from('limits')
+        .insert({
+          user_id: user.id,
+          category_id: limitData.categoryId,
+          amount: limitData.amount,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        setLimits((prev) => [{ id: data.id, categoryId: data.category_id, amount: Number(data.amount) }, ...prev]);
+      }
+    } else {
+      setLimits((prev) => [{ ...limitData, id: uid() }, ...prev]);
+    }
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
-  const updateLimit = useCallback((id: string, updates: Partial<Limit>) => {
+  const updateLimit = useCallback(async (id: string, updates: Partial<Limit>) => {
+    if (isAuthenticated && user?.id) {
+      const dbUpdates: any = {};
+      if (updates.categoryId) dbUpdates.category_id = updates.categoryId;
+      if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+      await supabase.from('limits').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+    }
     setLimits((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)));
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
-  const deleteLimit = useCallback((id: string) => {
+  const deleteLimit = useCallback(async (id: string) => {
+    if (isAuthenticated && user?.id) {
+      await supabase.from('limits').delete().eq('id', id).eq('user_id', user.id);
+    }
     setLimits((prev) => prev.filter((l) => l.id !== id));
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
-  const addGoal = useCallback((goalData: Omit<Goal, "id">) => {
-    setGoals((prev) => [{ ...goalData, id: uid() }, ...prev]);
+  // Goal operations
+  const addGoal = useCallback(async (goalData: Omit<Goal, "id">) => {
+    if (isAuthenticated && user?.id) {
+      const { data, error } = await supabase
+        .from('goals')
+        .insert({
+          user_id: user.id,
+          name: goalData.name,
+          target: goalData.target,
+          current: goalData.current || 0,
+          deadline: goalData.deadline,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        setGoals((prev) => [{
+          id: data.id,
+          name: data.name,
+          target: Number(data.target),
+          current: Number(data.current || 0),
+          emoji: goalData.emoji || '🎯',
+          deadline: data.deadline,
+        }, ...prev]);
+      }
+    } else {
+      setGoals((prev) => [{ ...goalData, id: uid() }, ...prev]);
+    }
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
-  const updateGoal = useCallback((id: string, updates: Partial<Goal>) => {
+  const updateGoal = useCallback(async (id: string, updates: Partial<Goal>) => {
+    if (isAuthenticated && user?.id) {
+      const dbUpdates: any = {};
+      if (updates.name) dbUpdates.name = updates.name;
+      if (updates.target !== undefined) dbUpdates.target = updates.target;
+      if (updates.current !== undefined) dbUpdates.current = updates.current;
+      if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline;
+      await supabase.from('goals').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+    }
     setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...updates } : g)));
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
-  const deleteGoal = useCallback((id: string) => {
+  const deleteGoal = useCallback(async (id: string) => {
+    if (isAuthenticated && user?.id) {
+      await supabase.from('goals').delete().eq('id', id).eq('user_id', user.id);
+    }
     setGoals((prev) => prev.filter((g) => g.id !== id));
     showToast("✓", true);
-  }, [showToast]);
+  }, [isAuthenticated, user?.id, showToast]);
   
   const depositToGoal = useCallback((goalId: string, delta: number) => {
     if (!delta) return;
-    setGoals((prev) => prev.map((g) => (g.id === goalId ? { ...g, current: clamp((g.current || 0) + delta, 0, g.target || 0) } : g)));
-    showToast("✓", true);
-  }, [showToast]);
+    const goal = goals.find(g => g.id === goalId);
+    if (goal) {
+      const newCurrent = clamp((goal.current || 0) + delta, 0, goal.target || 0);
+      updateGoal(goalId, { current: newCurrent });
+    }
+  }, [goals, updateGoal]);
   
   const syncFromRemote = useCallback(async () => {
-    if (!tgUser?.id || !useRemote) {
-      showToast(t.syncFail, false);
-      return;
-    }
-    try {
-      const users = await sb.req(`users?telegram_id=eq.${tgUser.id}&select=*`);
-      let u = users?.[0] || null;
-      if (!u) {
-        const created = await sb.req("users", {
-          method: "POST",
-          body: { telegram_id: tgUser.id, name: tgUser.first_name || "User", balance: 0 },
-        });
-        u = created?.[0] || null;
-      }
-      
-      const [tx, lim, gl] = await Promise.all([
-        sb.req(`transactions?user_telegram_id=eq.${tgUser.id}&select=*&order=created_at.desc&limit=200`),
-        sb.req(`limits?user_telegram_id=eq.${tgUser.id}&select=*`),
-        sb.req(`goals?user_telegram_id=eq.${tgUser.id}&select=*`),
-      ]);
-      
-      const txLocal = (tx || []).map((r: any) => ({
-        id: r.id,
-        type: r.amount < 0 ? "expense" : "income",
-        amount: Number(r.amount),
-        description: r.description || "",
-        categoryId: r.category_id || "other",
-        date: (r.created_at || new Date().toISOString()).slice(0, 10),
-        time: (r.created_at || new Date().toISOString()).slice(11, 16),
-        source: r.source || "app",
-        remote: true,
-      }));
-      
-      const limLocal = (lim || []).map((r: any) => ({
-        id: r.id,
-        categoryId: r.category_id,
-        amount: Number(r.limit_amount || 0),
-        remote: true,
-      }));
-      
-      const goalsLocal = (gl || []).map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        target: Number(r.target_amount || 0),
-        current: Number(r.current_amount || 0),
-        emoji: r.emoji || "🎯",
-        remote: true,
-      }));
-      
-      setBalance(Number(u?.balance || 0));
-      setTransactions(txLocal);
-      setLimits(limLocal);
-      setGoals(goalsLocal);
-      showToast(t.syncOk, true);
-    } catch (e) {
-      console.error(e);
-      showToast(t.syncFail, false);
-    }
-  }, [tgUser, useRemote, t, showToast]);
-
-  // Sync transactions from Telegram bot
-  const syncTelegramTransactions = useCallback(async () => {
-    if (!tgUser?.id) {
+    if (!isAuthenticated || !user?.id) {
       showToast(t.syncFail, false);
       return;
     }
     
     try {
-      // Fetch unsynced transactions from telegram_transactions table
-      const { data: telegramTx, error } = await supabase
-        .from('telegram_transactions')
-        .select('*')
-        .eq('telegram_user_id', tgUser.id)
-        .eq('synced', false)
-        .order('created_at', { ascending: false });
+      const [txResult, limResult, goalResult] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(500),
+        supabase.from('limits').select('*').eq('user_id', user.id),
+        supabase.from('goals').select('*').eq('user_id', user.id),
+      ]);
 
+      if (txResult.data) {
+        const mappedTx = txResult.data.map((tx: any) => ({
+          id: tx.id,
+          type: tx.type as 'expense' | 'income',
+          amount: Number(tx.amount),
+          description: tx.description || '',
+          categoryId: tx.category_id,
+          date: tx.date,
+          source: tx.source || 'app',
+        }));
+        setTransactions(mappedTx);
+        setBalance(mappedTx.reduce((sum, tx) => sum + tx.amount, 0));
+      }
+
+      if (limResult.data) {
+        setLimits(limResult.data.map((l: any) => ({
+          id: l.id,
+          categoryId: l.category_id,
+          amount: Number(l.amount),
+        })));
+      }
+
+      if (goalResult.data) {
+        setGoals(goalResult.data.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          target: Number(g.target),
+          current: Number(g.current || 0),
+          emoji: '🎯',
+          deadline: g.deadline,
+        })));
+      }
+
+      showToast(t.syncOk, true);
+    } catch (e) {
+      console.error(e);
+      showToast(t.syncFail, false);
+    }
+  }, [isAuthenticated, user?.id, t, showToast]);
+
+  const syncTelegramTransactions = useCallback(async () => {
+    if (!isAuthenticated || !user?.id || !profile?.telegram_id) {
+      // Try fetching from telegram_transactions for guest users
+      if (tgUser?.id) {
+        const { data: telegramTx, error } = await supabase
+          .from('telegram_transactions')
+          .select('*')
+          .eq('telegram_user_id', tgUser.id)
+          .eq('synced', false)
+          .order('created_at', { ascending: false });
+
+        if (!error && telegramTx && telegramTx.length > 0) {
+          const newTransactions: Transaction[] = telegramTx.map((tx: any) => ({
+            id: tx.id,
+            type: tx.type as 'expense' | 'income',
+            amount: Number(tx.amount),
+            description: tx.description || '',
+            categoryId: tx.category_id,
+            date: tx.created_at.slice(0, 10),
+            source: 'telegram',
+          }));
+
+          setTransactions(prev => {
+            const existingIds = new Set(prev.map(t => t.id));
+            const uniqueNew = newTransactions.filter(t => !existingIds.has(t.id));
+            return [...uniqueNew, ...prev];
+          });
+
+          const balanceChange = newTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+          setBalance(prev => prev + balanceChange);
+
+          await supabase
+            .from('telegram_transactions')
+            .update({ synced: true })
+            .in('id', telegramTx.map((tx: any) => tx.id));
+
+          showToast(`Synced: ${telegramTx.length}`, true);
+          return;
+        }
+      }
+      showToast(lang === 'ru' ? 'Нет новых транзакций' : 'No new transactions', true);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('sync_telegram_transactions', { p_user_id: user.id });
+      
       if (error) {
-        console.error('Error fetching telegram transactions:', error);
+        console.error('Sync error:', error);
         showToast(t.syncFail, false);
         return;
       }
 
-      if (!telegramTx || telegramTx.length === 0) {
-        showToast(lang === 'ru' ? 'Нет новых транзакций' : lang === 'uz' ? 'Yangi tranzaksiyalar yo\'q' : 'No new transactions', true);
-        return;
+      const syncedCount = data?.[0]?.synced_count || 0;
+      
+      if (syncedCount > 0) {
+        await syncFromRemote();
+        showToast(`Synced: ${syncedCount}`, true);
+      } else {
+        showToast(lang === 'ru' ? 'Нет новых транзакций' : 'No new transactions', true);
       }
-
-      // Convert and add to local transactions
-      const newTransactions: Transaction[] = telegramTx.map((tx: any) => ({
-        id: tx.id,
-        type: tx.type as 'expense' | 'income',
-        amount: Number(tx.amount),
-        description: tx.description || '',
-        categoryId: tx.category_id,
-        date: tx.created_at.slice(0, 10),
-        time: tx.created_at.slice(11, 16),
-        source: 'telegram',
-      }));
-
-      // Merge with existing transactions (avoid duplicates)
-      setTransactions(prev => {
-        const existingIds = new Set(prev.map(t => t.id));
-        const uniqueNew = newTransactions.filter(t => !existingIds.has(t.id));
-        const merged = [...uniqueNew, ...prev];
-        safeJSON.set("hamyon_transactions", merged);
-        return merged;
-      });
-
-      // Update balance
-      const balanceChange = newTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-      setBalance(prev => {
-        const newBalance = prev + balanceChange;
-        safeJSON.set("hamyon_balance", newBalance);
-        return newBalance;
-      });
-
-      // Mark as synced in database
-      const syncedIds = telegramTx.map((tx: any) => tx.id);
-      await supabase
-        .from('telegram_transactions')
-        .update({ synced: true })
-        .in('id', syncedIds);
-
-      showToast(
-        lang === 'ru' ? `Синхронизировано: ${telegramTx.length}` : 
-        lang === 'uz' ? `Sinxronlandi: ${telegramTx.length}` : 
-        `Synced: ${telegramTx.length}`, 
-        true
-      );
     } catch (e) {
       console.error('Sync error:', e);
       showToast(t.syncFail, false);
     }
-  }, [tgUser, lang, t, showToast, setTransactions, setBalance]);
+  }, [isAuthenticated, user?.id, profile?.telegram_id, tgUser?.id, lang, t, showToast, syncFromRemote]);
+
+  const linkTelegramAccount = useCallback(async (telegramId: number, username?: string): Promise<boolean> => {
+    if (!isAuthenticated || !user?.id) return false;
+
+    try {
+      const { data, error } = await supabase.rpc('link_telegram_account', {
+        p_user_id: user.id,
+        p_telegram_id: telegramId,
+        p_telegram_username: username || null
+      });
+
+      if (error) {
+        console.error('Link error:', error);
+        return false;
+      }
+
+      // Refresh profile
+      await fetchProfile(user.id);
+      showToast('Telegram linked!', true);
+      return data;
+    } catch (e) {
+      console.error('Link error:', e);
+      return false;
+    }
+  }, [isAuthenticated, user?.id, showToast]);
   
   const value: AppState = {
-    lang, t, setLang,
-    tgUser,
+    // Auth
+    user, session, profile, authLoading, isAuthenticated, signIn, signUp, signOut,
+    // App
+    lang, t, setLang, tgUser,
     balance, setBalance,
     transactions, setTransactions,
     limits, setLimits,
@@ -447,7 +717,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addLimit, updateLimit, deleteLimit,
     addGoal, updateGoal, deleteGoal, depositToGoal,
     theme, setTheme, currency, setCurrency, quickAdds, setQuickAdds, onboardingComplete, setOnboardingComplete,
-    reminderDays, setReminderDays, syncFromRemote, syncTelegramTransactions,
+    reminderDays, setReminderDays, syncFromRemote, syncTelegramTransactions, linkTelegramAccount,
   };
   
   return (
