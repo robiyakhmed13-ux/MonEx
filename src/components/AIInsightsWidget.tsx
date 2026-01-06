@@ -10,6 +10,7 @@ import { ChevronRight, RefreshCw } from "lucide-react";
  * - AI speaks rarely but wisely
  * - Max 1-2 sentences, no paragraphs
  * - Always actionable or silent
+ * - Auto-refresh every 6 hours
  */
 
 interface Insight {
@@ -39,6 +40,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
   };
 
   const fetchInsights = useCallback(async (force = false) => {
+    // Check cache first
     if (!force) {
       try {
         const cached = localStorage.getItem(CACHE_KEY);
@@ -86,11 +88,12 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
 
   useEffect(() => {
     fetchInsights();
+    // Auto-refresh every 6 hours
     const interval = setInterval(() => fetchInsights(true), CACHE_TTL);
     return () => clearInterval(interval);
   }, [fetchInsights]);
 
-  // No insights yet - show minimal state
+  // Loading state - minimal
   if (loading && insights.length === 0) {
     return (
       <div className="card-insight mb-6 animate-pulse">
@@ -100,6 +103,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
     );
   }
 
+  // No insights - show simple "all good" message
   if (insights.length === 0) {
     return (
       <div className="card-insight mb-6">
@@ -111,7 +115,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
 
   return (
     <section className="mb-6">
-      {/* Header */}
+      {/* Section Header */}
       <div className="section-header">
         <div className="flex items-center gap-2">
           <h2 className="section-title">{labels.title}</h2>
@@ -129,7 +133,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
         </button>
       </div>
 
-      {/* Insight Cards - One idea per card */}
+      {/* Insight Cards - ONE idea per card, max 1-2 text sizes */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {insights.map((insight, index) => (
@@ -143,12 +147,7 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
               className="card-insight w-full text-left active:opacity-80"
             >
               <span className="text-lg flex-shrink-0">{insight.icon || '💡'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-body text-foreground line-clamp-1">{insight.title}</p>
-                {insight.message && insight.message !== insight.title && (
-                  <p className="text-caption line-clamp-1">{insight.message}</p>
-                )}
-              </div>
+              <p className="card-insight-text flex-1 line-clamp-1">{insight.message || insight.title}</p>
               <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </motion.button>
           ))}
