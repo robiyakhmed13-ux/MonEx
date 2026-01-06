@@ -63,9 +63,30 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTransactionParsed }) =
       }
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: any) => {
       setIsListening(false);
-      showToast("Voice error", false);
+      console.error("Speech recognition error:", event.error);
+      
+      let errorMessage = "Voice error";
+      switch (event.error) {
+        case 'not-allowed':
+          errorMessage = lang === 'ru' ? "Доступ к микрофону запрещён" : "Microphone access denied";
+          break;
+        case 'no-speech':
+          errorMessage = lang === 'ru' ? "Речь не обнаружена" : "No speech detected";
+          break;
+        case 'network':
+          errorMessage = lang === 'ru' ? "Ошибка сети" : "Network error";
+          break;
+        case 'audio-capture':
+          errorMessage = lang === 'ru' ? "Микрофон не найден" : "No microphone found";
+          break;
+        case 'aborted':
+          return; // User cancelled, no need to show error
+        default:
+          errorMessage = lang === 'ru' ? `Ошибка: ${event.error}` : `Error: ${event.error}`;
+      }
+      showToast(errorMessage, false);
     };
 
     recognition.start();
