@@ -19,8 +19,11 @@ import {
   LineChart,
   Shield,
   Clock,
-  TrendingDown,
+  ArrowLeft,
 } from "lucide-react";
+import { AICopilotPanel } from "./AICopilotPanel";
+import { FinancePlannerModal } from "./FinancePlannerModal";
+import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 
 interface Insight {
   type: 'warning' | 'pattern' | 'prediction' | 'suggestion' | 'achievement';
@@ -60,6 +63,11 @@ export const AIScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastAnalyzed, setLastAnalyzed] = useState<Date | null>(null);
+  
+  // Modal states for AI features
+  const [showAICopilot, setShowAICopilot] = useState(false);
+  const [showFinancePlanner, setShowFinancePlanner] = useState(false);
+  const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
 
   const labels = {
     title: lang === 'ru' ? 'AI Помощник' : lang === 'uz' ? 'AI Yordamchi' : 'AI Assistant',
@@ -69,14 +77,22 @@ export const AIScreen: React.FC = () => {
     noInsights: lang === 'ru' ? 'Всё отлично!' : lang === 'uz' ? 'Hammasi yaxshi!' : 'All good!',
     lastUpdated: lang === 'ru' ? 'Обновлено' : lang === 'uz' ? 'Yangilangan' : 'Updated',
     errorMsg: lang === 'ru' ? 'Ошибка' : lang === 'uz' ? 'Xatolik' : 'Error',
-    features: lang === 'ru' ? 'AI Функции' : lang === 'uz' ? 'AI Funksiyalar' : 'AI Features',
+    aiFeatures: lang === 'ru' ? 'AI Функции' : lang === 'uz' ? 'AI Funksiyalar' : 'AI Features',
     insights: lang === 'ru' ? 'Инсайты' : lang === 'uz' ? 'Tavsiyalar' : 'Insights',
+    tools: lang === 'ru' ? 'Инструменты' : lang === 'uz' ? 'Asboblar' : 'Tools',
+    // AI Feature labels
+    aiCopilot: lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot',
+    aiCopilotDesc: lang === 'ru' ? 'Анализ поведения' : lang === 'uz' ? 'Xulq tahlili' : 'Behavioral analysis',
+    financePlanner: lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner',
+    financePlannerDesc: lang === 'ru' ? 'Генератор целей и планов' : lang === 'uz' ? 'Maqsad yaratuvchi' : 'Goals & plans generator',
     budgetSimulator: lang === 'ru' ? 'Симулятор бюджета' : lang === 'uz' ? 'Byudjet simulyatori' : 'Budget Simulator',
-    financePlanner: lang === 'ru' ? 'Планировщик' : lang === 'uz' ? 'Rejalashtiruvchi' : 'Finance Planner',
+    budgetSimulatorDesc: lang === 'ru' ? 'Сценарии "что если"' : lang === 'uz' ? '"Nima bo\'lsa"' : '"What if" scenarios',
+    // Tool labels
     debtAssessment: lang === 'ru' ? 'Оценка долга' : lang === 'uz' ? 'Qarz bahosi' : 'Debt Assessment',
     cashFlow: lang === 'ru' ? 'Денежный поток' : lang === 'uz' ? 'Pul oqimi' : 'Cash Flow',
     netWorth: lang === 'ru' ? 'Чистый капитал' : lang === 'uz' ? 'Sof boylik' : 'Net Worth',
     investments: lang === 'ru' ? 'Инвестиции' : lang === 'uz' ? 'Investitsiyalar' : 'Investments',
+    debtPayoff: lang === 'ru' ? 'Погашение долга' : lang === 'uz' ? 'Qarzni to\'lash' : 'Debt Payoff',
   };
 
   const analyzeFinances = useCallback(async () => {
@@ -118,14 +134,14 @@ export const AIScreen: React.FC = () => {
     }
   }, [lastAnalyzed, analyzeFinances]);
 
-  // AI Features list
-  const aiFeatures = [
+  // Tools list (screens)
+  const tools = [
     { 
       id: 'debt-assessment', 
       icon: Shield, 
       label: labels.debtAssessment,
-      color: 'bg-blue-500/10',
-      iconColor: 'text-blue-500'
+      color: 'bg-red-500/10',
+      iconColor: 'text-red-500'
     },
     { 
       id: 'cash-flow', 
@@ -145,8 +161,15 @@ export const AIScreen: React.FC = () => {
       id: 'investments', 
       icon: LineChart, 
       label: labels.investments,
-      color: 'bg-amber-500/10',
-      iconColor: 'text-amber-500'
+      color: 'bg-teal-500/10',
+      iconColor: 'text-teal-500'
+    },
+    { 
+      id: 'debt-payoff', 
+      icon: Target, 
+      label: labels.debtPayoff,
+      color: 'bg-orange-500/10',
+      iconColor: 'text-orange-500'
     },
   ];
 
@@ -155,8 +178,14 @@ export const AIScreen: React.FC = () => {
       {/* Header */}
       <header className="screen-header">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg">
-            <Brain className="w-7 h-7 text-primary-foreground" />
+          <button
+            onClick={() => setActiveScreen("home")}
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
+          >
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg">
+            <Brain className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
             <h1 className="text-large-title text-foreground flex items-center gap-2">
@@ -168,27 +197,92 @@ export const AIScreen: React.FC = () => {
         </div>
       </header>
 
-      {/* AI Features Grid */}
+      {/* AI Features Section - Main AI tools */}
       <section className="mb-6">
         <div className="section-header">
-          <h2 className="section-title">{labels.features}</h2>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <h2 className="section-title">{labels.aiFeatures}</h2>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {/* AI Copilot */}
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => setShowAICopilot(true)}
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
+          >
+            <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
+              <Brain className="w-6 h-6 text-violet-500" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-body-medium text-foreground">{labels.aiCopilot}</p>
+              <p className="text-caption truncate">{labels.aiCopilotDesc}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </motion.button>
+
+          {/* Finance Planner */}
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => setShowFinancePlanner(true)}
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
+          >
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-emerald-500" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-body-medium text-foreground">{labels.financePlanner}</p>
+              <p className="text-caption truncate">{labels.financePlannerDesc}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </motion.button>
+
+          {/* Budget Simulator */}
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            onClick={() => setShowBudgetSimulator(true)}
+            className="card-action w-full flex items-center gap-4 active:opacity-80"
+          >
+            <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-6 h-6 text-amber-500" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-body-medium text-foreground">{labels.budgetSimulator}</p>
+              <p className="text-caption truncate">{labels.budgetSimulatorDesc}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </motion.button>
+        </div>
+      </section>
+
+      {/* Tools Grid */}
+      <section className="mb-6">
+        <div className="section-header">
+          <h2 className="section-title">{labels.tools}</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {aiFeatures.map((feature, index) => {
-            const Icon = feature.icon;
+          {tools.map((tool, index) => {
+            const Icon = tool.icon;
             return (
               <motion.button
-                key={feature.id}
+                key={tool.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => setActiveScreen(feature.id as any)}
+                onClick={() => setActiveScreen(tool.id as any)}
                 className="card-elevated flex items-center gap-3 active:opacity-80"
               >
-                <div className={`w-10 h-10 rounded-xl ${feature.color} flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${feature.iconColor}`} />
+                <div className={`w-10 h-10 rounded-xl ${tool.color} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${tool.iconColor}`} />
                 </div>
-                <span className="text-body-medium text-foreground">{feature.label}</span>
+                <span className="text-body-medium text-foreground text-left">{tool.label}</span>
               </motion.button>
             );
           })}
@@ -283,8 +377,8 @@ export const AIScreen: React.FC = () => {
         )}
       </section>
 
-      {/* Quick Stats */}
-      {!loading && !error && (
+      {/* Last Updated */}
+      {!loading && !error && lastAnalyzed && (
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -297,15 +391,17 @@ export const AIScreen: React.FC = () => {
             </div>
             <div className="flex-1">
               <p className="text-body-medium text-foreground">
-                {lastAnalyzed 
-                  ? `${labels.lastUpdated}: ${lastAnalyzed.toLocaleTimeString()}`
-                  : labels.analyzing
-                }
+                {labels.lastUpdated}: {lastAnalyzed.toLocaleTimeString()}
               </p>
             </div>
           </div>
         </motion.section>
       )}
+
+      {/* AI Modals */}
+      <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />
+      <FinancePlannerModal isOpen={showFinancePlanner} onClose={() => setShowFinancePlanner(false)} />
+      <BudgetSimulatorModal isOpen={showBudgetSimulator} onClose={() => setShowBudgetSimulator(false)} />
     </div>
   );
 };
