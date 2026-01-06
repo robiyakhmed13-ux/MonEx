@@ -99,6 +99,20 @@ const transactionsMemory = new Map();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Health checks (useful for debugging "Failed to fetch" / CORS / env issues)
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'telegram-finance-hub', time: new Date().toISOString() });
+});
+
+app.get('/api/ai-health', (_req, res) => {
+  res.json({
+    ok: true,
+    openaiConfigured: Boolean(OPENAI_API_KEY),
+    alphaVantageConfigured: Boolean(ALPHA_VANTAGE_API_KEY),
+    time: new Date().toISOString(),
+  });
+});
+
 // Initialize bot
 let bot;
 if (BOT_TOKEN) {
