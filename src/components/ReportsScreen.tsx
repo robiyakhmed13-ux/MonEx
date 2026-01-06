@@ -191,231 +191,199 @@ export const ReportsScreen = memo(() => {
   };
 
   return (
-    <div className="screen-container pb-32 safe-top">
-      <div className="px-4 pt-2" ref={reportRef}>
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
+    <div className="screen-container" ref={reportRef}>
+      {/* Header - Large Title */}
+      <div className="screen-header">
+        <div className="flex items-center gap-4">
+          <button
             onClick={() => setActiveScreen("home")}
-            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80 transition-opacity"
           >
             ←
-          </motion.button>
+          </button>
           <div className="flex-1">
-            <h1 className="text-title-1 text-foreground">{labels.title}</h1>
+            <h1 className="text-large-title text-foreground">{labels.title}</h1>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={handleExportPDF}
-            className="btn-secondary text-sm"
+            className="btn-secondary text-body-medium"
           >
             📄 PDF
-          </motion.button>
+          </button>
         </div>
+      </div>
 
-        {/* Period Selector */}
-        <div className="flex gap-2 mb-4">
-          {[
-            { key: "month", label: labels.month },
-            { key: "year", label: labels.year },
-          ].map(p => (
+      {/* Period Selector */}
+      <div className="flex gap-3 mb-section">
+        {[
+          { key: "month", label: labels.month },
+          { key: "year", label: labels.year },
+        ].map(p => (
+          <button
+            key={p.key}
+            onClick={() => setPeriod(p.key as "month" | "year")}
+            className={`flex-1 py-3 rounded-xl text-body-medium transition-opacity active:opacity-80 ${
+              period === p.key ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Date Selector */}
+      <div className="flex gap-2 mb-section overflow-x-auto pb-2 no-scrollbar">
+        {period === "month" ? (
+          months.map((m, i) => (
             <button
-              key={p.key}
-              onClick={() => setPeriod(p.key as "month" | "year")}
-              className={`flex-1 py-3 rounded-xl font-medium transition-all ${
-                period === p.key ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+              key={i}
+              onClick={() => setSelectedMonth(i)}
+              className={`px-4 py-2 rounded-xl whitespace-nowrap text-body transition-opacity active:opacity-80 ${
+                selectedMonth === i ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
-              {p.label}
+              {m.slice(0, 3)}
             </button>
-          ))}
-        </div>
-
-        {/* Date Selector */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {period === "month" ? (
-            months.map((m, i) => (
-              <button
-                key={i}
-                onClick={() => setSelectedMonth(i)}
-                className={`px-4 py-2 rounded-xl whitespace-nowrap text-sm transition-all ${
-                  selectedMonth === i ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {m.slice(0, 3)}
-              </button>
-            ))
-          ) : (
-            [selectedYear - 1, selectedYear, selectedYear + 1].map(y => (
-              <button
-                key={y}
-                onClick={() => setSelectedYear(y)}
-                className={`px-6 py-2 rounded-xl text-sm transition-all ${
-                  selectedYear === y ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-                }`}
-              >
-                {y}
-              </button>
-            ))
-          )}
-        </div>
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card-elevated p-4 bg-gradient-to-br from-income/10 to-income/5"
-          >
-            <p className="text-xs text-muted-foreground">{labels.income}</p>
-            <p className="text-xl font-bold text-income">+{formatCurrency(stats.income, currency)}</p>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="card-elevated p-4 bg-gradient-to-br from-expense/10 to-expense/5"
-          >
-            <p className="text-xs text-muted-foreground">{labels.expenses}</p>
-            <p className="text-xl font-bold text-expense">-{formatCurrency(stats.expenses, currency)}</p>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="card-elevated p-4"
-          >
-            <p className="text-xs text-muted-foreground">{labels.netSavings}</p>
-            <p className={`text-xl font-bold ${stats.netSavings >= 0 ? "text-income" : "text-expense"}`}>
-              {stats.netSavings >= 0 ? "+" : ""}{formatCurrency(stats.netSavings, currency)}
-            </p>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="card-elevated p-4"
-          >
-            <p className="text-xs text-muted-foreground">{labels.savingsRate}</p>
-            <p className={`text-xl font-bold ${stats.savingsRate >= 20 ? "text-income" : stats.savingsRate >= 0 ? "text-foreground" : "text-expense"}`}>
-              {stats.savingsRate.toFixed(1)}%
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Spending Chart */}
-        {(period === "month" ? dailySpending.length > 0 : monthlyTrend.length > 0) && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="card-elevated p-4 mb-6"
-          >
-            <h3 className="text-title-3 text-foreground mb-4">{labels.trend}</h3>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                {period === "month" ? (
-                  <AreaChart data={dailySpending}>
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                    <YAxis hide />
-                    <Area type="monotone" dataKey="expense" stroke="#FF6B6B" fill="#FF6B6B20" strokeWidth={2} />
-                    <Area type="monotone" dataKey="income" stroke="#51CF66" fill="#51CF6620" strokeWidth={2} />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={monthlyTrend}>
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                    <YAxis hide />
-                    <Bar dataKey="income" fill="#51CF66" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expense" fill="#FF6B6B" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Category Breakdown */}
-        {categoryBreakdown.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="card-elevated p-4 mb-6"
-          >
-            <h3 className="text-title-3 text-foreground mb-4">{labels.byCategory}</h3>
-            
-            {/* Pie Chart */}
-            <div className="h-[200px] mb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryBreakdown.slice(0, 6)}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="amount"
-                  >
-                    {categoryBreakdown.slice(0, 6).map((entry, index) => (
-                      <Cell key={entry.categoryId} fill={entry.cat.color || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Category List */}
-            <div className="space-y-3">
-              {categoryBreakdown.slice(0, 8).map((cat, i) => (
-                <motion.div
-                  key={cat.categoryId}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 + i * 0.05 }}
-                  className="flex items-center gap-3"
-                >
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
-                    style={{ backgroundColor: (cat.cat.color || COLORS[i]) + "20" }}
-                  >
-                    {cat.cat.emoji}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-foreground">{catLabel(cat.cat)}</span>
-                      <span className="text-sm font-bold text-foreground">{formatCurrency(cat.amount, currency)}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${cat.percentage}%` }}
-                        transition={{ delay: 0.7 + i * 0.05, duration: 0.5 }}
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: cat.cat.color || COLORS[i] }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground w-12 text-right">{cat.percentage.toFixed(0)}%</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {filteredTransactions.length === 0 && (
-          <div className="text-center py-12">
-            <span className="text-4xl block mb-4">📊</span>
-            <p className="text-muted-foreground">{labels.noData}</p>
-          </div>
+          ))
+        ) : (
+          [selectedYear - 1, selectedYear, selectedYear + 1].map(y => (
+            <button
+              key={y}
+              onClick={() => setSelectedYear(y)}
+              className={`px-6 py-2 rounded-xl text-body transition-opacity active:opacity-80 ${
+                selectedYear === y ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              {y}
+            </button>
+          ))
         )}
       </div>
+
+      {/* Stats Overview - Info Cards */}
+      <div className="grid grid-cols-2 gap-3 mb-section">
+        <div className="card-info">
+          <p className="text-caption">{labels.income}</p>
+          <p className="card-info-number text-income">+{formatCurrency(stats.income, currency)}</p>
+        </div>
+        
+        <div className="card-info">
+          <p className="text-caption">{labels.expenses}</p>
+          <p className="card-info-number text-expense">-{formatCurrency(stats.expenses, currency)}</p>
+        </div>
+        
+        <div className="card-info">
+          <p className="text-caption">{labels.netSavings}</p>
+          <p className={`card-info-number ${stats.netSavings >= 0 ? "text-income" : "text-expense"}`}>
+            {stats.netSavings >= 0 ? "+" : ""}{formatCurrency(stats.netSavings, currency)}
+          </p>
+        </div>
+        
+        <div className="card-info">
+          <p className="text-caption">{labels.savingsRate}</p>
+          <p className={`card-info-number ${stats.savingsRate >= 20 ? "text-income" : stats.savingsRate >= 0 ? "text-foreground" : "text-expense"}`}>
+            {stats.savingsRate.toFixed(1)}%
+          </p>
+        </div>
+      </div>
+
+      {/* Spending Chart */}
+      {(period === "month" ? dailySpending.length > 0 : monthlyTrend.length > 0) && (
+        <div className="card-elevated mb-section">
+          <h3 className="text-title text-foreground mb-4">{labels.trend}</h3>
+          <div className="h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              {period === "month" ? (
+                <AreaChart data={dailySpending}>
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis hide />
+                  <Area type="monotone" dataKey="expense" stroke="hsl(var(--expense))" fill="hsl(var(--expense) / 0.1)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="income" stroke="hsl(var(--income))" fill="hsl(var(--income) / 0.1)" strokeWidth={2} />
+                </AreaChart>
+              ) : (
+                <BarChart data={monthlyTrend}>
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis hide />
+                  <Bar dataKey="income" fill="hsl(var(--income))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Category Breakdown */}
+      {categoryBreakdown.length > 0 && (
+        <div className="card-elevated mb-section">
+          <h3 className="text-title text-foreground mb-4">{labels.byCategory}</h3>
+          
+          {/* Pie Chart */}
+          <div className="h-[180px] mb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categoryBreakdown.slice(0, 6)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={2}
+                  dataKey="amount"
+                >
+                  {categoryBreakdown.slice(0, 6).map((entry, index) => (
+                    <Cell key={entry.categoryId} fill={entry.cat.color || COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          
+          {/* Category List */}
+          <div className="space-y-3">
+            {categoryBreakdown.slice(0, 8).map((cat, i) => (
+              <div
+                key={cat.categoryId}
+                className="flex items-center gap-3"
+              >
+                <div 
+                  className="category-icon"
+                  style={{ backgroundColor: (cat.cat.color || COLORS[i]) + "20" }}
+                >
+                  {cat.cat.emoji}
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-body-medium text-foreground">{catLabel(cat.cat)}</span>
+                    <span className="text-body-medium text-foreground">{formatCurrency(cat.amount, currency)}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ 
+                        width: `${cat.percentage}%`,
+                        backgroundColor: cat.cat.color || COLORS[i]
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="text-caption w-10 text-right">{cat.percentage.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* No Data */}
+      {filteredTransactions.length === 0 && (
+        <div className="card-insight justify-center py-12">
+          <p className="card-insight-text text-muted-foreground">📊 {labels.noData}</p>
+        </div>
+      )}
     </div>
   );
 });
 
 ReportsScreen.displayName = "ReportsScreen";
+
+export default ReportsScreen;

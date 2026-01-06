@@ -18,11 +18,11 @@ interface NavItem {
   labelKey: string;
 }
 
-// Tabs: Home → awareness, Activity → history, Goals → planning, AI → guidance, More → everything else
+// Tabs: Home → awareness, Activity → history, AI → guidance, More → everything else
+// Goals removed as per design - available in More menu
 const NAV_ITEMS: NavItem[] = [
   { id: "home", icon: Home, labelKey: "home" },
   { id: "transactions", icon: Activity, labelKey: "activity" },
-  { id: "goals", icon: Target, labelKey: "goals" },
   { id: "analytics", icon: Brain, labelKey: "ai" },
   { id: "more", icon: MoreHorizontal, labelKey: "more" },
 ];
@@ -49,20 +49,17 @@ export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
   const getActiveNav = (screen: ScreenType): ScreenType => {
     if (screen === "home") return "home";
     if (screen === "transactions") return "transactions";
-    if (["goals", "limits"].includes(screen)) return "goals";
     if (["analytics", "reports"].includes(screen)) return "analytics";
     return "more";
   };
 
   const activeNav = getActiveNav(activeScreen);
-  const leftItems = NAV_ITEMS.slice(0, 2);
-  const rightItems = NAV_ITEMS.slice(2);
 
   return (
     <nav className="bottom-nav">
-      <div className="flex items-center justify-around px-2 py-2">
-        {/* Left items */}
-        {leftItems.map((item) => {
+      <div className="flex items-center justify-around px-4 py-2">
+        {/* Left nav items */}
+        {NAV_ITEMS.slice(0, 2).map((item) => {
           const Icon = item.icon;
           const isActive = item.id === activeNav;
           return (
@@ -80,13 +77,13 @@ export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
         {/* Center Add Button */}
         <button
           onClick={onAddClick}
-          className="w-12 h-12 -mt-4 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md active:opacity-80"
+          className="w-14 h-14 -mt-6 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg active:opacity-80 transition-opacity"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-7 h-7" />
         </button>
 
-        {/* Right items */}
-        {rightItems.map((item) => {
+        {/* Right nav items */}
+        {NAV_ITEMS.slice(2).map((item) => {
           const Icon = item.icon;
           const isActive = item.id === activeNav;
           return (
