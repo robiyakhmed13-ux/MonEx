@@ -194,6 +194,9 @@ export const SettingsScreen = memo(() => {
               }
             </div>
             <div className="flex-1">
+              <p className="text-sm text-muted-foreground">
+                {lang === "ru" ? "Привет" : lang === "uz" ? "Salom" : "Hello"}
+              </p>
               <h2 className="text-xl font-bold text-foreground">
                 {isAuthenticated 
                   ? (profile?.full_name || user?.email?.split('@')[0] || "User")

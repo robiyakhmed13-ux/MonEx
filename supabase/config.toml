@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.telegram-bot]
 verify_jwt = false
 
+[functions.telegram-webhook]
+verify_jwt = false
+
 [functions.get-stock-price]
 verify_jwt = false
 
