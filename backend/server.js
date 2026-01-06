@@ -1,8 +1,12 @@
+// Fixes a known node-telegram-bot-api issue with promise cancellations (must be set before requiring the lib)
+process.env.NTBA_FIX_319 = '1';
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const TelegramBot = require('node-telegram-bot-api');
 const { v4: uuidv4 } = require('uuid');
+
 const { Pool } = require('pg');
 
 const app = express();
@@ -113,14 +117,23 @@ app.get('/api/ai-health', (_req, res) => {
   });
 });
 
-// Initialize bot
+// Initialize bot (do not let bot init crash the API server)
 let bot;
 if (BOT_TOKEN) {
-  bot = new TelegramBot(BOT_TOKEN);
-  if (WEBHOOK_URL) {
-    bot.setWebHook(`${WEBHOOK_URL}/webhook`);
+  try {
+    bot = new TelegramBot(BOT_TOKEN, { polling: false });
+    if (WEBHOOK_URL) {
+      bot.setWebHook(`${WEBHOOK_URL}/webhook`);
+    }
+    console.log('Telegram bot initialized');
+  } catch (e) {
+    console.error('Telegram bot failed to initialize (API will still run):', e);
+    bot = null;
   }
+} else {
+  console.log('No BOT_TOKEN set - Telegram bot disabled');
 }
+
 
 // =====================================================
 // AI ENDPOINTS (Receipt Scanning & Voice Parsing)
