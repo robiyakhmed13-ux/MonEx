@@ -125,11 +125,15 @@
   }
 
   body {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 
   #root {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100dvh;
   }
   
   /* Prevent iOS zoom on input focus */
