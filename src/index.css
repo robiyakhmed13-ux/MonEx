@@ -254,7 +254,8 @@
     padding-top: max(var(--safe-area-top), 16px);
     padding-left: max(var(--safe-area-left), 16px);
     padding-right: max(var(--safe-area-right), 16px);
-    padding-bottom: calc(120px + var(--safe-area-bottom));
+    /* Increased bottom padding to ensure content is visible above bottom nav */
+    padding-bottom: calc(140px + var(--safe-area-bottom));
   }
   
   /* Scrollbar hide utility */
