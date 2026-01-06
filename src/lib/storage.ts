@@ -44,7 +44,7 @@ export const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b
 
 // Supabase REST helper
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
 export const sb = {
   enabled: () => !!SUPABASE_URL && !!SUPABASE_KEY,

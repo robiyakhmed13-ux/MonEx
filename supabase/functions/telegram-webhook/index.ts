@@ -142,13 +142,19 @@ async function handleAIQuery(text: string, user: any, chatId: number, supabase: 
     .select('amount')
     .eq('telegram_id', user.telegram_id)
 
-  const totalBalance = balance?.reduce((sum, t) => sum + t.amount, 0) || 0
+  type TxAmountRow = { amount: number };
+  type TxRow = { amount: number; date: string; category_id: string };
+
+  const totalBalance = (balance as TxAmountRow[] | null | undefined)?.reduce(
+    (sum: number, t: TxAmountRow) => sum + t.amount,
+    0,
+  ) || 0
 
   // Calculate today's spending
   const today = new Date().toISOString().slice(0, 10)
-  const todaySpent = transactions
-    ?.filter(t => t.date === today && t.amount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0
+  const todaySpent = (transactions as TxRow[] | null | undefined)
+    ?.filter((t: TxRow) => t.date === today && t.amount < 0)
+    .reduce((sum: number, t: TxRow) => sum + Math.abs(t.amount), 0) || 0
 
   // Use Gemini AI
   const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + GEMINI_API_KEY, {
@@ -162,7 +168,7 @@ async function handleAIQuery(text: string, user: any, chatId: number, supabase: 
 Context:
 - Balance: ${formatMoney(totalBalance)} UZS
 - Spent today: ${formatMoney(todaySpent)} UZS
-- Recent transactions: ${JSON.stringify(transactions?.slice(0, 5)?.map(t => ({
+- Recent transactions: ${JSON.stringify((transactions as any[] | null | undefined)?.slice(0, 5)?.map((t: any) => ({
   category: t.category_id,
   amount: t.amount,
   date: t.date
@@ -331,7 +337,7 @@ async function getBalance(telegramId: number, supabase: any): Promise<string> {
     .select('amount')
     .eq('telegram_id', telegramId)
 
-  const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0
+  const balance = (transactions as { amount: number }[] | null | undefined)?.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0) || 0
   return formatMoney(balance) + ' UZS'
 }
 

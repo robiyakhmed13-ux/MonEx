@@ -3,7 +3,7 @@ import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import { Transaction } from '@/types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
 
 export class TelegramSync {
@@ -15,7 +15,7 @@ export class TelegramSync {
   private onTransactionDeleted?: (id: string) => void;
 
   constructor() {
-    this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    this.supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   }
 
   // Link user's Telegram account

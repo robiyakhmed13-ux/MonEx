@@ -37,21 +37,9 @@ export class AuthService {
         return { success: false, error: 'Registration failed' };
       }
 
-      // Create user profile
-      if (data.user.id) {
-        try {
-          await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              full_name: fullName,
-              email: email,
-              created_at: new Date().toISOString()
-            });
-        } catch (profileError) {
-          console.log('Profile creation will be handled by trigger');
-        }
-      }
+      // NOTE: This app currently doesn't use a public `profiles` table.
+      // User metadata is stored on the auth user instead.
+      // (You can add a dedicated profiles table later if needed.)
 
       return {
         success: true,
@@ -217,26 +205,30 @@ export class AuthService {
     }
   }
 
-  // Update user profile
+  // Update user profile (stored in auth user metadata)
   static async updateProfile(userId: string, updates: {
     full_name?: string;
     avatar_url?: string;
   }): Promise<VerificationResponse> {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId);
-
-      if (error) {
-        return { success: false, error: error.message };
+      const { data: current } = await supabase.auth.getUser();
+      if (!current.user || current.user.id !== userId) {
+        return { success: false, error: 'Not authorized' };
       }
 
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...(updates.full_name ? { full_name: updates.full_name } : {}),
+          ...(updates.avatar_url ? { avatar_url: updates.avatar_url } : {}),
+        },
+      });
+
+      if (error) return { success: false, error: error.message };
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
