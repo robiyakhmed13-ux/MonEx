@@ -1,34 +1,38 @@
-// API client for your own backend server (Railway/self-hosted)
-// Set VITE_API_URL in your environment or use the default
+// API client that calls YOUR external Supabase Edge Functions directly
+// Project: xpplhbxxzhgcncfvwaun
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xpplhbxxzhgcncfvwaun.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-async function callApi(endpoint: string, data: unknown): Promise<any> {
+async function invokeEdgeFunction(functionName: string, data: unknown): Promise<any> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(data),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || `Edge function error: ${response.status}`);
     }
 
     return await response.json();
   } catch (err) {
-    console.error(`API call to ${endpoint} failed:`, err);
+    console.error(`Edge function ${functionName} failed:`, err);
     throw err;
   }
 }
 
 export const api = {
-  scanReceipt: (data: any) => callApi("/scan-receipt", data),
-  parseVoice: (data: any) => callApi("/parse-voice", data),
-  getStockPrice: (data: any) => callApi("/get-stock-price", data),
-  aiCopilot: (data: any) => callApi("/ai-copilot", data),
-  financePlanner: (data: any) => callApi("/finance-planner", data),
+  // These call YOUR external Supabase edge functions
+  scanReceipt: (data: any) => invokeEdgeFunction("scan-receipt", data),
+  parseVoice: (data: any) => invokeEdgeFunction("parse-voice", data),
+  getStockPrice: (data: any) => invokeEdgeFunction("get-stock-price", data),
+  aiCopilot: (data: any) => invokeEdgeFunction("ai-copilot", data),
+  financePlanner: (data: any) => invokeEdgeFunction("finance-planner", data),
 };
