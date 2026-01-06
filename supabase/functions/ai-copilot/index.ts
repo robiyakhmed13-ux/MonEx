@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -5,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
 
 interface Transaction {
   id: string;
@@ -44,8 +45,8 @@ serve(async (req) => {
   try {
     const { transactions, balance, currency, limits, goals, lang }: AnalysisRequest = await req.json();
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     // Prepare spending analysis data
@@ -149,8 +150,6 @@ serve(async (req) => {
     const frequentCategories = Object.entries(categorySpending)
       .filter(([_, data]) => data.count >= 3)
       .sort((a, b) => b[1].count - a[1].count);
-
-    // Note: avgDailySpending, daysInMonth, daysLeft, projectedMonthlySpending are calculated earlier (line 67-70)
 
     // Prepare context for AI
     const analysisContext = {
@@ -261,14 +260,14 @@ This is NOT financial advice. This IS behavioral psychology applied to spending.
 Be the AI that PREVENTS financial disaster, not just reports it.`;
 
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -288,8 +287,8 @@ Be the AI that PREVENTS financial disaster, not just reports it.`;
         });
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error("OpenAI API error:", response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -412,31 +411,29 @@ function generateFallbackInsights(ctx: any, lang: string): Insight[] {
             : lang === 'uz' ? `${top.category}: bu hafta ${top.count}x` 
             : `${top.category}: ${top.count}x this week`,
       message: lang === 'ru'
-        ? `${top.category} - ${top.count} раз за неделю (${top.total.toLocaleString()} сум, ~${avgAmount.toLocaleString()} за раз). ${isHighFrequency ? 'Это паттерн привычки. ' : ''}Установите лимит ${Math.round(top.total * 0.7).toLocaleString()} на следующую неделю?`
+        ? `${top.count} транзакций в категории "${top.category}" (всего ${top.total.toLocaleString()}, ~${avgAmount.toLocaleString()} каждая). ${isHighFrequency ? 'Возможно импульсивные траты.' : 'Отслеживайте эту категорию.'}`
         : lang === 'uz'
-        ? `${top.category} - haftada ${top.count} marta (${top.total.toLocaleString()} so'm, ~${avgAmount.toLocaleString()} har safar). ${isHighFrequency ? 'Bu odat namunasi. ' : ''}Keyingi haftaga ${Math.round(top.total * 0.7).toLocaleString()} limit qo'yasizmi?`
-        : `${top.category} - ${top.count} times this week (${top.total.toLocaleString()}, ~${avgAmount.toLocaleString()} per transaction). ${isHighFrequency ? 'This is a habit pattern. ' : ''}Set a ${Math.round(top.total * 0.7).toLocaleString()} limit for next week?`,
+        ? `"${top.category}" kategoriyasida ${top.count} ta tranzaksiya (jami ${top.total.toLocaleString()}, ~${avgAmount.toLocaleString()} har biri). ${isHighFrequency ? 'Impulsiv xarajatlar bo\'lishi mumkin.' : 'Bu kategoriyani kuzating.'}`
+        : `${top.count} transactions in "${top.category}" (total ${top.total.toLocaleString()}, ~${avgAmount.toLocaleString()} each). ${isHighFrequency ? 'Possible impulse spending.' : 'Monitor this category.'}`,
       action: 'set_limit',
-      actionLabel: lang === 'ru' ? 'Лимит -30%' : lang === 'uz' ? '-30% limit' : 'Limit -30%'
+      actionLabel: lang === 'ru' ? 'Лимит категории' : lang === 'uz' ? 'Kategoriya limiti' : 'Category Limit'
     });
   }
 
-  // ACHIEVEMENT: Good savings behavior (POSITIVE REINFORCEMENT)
+  // ACHIEVEMENT: Positive reinforcement
   if (ctx.weekOverWeekSpendingChange < -10 && ctx.weekOverWeekSpendingChange > -100) {
     insights.push({
       type: 'achievement',
       severity: 'low',
       icon: '🎉',
-      title: lang === 'ru' ? `Экономия: ${Math.abs(ctx.weekOverWeekSpendingChange)}%` 
-            : lang === 'uz' ? `Tejash: ${Math.abs(ctx.weekOverWeekSpendingChange)}%` 
-            : `Savings: ${Math.abs(ctx.weekOverWeekSpendingChange)}%`,
+      title: lang === 'ru' ? `Расходы -${Math.abs(ctx.weekOverWeekSpendingChange)}%` 
+            : lang === 'uz' ? `Xarajatlar -${Math.abs(ctx.weekOverWeekSpendingChange)}%` 
+            : `Spending down ${Math.abs(ctx.weekOverWeekSpendingChange)}%`,
       message: lang === 'ru'
-        ? `Вы тратите на ${Math.abs(ctx.weekOverWeekSpendingChange)}% меньше чем на прошлой неделе! Если продолжите, сэкономите ${Math.round((ctx.monthlySpending - ctx.projectedMonthlySpending) / 1000)}K в этом месяце.`
+        ? `Отлично! Вы сократили расходы на ${Math.abs(ctx.weekOverWeekSpendingChange)}% по сравнению с прошлой неделей. Продолжайте в том же духе!`
         : lang === 'uz'
-        ? `Siz o'tgan haftaga qaraganda ${Math.abs(ctx.weekOverWeekSpendingChange)}% kamroq sarflayapsiz! Davom etsangiz, bu oyda ${Math.round((ctx.monthlySpending - ctx.projectedMonthlySpending) / 1000)}K tejaysiz.`
-        : `You're spending ${Math.abs(ctx.weekOverWeekSpendingChange)}% less than last week! If you continue, you'll save ${Math.round((ctx.monthlySpending - ctx.projectedMonthlySpending) / 1000)}K this month.`,
-      action: 'move_money',
-      actionLabel: lang === 'ru' ? 'В накопления' : lang === 'uz' ? 'Jamg\'armaga' : 'To Savings'
+        ? `Ajoyib! O'tgan haftaga nisbatan xarajatlarni ${Math.abs(ctx.weekOverWeekSpendingChange)}% ga kamaytirdingiz. Davom eting!`
+        : `Great! You reduced spending by ${Math.abs(ctx.weekOverWeekSpendingChange)}% compared to last week. Keep it up!`
     });
   }
 
