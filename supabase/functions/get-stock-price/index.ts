@@ -9,15 +9,49 @@ const corsHeaders = {
 const ALPHA_VANTAGE_API_KEY = Deno.env.get('ALPHA_VANTAGE_API_KEY');
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle non-POST requests gracefully
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed. Use POST with JSON body.',
+      usage: { method: 'POST', body: { symbol: 'AAPL or BTC', type: 'stock|crypto' } }
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { symbol, type } = await req.json();
+    // Parse JSON body with error handling
+    let body: { symbol?: string; type?: string };
+    try {
+      const text = await req.text();
+      if (!text || text.trim() === '') {
+        return new Response(JSON.stringify({ error: 'Empty request body. Please provide JSON data.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      body = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { symbol, type } = body;
     
     if (!symbol) {
-      throw new Error('Symbol is required');
+      return new Response(JSON.stringify({ error: 'Symbol is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     let url: string;

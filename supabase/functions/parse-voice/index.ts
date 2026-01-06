@@ -38,12 +38,43 @@ If you can't parse the command, return:
 { "error": "Could not understand command" }`;
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle non-POST requests gracefully
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed. Use POST with JSON body.',
+      usage: { method: 'POST', body: { text: 'voice command text', lang: 'en|ru|uz' } }
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { text, lang } = await req.json();
+    // Parse JSON body with error handling
+    let body: { text?: string; lang?: string };
+    try {
+      const rawText = await req.text();
+      if (!rawText || rawText.trim() === '') {
+        return new Response(JSON.stringify({ error: 'Empty request body. Please provide JSON data.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      body = JSON.parse(rawText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { text, lang } = body;
     
     if (!text) {
       return new Response(

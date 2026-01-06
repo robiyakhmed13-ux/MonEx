@@ -39,8 +39,38 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle non-POST requests gracefully
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed. Use POST with JSON body.',
+      usage: { method: 'POST', body: { image: 'base64 string', mimeType: 'image/jpeg', userId: 'optional' } }
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    const { image, mimeType, userId } = await req.json();
+    // Parse JSON body with error handling
+    let body: { image?: string; mimeType?: string; userId?: string };
+    try {
+      const text = await req.text();
+      if (!text || text.trim() === '') {
+        return new Response(JSON.stringify({ error: 'Empty request body. Please provide JSON data.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      body = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { image, mimeType, userId } = body;
     
     if (!image) {
       console.error("No image provided in request");
