@@ -321,6 +321,93 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     fetchData();
   }, [isAuthenticated, user?.id]);
+
+  // Real-time sync for transactions (including Telegram-added ones)
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const channel = supabase
+      .channel('transactions-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time: Transaction added', payload);
+          const tx = payload.new as any;
+          const newTransaction: Transaction = {
+            id: tx.id,
+            type: tx.type as 'expense' | 'income',
+            amount: Number(tx.amount),
+            description: tx.description || '',
+            categoryId: tx.category_id,
+            date: tx.date,
+            source: tx.source || 'telegram',
+          };
+          
+          setTransactions(prev => {
+            // Check if already exists
+            if (prev.some(t => t.id === tx.id)) return prev;
+            return [newTransaction, ...prev];
+          });
+          setBalance(prev => prev + newTransaction.amount);
+          
+          // Show toast for Telegram-sourced transactions
+          if (tx.source === 'telegram') {
+            showToast(`📱 Telegram: ${tx.description || tx.category_id} - ${Math.abs(tx.amount).toLocaleString()}`, true);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time: Transaction updated', payload);
+          const tx = payload.new as any;
+          setTransactions(prev => prev.map(t => 
+            t.id === tx.id 
+              ? {
+                  id: tx.id,
+                  type: tx.type as 'expense' | 'income',
+                  amount: Number(tx.amount),
+                  description: tx.description || '',
+                  categoryId: tx.category_id,
+                  date: tx.date,
+                  source: tx.source || 'app',
+                }
+              : t
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time: Transaction deleted', payload);
+          const oldTx = payload.old as any;
+          setTransactions(prev => prev.filter(t => t.id !== oldTx.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, user?.id, showToast]);
   
   const useRemote = useMemo(() => {
     if (!isAuthenticated) return false;
