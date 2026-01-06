@@ -165,53 +165,48 @@ export const SettingsScreen = memo(() => {
   
   return (
     <div className="screen-container">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-6">
+      {/* Header - Large Title */}
+      <div className="screen-header">
         <div className="flex items-center gap-4">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
+          <button
             onClick={() => setActiveScreen("home")}
-            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80 transition-opacity"
           >
             <ArrowLeft className="w-5 h-5 text-foreground" />
-          </motion.button>
-          <h1 className="text-2xl font-bold text-foreground">{t.settings}</h1>
+          </button>
+          <h1 className="text-large-title text-foreground">{t.settings}</h1>
         </div>
       </div>
 
-      {/* Profile Card */}
-      <div className="px-4 mb-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-3xl bg-gradient-to-br from-primary/20 via-primary/10 to-accent border border-primary/20"
-        >
+      {/* Profile Card - Info Card style */}
+      <div className="mb-section">
+        <div className="card-elevated p-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-primary-foreground text-2xl font-bold">
+            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground text-xl font-bold">
               {isAuthenticated 
                 ? (profile?.full_name || user?.email || "U").charAt(0).toUpperCase()
                 : (tgUser?.first_name || "U").charAt(0)
               }
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-caption">
                 {lang === "ru" ? "Привет" : lang === "uz" ? "Salom" : "Hello"}
               </p>
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className="text-title text-foreground">
                 {isAuthenticated 
                   ? (profile?.full_name || user?.email?.split('@')[0] || "User")
                   : (tgUser?.first_name || "Guest")
                 }
               </h2>
               {isAuthenticated ? (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <p className="text-caption flex items-center gap-1">
                   <Mail className="w-3 h-3" />
                   {user?.email}
                 </p>
               ) : tgUser?.username ? (
-                <p className="text-sm text-muted-foreground">@{tgUser.username}</p>
+                <p className="text-caption">@{tgUser.username}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-caption">
                   {lang === "ru" ? "Гость" : lang === "uz" ? "Mehmon" : "Guest"}
                 </p>
               )}
@@ -225,7 +220,7 @@ export const SettingsScreen = memo(() => {
                 await signOut();
                 navigate('/auth');
               }}
-              className="w-full py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive font-medium flex items-center justify-center gap-2 hover:bg-destructive/20 transition-colors"
+              className="w-full py-3 rounded-xl bg-destructive/10 text-destructive font-medium flex items-center justify-center gap-2 active:opacity-80 transition-opacity"
             >
               <LogOut className="w-4 h-4" />
               {lang === "ru" ? "Выйти" : lang === "uz" ? "Chiqish" : "Sign Out"}
@@ -233,50 +228,45 @@ export const SettingsScreen = memo(() => {
           ) : (
             <button
               onClick={() => navigate('/auth')}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+              className="btn-primary w-full flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
               {lang === "ru" ? "Войти / Регистрация" : lang === "uz" ? "Kirish / Ro'yxat" : "Sign In / Sign Up"}
             </button>
           )}
           
-          {/* Plan & Referral Cards - only show when authenticated */}
+          {/* Plan & Sync Cards */}
           {isAuthenticated && (
             <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+              <div className="p-3 rounded-xl bg-secondary">
                 <div className="flex items-center gap-2 mb-1">
                   <Star className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Standard</span>
+                  <span className="text-body-medium text-foreground">Standard</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-caption">
                   {lang === "ru" ? "Ваш план" : lang === "uz" ? "Sizning rejangiz" : "Your plan"}
                 </p>
               </div>
-              <div className="p-4 rounded-2xl bg-card/60 backdrop-blur">
+              <div className="p-3 rounded-xl bg-secondary">
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-4 h-4 text-income" />
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className="text-body-medium text-foreground">
                     {lang === "ru" ? "Синхрон" : lang === "uz" ? "Sinxron" : "Synced"}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-caption">
                   {lang === "ru" ? "Данные в облаке" : lang === "uz" ? "Ma'lumotlar bulutda" : "Data in cloud"}
                 </p>
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
-      {/* Menu Sections */}
-      <div className="px-4 space-y-4">
+      {/* Menu Sections - Spacing 16px between sections */}
+      <div className="space-y-4">
         {/* Main Settings Group */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-2xl bg-card border border-border overflow-hidden"
-        >
+        <div className="card-elevated overflow-hidden">
           <MenuItem 
             icon={<User className="w-5 h-5" />}
             label={lang === "ru" ? "Язык" : lang === "uz" ? "Til" : "Language"}
@@ -296,29 +286,24 @@ export const SettingsScreen = memo(() => {
             onClick={() => setShowCurrency(true)}
             isLast
           />
-        </motion.div>
+        </div>
 
         {/* Telegram Integration Group - Only for authenticated users */}
         {isAuthenticated && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="rounded-2xl bg-gradient-to-br from-[#0088cc]/10 to-[#0088cc]/5 border border-[#0088cc]/20 overflow-hidden"
-          >
-            <div className="p-4 border-b border-[#0088cc]/10">
+          <div className="card-elevated overflow-hidden">
+            <div className="p-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0088cc] flex items-center justify-center">
                   <MessageCircle className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">
+                  <h3 className="text-body-medium text-foreground">
                     {lang === "ru" ? "Telegram бот" : lang === "uz" ? "Telegram bot" : "Telegram Bot"}
                   </h3>
-                  <p className="text-xs text-muted-foreground">@{BOT_USERNAME}</p>
+                  <p className="text-caption">@{BOT_USERNAME}</p>
                 </div>
                 {profile?.telegram_id && (
-                  <span className="px-2 py-1 rounded-full bg-income/20 text-income text-xs font-medium">
+                  <span className="chip chip-primary">
                     {lang === "ru" ? "Связан" : lang === "uz" ? "Ulangan" : "Linked"}
                   </span>
                 )}
@@ -327,11 +312,11 @@ export const SettingsScreen = memo(() => {
             
             {profile?.telegram_id ? (
               <>
-                <div className="p-4 border-b border-[#0088cc]/10">
-                  <p className="text-sm text-muted-foreground mb-2">
+                <div className="p-4 border-b border-border">
+                  <p className="text-caption mb-1">
                     {lang === "ru" ? "Аккаунт связан" : lang === "uz" ? "Hisob ulangan" : "Account linked"}
                   </p>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-body-medium text-foreground">
                     {profile?.telegram_username ? `@${profile.telegram_username}` : `ID: ${profile.telegram_id}`}
                   </p>
                 </div>
@@ -356,16 +341,11 @@ export const SettingsScreen = memo(() => {
                 isLast
               />
             )}
-          </motion.div>
+          </div>
         )}
 
         {/* Data & Sync Group */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl bg-card border border-border overflow-hidden"
-        >
+        <div className="card-elevated overflow-hidden">
           <MenuItem 
             icon={<Cloud className="w-5 h-5" />}
             label={lang === "ru" ? "Синхронизация" : lang === "uz" ? "Sinxronlash" : "Sync Data"}
@@ -383,15 +363,10 @@ export const SettingsScreen = memo(() => {
             onClick={() => setCustomizeOpen(true)}
             isLast
           />
-        </motion.div>
+        </div>
 
         {/* Help & Support Group */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl bg-card border border-border overflow-hidden"
-        >
+        <div className="card-elevated overflow-hidden">
           <MenuItem 
             icon={<HelpCircle className="w-5 h-5" />}
             label={lang === "ru" ? "Помощь" : lang === "uz" ? "Yordam" : "Help"}
@@ -403,15 +378,10 @@ export const SettingsScreen = memo(() => {
             onClick={() => setActiveScreen("learn")}
             isLast
           />
-        </motion.div>
+        </div>
 
         {/* Danger Zone */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="rounded-2xl bg-card border border-destructive/30 overflow-hidden"
-        >
+        <div className="card-elevated overflow-hidden border border-destructive/20">
           <MenuItem 
             icon={<Trash2 className="w-5 h-5 text-destructive" />}
             label={t.resetLocal}
@@ -419,7 +389,7 @@ export const SettingsScreen = memo(() => {
             onClick={() => setResetOpen(true)}
             isLast
           />
-        </motion.div>
+        </div>
       </div>
       
       {/* Language Picker Modal */}
