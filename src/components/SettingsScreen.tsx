@@ -3,11 +3,12 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { exportTransactionsCSV, CURRENCIES } from "@/lib/exportData";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, RefreshCw, FileSpreadsheet, Zap, Trash2,
   Sun, Moon, Monitor, Cloud, User, HelpCircle,
   CreditCard, GraduationCap, ChevronRight, Star, Share2,
-  LogIn, LogOut, Mail
+  LogIn, LogOut, Mail, MessageCircle, Link2, Unlink, ExternalLink, Copy, Check
 } from "lucide-react";
 
 export const SettingsScreen = memo(() => {
@@ -28,6 +29,10 @@ export const SettingsScreen = memo(() => {
   const [showLanguage, setShowLanguage] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
   const [showCurrency, setShowCurrency] = useState(false);
+  const [showTelegramLink, setShowTelegramLink] = useState(false);
+  const [linkingCode, setLinkingCode] = useState<string | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   
   const doReset = () => {
     setBalance(0);
@@ -55,12 +60,90 @@ export const SettingsScreen = memo(() => {
     });
   };
   
+  const BOT_USERNAME = "hamyon_uz_aibot";
+  
   const openBot = () => {
-    const BOT_USERNAME = "hamyonmoneybot";
     if (window.Telegram?.WebApp?.openTelegramLink) {
       window.Telegram.WebApp.openTelegramLink(`https://t.me/${BOT_USERNAME}`);
     } else {
       window.open(`https://t.me/${BOT_USERNAME}`, "_blank");
+    }
+  };
+
+  const generateLinkingCode = async () => {
+    if (!user?.id) return;
+    setIsGeneratingCode(true);
+    
+    try {
+      // Generate a random 6-character code
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Store the code in telegram_users table or create new entry
+      const { error } = await supabase
+        .from('telegram_users')
+        .upsert({
+          telegram_id: 0, // Placeholder, will be updated when user links via bot
+          linking_code: code,
+          code_expires_at: expiresAt.toISOString(),
+          user_id: user.id,
+        }, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        });
+      
+      if (error) {
+        console.error('Error generating linking code:', error);
+        // Try insert instead
+        const { error: insertError } = await supabase
+          .from('telegram_users')
+          .insert({
+            telegram_id: Date.now(), // Unique placeholder
+            linking_code: code,
+            code_expires_at: expiresAt.toISOString(),
+            user_id: user.id,
+          });
+        
+        if (insertError) {
+          console.error('Insert error:', insertError);
+        } else {
+          setLinkingCode(code);
+        }
+      } else {
+        setLinkingCode(code);
+      }
+    } catch (err) {
+      console.error('Failed to generate linking code:', err);
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  };
+
+  const copyCode = async () => {
+    if (!linkingCode) return;
+    await navigator.clipboard.writeText(linkingCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const unlinkTelegram = async () => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ telegram_id: null, telegram_username: null })
+        .eq('id', user.id);
+      
+      await supabase
+        .from('telegram_users')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Force refresh
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to unlink Telegram:', err);
     }
   };
 
@@ -212,11 +295,72 @@ export const SettingsScreen = memo(() => {
           />
         </motion.div>
 
+        {/* Telegram Integration Group - Only for authenticated users */}
+        {isAuthenticated && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="rounded-2xl bg-gradient-to-br from-[#0088cc]/10 to-[#0088cc]/5 border border-[#0088cc]/20 overflow-hidden"
+          >
+            <div className="p-4 border-b border-[#0088cc]/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0088cc] flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground">
+                    {lang === "ru" ? "Telegram бот" : lang === "uz" ? "Telegram bot" : "Telegram Bot"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">@{BOT_USERNAME}</p>
+                </div>
+                {profile?.telegram_id && (
+                  <span className="px-2 py-1 rounded-full bg-income/20 text-income text-xs font-medium">
+                    {lang === "ru" ? "Связан" : lang === "uz" ? "Ulangan" : "Linked"}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {profile?.telegram_id ? (
+              <>
+                <div className="p-4 border-b border-[#0088cc]/10">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {lang === "ru" ? "Аккаунт связан" : lang === "uz" ? "Hisob ulangan" : "Account linked"}
+                  </p>
+                  <p className="text-sm font-medium text-foreground">
+                    {profile?.telegram_username ? `@${profile.telegram_username}` : `ID: ${profile.telegram_id}`}
+                  </p>
+                </div>
+                <MenuItem 
+                  icon={<ExternalLink className="w-5 h-5 text-[#0088cc]" />}
+                  label={lang === "ru" ? "Открыть бот" : lang === "uz" ? "Botni ochish" : "Open Bot"}
+                  onClick={openBot}
+                />
+                <MenuItem 
+                  icon={<Unlink className="w-5 h-5 text-destructive" />}
+                  label={lang === "ru" ? "Отвязать" : lang === "uz" ? "Uzish" : "Unlink"}
+                  textColor="text-destructive"
+                  onClick={unlinkTelegram}
+                  isLast
+                />
+              </>
+            ) : (
+              <MenuItem 
+                icon={<Link2 className="w-5 h-5 text-[#0088cc]" />}
+                label={lang === "ru" ? "Связать Telegram" : lang === "uz" ? "Telegramni ulash" : "Link Telegram"}
+                onClick={() => setShowTelegramLink(true)}
+                isLast
+              />
+            )}
+          </motion.div>
+        )}
+
         {/* Data & Sync Group */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.2 }}
           className="rounded-2xl bg-card border border-border overflow-hidden"
         >
           <MenuItem 
@@ -362,6 +506,114 @@ export const SettingsScreen = memo(() => {
                 {lang === "ru" ? "Начать" : lang === "uz" ? "Boshlash" : "Start"}
               </motion.button>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Telegram Linking Modal */}
+      {showTelegramLink && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setShowTelegramLink(false); setLinkingCode(null); }}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-background rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-[#0088cc] flex items-center justify-center mx-auto mb-4">
+              <MessageCircle className="w-8 h-8 text-white" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-foreground mb-2 text-center">
+              {lang === "ru" ? "Связать Telegram" : lang === "uz" ? "Telegramni ulash" : "Link Telegram"}
+            </h3>
+            
+            <p className="text-sm text-muted-foreground mb-6 text-center">
+              {lang === "ru" 
+                ? "Синхронизируйте транзакции через Telegram бота" 
+                : lang === "uz" 
+                  ? "Telegram bot orqali tranzaksiyalarni sinxronlang" 
+                  : "Sync transactions via Telegram bot"}
+            </p>
+
+            {!linkingCode ? (
+              <div className="space-y-3">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={generateLinkingCode}
+                  disabled={isGeneratingCode}
+                  className="w-full py-4 rounded-xl bg-[#0088cc] text-white font-semibold flex items-center justify-center gap-2"
+                >
+                  {isGeneratingCode ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Link2 className="w-5 h-5" />
+                      {lang === "ru" ? "Получить код" : lang === "uz" ? "Kodni olish" : "Get Linking Code"}
+                    </>
+                  )}
+                </motion.button>
+                
+                <p className="text-xs text-center text-muted-foreground">
+                  {lang === "ru" 
+                    ? "Или откройте бота напрямую:" 
+                    : lang === "uz" 
+                      ? "Yoki botni to'g'ridan-to'g'ri oching:" 
+                      : "Or open the bot directly:"}
+                </p>
+                
+                <button
+                  onClick={openBot}
+                  className="w-full py-3 rounded-xl bg-secondary text-foreground font-medium flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  @{BOT_USERNAME}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-secondary text-center">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {lang === "ru" ? "Ваш код связывания:" : lang === "uz" ? "Sizning ulash kodingiz:" : "Your linking code:"}
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <span className="text-3xl font-mono font-bold tracking-widest text-foreground">{linkingCode}</span>
+                    <button onClick={copyCode} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                      {copiedCode ? <Check className="w-5 h-5 text-income" /> : <Copy className="w-5 h-5 text-muted-foreground" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {lang === "ru" ? "Истекает через 10 минут" : lang === "uz" ? "10 daqiqada tugaydi" : "Expires in 10 minutes"}
+                  </p>
+                </div>
+                
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-2">
+                    {lang === "ru" ? "Шаги:" : lang === "uz" ? "Qadamlar:" : "Steps:"}
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>{lang === "ru" ? "Откройте" : lang === "uz" ? "Oching" : "Open"} @{BOT_USERNAME}</li>
+                    <li>{lang === "ru" ? "Отправьте" : lang === "uz" ? "Yuboring" : "Send"} <code className="px-1 py-0.5 rounded bg-muted font-mono">/link {linkingCode}</code></li>
+                    <li>{lang === "ru" ? "Готово!" : lang === "uz" ? "Tayyor!" : "Done!"}</li>
+                  </ol>
+                </div>
+                
+                <button
+                  onClick={openBot}
+                  className="w-full py-4 rounded-xl bg-[#0088cc] text-white font-semibold flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                  {lang === "ru" ? "Открыть бот" : lang === "uz" ? "Botni ochish" : "Open Bot"}
+                </button>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => { setShowTelegramLink(false); setLinkingCode(null); }}
+              className="w-full py-3 mt-3 text-muted-foreground text-sm"
+            >
+              {t.cancel}
+            </button>
           </motion.div>
         </div>
       )}
