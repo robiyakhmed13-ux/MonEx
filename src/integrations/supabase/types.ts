@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          created_at: string | null
+          current: number | null
+          deadline: string | null
+          id: string
+          name: string
+          target: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current?: number | null
+          deadline?: string | null
+          id?: string
+          name: string
+          target: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current?: number | null
+          deadline?: string | null
+          id?: string
+          name?: string
+          target?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      limits: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string | null
+          id: string
+          period: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string | null
+          id?: string
+          period?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          period?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          biometric_enabled: boolean | null
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          pin_hash: string | null
+          telegram_id: number | null
+          telegram_username: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          biometric_enabled?: boolean | null
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id: string
+          pin_hash?: string | null
+          telegram_id?: number | null
+          telegram_username?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          biometric_enabled?: boolean | null
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          pin_hash?: string | null
+          telegram_id?: number | null
+          telegram_username?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       telegram_transactions: {
         Row: {
           amount: number
@@ -27,6 +123,7 @@ export type Database = {
           telegram_user_id: number
           type: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           amount: number
@@ -40,6 +137,7 @@ export type Database = {
           telegram_user_id: number
           type: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
@@ -53,6 +151,85 @@ export type Database = {
           telegram_user_id?: number
           type?: string
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      telegram_users: {
+        Row: {
+          code_expires_at: string | null
+          created_at: string | null
+          first_name: string | null
+          id: number
+          last_active: string | null
+          linking_code: string | null
+          telegram_id: number
+          telegram_username: string | null
+          user_id: string | null
+        }
+        Insert: {
+          code_expires_at?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: number
+          last_active?: string | null
+          linking_code?: string | null
+          telegram_id: number
+          telegram_username?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          code_expires_at?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: number
+          last_active?: string | null
+          linking_code?: string | null
+          telegram_id?: number
+          telegram_username?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string | null
+          date: string
+          description: string | null
+          id: string
+          source: string | null
+          telegram_id: number | null
+          type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          source?: string | null
+          telegram_id?: number | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          source?: string | null
+          telegram_id?: number | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -61,7 +238,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      link_telegram_account: {
+        Args: {
+          p_telegram_id: number
+          p_telegram_username?: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      sync_telegram_transactions: {
+        Args: { p_user_id: string }
+        Returns: {
+          synced_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
