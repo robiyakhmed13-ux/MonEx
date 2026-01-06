@@ -117,6 +117,11 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [showFinancePlanner, setShowFinancePlanner] = useState(false);
   const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
+
+  // Refresh handler for pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    await syncFromRemote();
+  }, [syncFromRemote]);
   
   return (
     <>
