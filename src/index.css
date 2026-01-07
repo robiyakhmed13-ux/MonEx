@@ -47,13 +47,18 @@
     --input: 220 13% 91%;
     --ring: 217 91% 50%;
     
-    /* Radius - 16-20px as per design system */
-    --radius: 1rem;
-    --radius-lg: 1.25rem;
+    /* Radius System - Premium 16-20px */
+    --radius-sm: 0.875rem;   /* 14px - Small elements */
+    --radius: 1rem;          /* 16px - Standard cards */
+    --radius-md: 1.125rem;   /* 18px - Standard cards (between) */
+    --radius-lg: 1.25rem;    /* 20px - Hero cards, large elements */
+    --radius-xl: 1.5rem;     /* 24px - Bottom sheets, modals */
     
-    /* Shadows - Very soft */
+    /* Shadows - Premium soft shadows */
+    --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.03);
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
     --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.06);
+    --shadow-modal: 0 12px 24px -4px rgb(0 0 0 / 0.08);
     
     /* Safe areas for mobile */
     --safe-area-top: env(safe-area-inset-top, 0px);
@@ -62,17 +67,19 @@
     /* Bottom navigation height constant */
     --tab-bar-height: 88px;
     
-    /* Spacing Scale (8, 12, 16, 24, 32 ONLY) */
-    --space-xs: 0.5rem;   /* 8px */
-    --space-sm: 0.75rem;  /* 12px */
-    --space-md: 1rem;     /* 16px */
-    --space-lg: 1.5rem;   /* 24px */
-    --space-xl: 2rem;     /* 32px */
+    /* Spacing Scale - Premium (8, 12, 16, 20, 24, 32) */
+    --space-xs: 0.5rem;   /* 8px - Tight spacing */
+    --space-sm: 0.75rem;  /* 12px - Card internal spacing */
+    --space-md: 1rem;     /* 16px - Standard padding, gap between cards */
+    --space-md-lg: 1.25rem; /* 20px - Screen edge padding */
+    --space-lg: 1.5rem;   /* 24px - Section spacing */
+    --space-xl: 2rem;     /* 32px - Large spacing */
     
-    /* Typography - Strict hierarchy */
+    /* Typography - Premium strict hierarchy */
+    --text-display: 2rem;        /* 32px - Hero numbers (balance) */
     --text-large-title: 1.75rem; /* 28px - Screen purpose */
     --text-title: 1.125rem;      /* 18px - Section name */
-    --text-body: 0.9375rem;      /* 15px - Content */
+    --text-body: 0.9375rem;      /* 15px - Primary content */
     --text-caption: 0.8125rem;   /* 13px - Secondary info */
 
     --popover: 0 0% 100%;
@@ -80,27 +87,34 @@
   }
 
   .dark {
-    --background: 222 47% 6%;
+    /* Premium dark mode - Not pure black, sophisticated dark gray */
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
     --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 217 33% 15%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 217 33% 18%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 20%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62% 50%;
+    --destructive: 0 62% 55%;
     --destructive-foreground: 210 40% 98%;
-    --expense: 0 62% 55%;
-    --income: 142 70% 45%;
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
+    --expense: 0 62% 58%;
+    --income: 142 70% 48%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
     --ring: 217 91% 60%;
+    
+    /* Softer shadows in dark mode */
+    --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.4);
+    --shadow-modal: 0 12px 24px -4px rgb(0 0 0 / 0.5);
   }
 }
 
@@ -142,9 +156,16 @@
    * Rules: radius 16-20, padding 16, spacing 12-16, no borders
    * ================================ */
   
+  /* Hero Card: Premium hero display */
+  .card-hero {
+    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    box-shadow: var(--shadow-elevated);
+    padding: var(--space-md);
+  }
+  
   /* Info Card: Big number + small label */
   .card-info {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    @apply bg-card p-4 rounded-[var(--radius-md)];
     box-shadow: var(--shadow-card);
   }
   
@@ -155,6 +176,14 @@
     @apply text-foreground;
   }
   
+  .card-hero-number {
+    font-size: var(--text-display);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    @apply text-foreground;
+  }
+  
   .card-info-label {
     font-size: var(--text-caption);
     @apply text-muted-foreground mt-1;
@@ -162,7 +191,7 @@
   
   /* Insight Card: 1 sentence + optional emoji */
   .card-insight {
-    @apply bg-card p-4 rounded-[var(--radius-lg)] flex items-center gap-3;
+    @apply bg-card p-4 rounded-[var(--radius-md)] flex items-center gap-3;
     box-shadow: var(--shadow-card);
   }
   
@@ -173,7 +202,7 @@
   
   /* Action Card: Short sentence + 1-2 buttons */
   .card-action {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    @apply bg-card p-4 rounded-[var(--radius-md)];
     box-shadow: var(--shadow-card);
   }
   
@@ -188,7 +217,7 @@
   
   /* Elevated card for primary content */
   .card-elevated {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
+    @apply bg-card p-4 rounded-[var(--radius-md)];
     box-shadow: var(--shadow-elevated);
   }
   
@@ -232,12 +261,13 @@
     @apply text-muted-foreground;
   }
   
-  /* Big number - calm power */
+  /* Display number - hero numbers (balance) */
   .text-display {
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: var(--text-display);
+    font-weight: 600;
     line-height: 1.1;
     letter-spacing: -0.02em;
+    @apply text-foreground;
   }
   
   /* ================================
@@ -315,18 +345,20 @@
     min-height: 100dvh;
     -webkit-overflow-scrolling: touch;
     padding-top: max(var(--safe-area-top), 16px);
-    padding-left: var(--space-md);
-    padding-right: var(--space-md);
+    padding-left: var(--space-md-lg);
+    padding-right: var(--space-md-lg);
     padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
   }
   
   .screen-header {
     padding-top: var(--space-md);
     padding-bottom: var(--space-lg);
+    margin-bottom: var(--space-md);
   }
   
   .section-header {
-    @apply flex items-center justify-between mb-3;
+    @apply flex items-center justify-between;
+    margin-bottom: var(--space-sm);
   }
   
   .section-title {
@@ -396,7 +428,16 @@
   }
   
   .animate-slide-up {
-    animation: slide-up 0.25s ease-out;
+    animation: slide-up 0.2s ease-out;
+  }
+  
+  /* Premium spacing utilities */
+  .gap-card {
+    gap: 0.875rem; /* 14px - between cards */
+  }
+  
+  .mb-card {
+    margin-bottom: 0.875rem; /* 14px - between cards */
   }
   
   /* ================================
@@ -409,8 +450,8 @@
   }
   
   .modal-content {
-    @apply bg-card rounded-t-[var(--radius-lg)] p-4;
-    box-shadow: var(--shadow-elevated);
+    @apply bg-card rounded-t-[var(--radius-xl)] p-4;
+    box-shadow: var(--shadow-modal);
     max-height: 80vh;
     overflow-y: auto;
     padding-bottom: calc(var(--space-xl) + var(--safe-area-bottom));
@@ -419,8 +460,8 @@
   
   /* Centered modal (for dialogs that need to be above bottom nav) */
   .modal-centered {
-    @apply bg-card rounded-[var(--radius-lg)] p-4 mx-4;
-    box-shadow: var(--shadow-elevated);
+    @apply bg-card rounded-[var(--radius-xl)] p-4 mx-4;
+    box-shadow: var(--shadow-modal);
     max-height: 70vh;
     overflow-y: auto;
     margin-bottom: calc(100px + var(--safe-area-bottom));
@@ -446,9 +487,10 @@
   
   /* List item with subtle tap */
   .list-item {
-    @apply flex items-center gap-3 p-4 bg-card rounded-[var(--radius)];
+    @apply flex items-center gap-3 p-4 bg-card rounded-[var(--radius-md)];
     box-shadow: var(--shadow-card);
-    @apply transition-opacity duration-100 active:opacity-80;
+    @apply transition-opacity duration-150 active:opacity-80;
+    margin-bottom: var(--space-sm);
   }
   
   /* Quick action */
