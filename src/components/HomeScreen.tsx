@@ -13,11 +13,12 @@ import {
   ChevronUp, ChevronDown, X, Check, TrendingUp, Pencil
 } from "lucide-react";
 
-// Animations: fade-in, slide-up only (iOS-approved)
+// Premium animations: fade-in, slide-up only (iOS-approved, no bounce)
 const fadeIn = { opacity: 0 };
 const fadeInTo = { opacity: 1 };
 const slideUp = { opacity: 0, y: 8 };
 const slideUpTo = { opacity: 1, y: 0 };
+const motionConfig = { duration: 0.2, ease: "easeOut" };
 
 export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
   const { 
@@ -123,302 +124,251 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
     await syncFromRemote();
   }, [syncFromRemote]);
   
+
   return (
     <>
     <div className="screen-container">
-      <div className="px-0">
-        
-        {/* === HEADER === */}
-        <header className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-              {(tgUser?.first_name || "U").charAt(0)}
-            </div>
-            <div>
-              <p className="text-caption">{t.hello}</p>
-              <p className="text-body-medium text-foreground">{tgUser?.first_name || "User"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <VoiceInput onTransactionParsed={handleVoiceTransaction} />
-            <button 
-              onClick={syncFromRemote}
-              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
-            >
-              <RefreshCw className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </div>
-        </header>
-        
-        {/* === PRIMARY SECTION: Balance Card (Info Card pattern) === */}
+      {/* === MINIMAL HEADER === */}
+      <header className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <VoiceInput onTransactionParsed={handleVoiceTransaction} />
+        </div>
+        <button 
+          onClick={syncFromRemote}
+          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70 transition-opacity"
+        >
+          <RefreshCw className="w-5 h-5 text-muted-foreground" />
+        </button>
+      </header>
+      
+      {/* === HERO: Balance Card === */}
+      <motion.div 
+        initial={slideUp}
+        animate={slideUpTo}
+        transition={motionConfig}
+        className="card-hero mb-card"
+      >
+        <p className="text-caption mb-2">{t.balance}</p>
+        <div className="flex items-baseline gap-2">
+          <span className="card-hero-number">{formatUZS(balance)}</span>
+          <span className="text-caption">UZS</span>
+        </div>
+      </motion.div>
+      
+      {/* === Today's Flow === */}
+      <div className="grid grid-cols-2 gap-card mb-card">
         <motion.div 
           initial={slideUp}
           animate={slideUpTo}
-          transition={{ duration: 0.25 }}
-          className="card-info mb-4"
+          transition={{ ...motionConfig, delay: 0.03 }}
+          className="card-info"
         >
-          <p className="text-caption mb-1">{t.balance}</p>
-          <div className="flex items-baseline gap-2">
-            <span className="card-info-number">{formatUZS(balance)}</span>
-            <span className="text-caption">UZS</span>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
+              <ArrowDown className="w-3.5 h-3.5 text-destructive" />
+            </div>
+            <span className="text-caption">{t.expenses}</span>
           </div>
+          <p className="text-title amount-expense">
+            {todayExp ? `-${formatUZS(todayExp)}` : "0"}
+          </p>
         </motion.div>
         
-        {/* === Today Summary (Two Info Cards) === */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <motion.div 
-            initial={slideUp}
-            animate={slideUpTo}
-            transition={{ delay: 0.05, duration: 0.25 }}
-            className="card-info"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
-                <ArrowDown className="w-3.5 h-3.5 text-destructive" />
-              </div>
-              <span className="text-caption">{t.expenses}</span>
-            </div>
-            <p className="text-title amount-expense">
-              {todayExp ? `-${formatUZS(todayExp)}` : "0"}
-            </p>
-          </motion.div>
-          
-          <motion.div 
-            initial={slideUp}
-            animate={slideUpTo}
-            transition={{ delay: 0.1, duration: 0.25 }}
-            className="card-info"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-full bg-[hsl(var(--income))]/10 flex items-center justify-center">
-                <ArrowUp className="w-3.5 h-3.5 text-[hsl(var(--income))]" />
-              </div>
-              <span className="text-caption">{t.income}</span>
-            </div>
-            <p className="text-title amount-income">
-              {todayInc ? `+${formatUZS(todayInc)}` : "0"}
-            </p>
-          </motion.div>
-        </div>
-        
-        {/* === Week Insight (Insight Card pattern with icon) === */}
-        <motion.div
+        <motion.div 
           initial={slideUp}
           animate={slideUpTo}
-          transition={{ delay: 0.15, duration: 0.25 }}
-          className="card-insight mb-6"
+          transition={{ ...motionConfig, delay: 0.06 }}
+          className="card-info"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-body-medium text-foreground">{t.weekSpending}: {formatUZS(weekSpend)}</span>
-              {weekChange !== 0 && (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  weekChange > 0 ? 'bg-destructive/10 text-destructive' : 'bg-[hsl(var(--income))]/10 text-[hsl(var(--income))]'
-                }`}>
-                  {weekChange > 0 ? '↑' : '↓'} {Math.abs(weekChange).toFixed(0)}%
-                </span>
-              )}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-full bg-[hsl(var(--income))]/10 flex items-center justify-center">
+              <ArrowUp className="w-3.5 h-3.5 text-[hsl(var(--income))]" />
             </div>
+            <span className="text-caption">{t.income}</span>
           </div>
+          <p className="text-title amount-income">
+            {todayInc ? `+${formatUZS(todayInc)}` : "0"}
+          </p>
         </motion.div>
+      </div>
 
-        {/* === AI Insights Widget === */}
+      {/* === AI Insight (Only Critical/High) === */}
+      <div className="mb-card">
         <AIInsightsWidget onOpenFullPanel={() => setShowAICopilot(true)} />
-        
-        {/* === Quick Actions (Action Card pattern) === */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <button
-            onClick={onAddExpense}
-            className="card-elevated flex items-center gap-3 active:opacity-80"
-          >
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <ArrowDown className="w-5 h-5 text-destructive" />
-            </div>
-            <span className="text-body-medium text-foreground">{t.addExpense}</span>
-          </button>
-          <button
-            onClick={onAddIncome}
-            className="card-elevated flex items-center gap-3 active:opacity-80"
-          >
-            <div className="w-10 h-10 rounded-xl bg-[hsl(var(--income))]/10 flex items-center justify-center">
-              <ArrowUp className="w-5 h-5 text-[hsl(var(--income))]" />
-            </div>
-            <span className="text-body-medium text-foreground">{t.addIncome}</span>
-          </button>
-        </div>
-        
-        {/* === Budgets Section === */}
-        {limits.length > 0 && (
-          <section className="mb-6">
-            <div className="section-header">
-              <h2 className="section-title">{t.monthlyBudgets}</h2>
-              <button onClick={() => setActiveScreen("limits")} className="section-action">
-                {t.viewAll}
-              </button>
-            </div>
-            <div className="space-y-3">
-              {limits.slice(0, 3).map((lim, index) => {
-                const cat = getCat(lim.categoryId);
-                const spent = monthSpentByCategory(lim.categoryId);
-                const pct = lim.amount ? Math.round((spent / lim.amount) * 100) : 0;
-                const isOver = pct >= 100;
-                
-                return (
-                  <motion.div 
-                    key={lim.id}
-                    initial={slideUp}
-                    animate={slideUpTo}
-                    transition={{ delay: index * 0.05, duration: 0.2 }}
-                    className="card-info"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
+      </div>
+      
+      {/* === Quick Add === */}
+      <section className="mb-card">
+        <div className="flex gap-card overflow-x-auto no-scrollbar pb-1">
+          {localQuickAdds.map((item, i) => {
+            const cat = getCat(item.categoryId);
+            const isEditing = editingQuickAdd === item.id;
+            
+            return (
+              <motion.div
+                key={item.id}
+                initial={slideUp}
+                animate={slideUpTo}
+                transition={{ ...motionConfig, delay: i * 0.02 }}
+                className="card-info min-w-[88px] relative flex-shrink-0"
+              >
+                <AnimatePresence mode="wait">
+                  {isEditing ? (
+                    <motion.div
+                      key="edit"
+                      initial={fadeIn}
+                      animate={fadeInTo}
+                      exit={fadeIn}
+                      transition={motionConfig}
+                      className="flex flex-col items-center"
+                    >
+                      <div className="flex items-center gap-1 mb-2">
+                        <button
+                          onClick={() => stepAmount(-1)}
+                          className="w-6 h-6 rounded-xl bg-secondary flex items-center justify-center active:opacity-70"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="w-14 text-center text-xs bg-secondary rounded-xl p-1"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => stepAmount(1)}
+                          className="w-6 h-6 rounded-xl bg-secondary flex items-center justify-center active:opacity-70"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingQuickAdd(null)}
+                          className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
+                        >
+                          <X className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => handleSaveQuickAdd(item.id)}
+                          className="w-7 h-7 rounded-full bg-primary flex items-center justify-center active:opacity-80"
+                        >
+                          <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="view"
+                      initial={fadeIn}
+                      animate={fadeInTo}
+                      exit={fadeIn}
+                      transition={motionConfig}
+                      className="w-full flex flex-col items-center relative"
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingQuickAdd(item.id);
+                          setEditAmount(item.amount.toString());
+                        }}
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-secondary flex items-center justify-center z-10 active:opacity-70"
+                      >
+                        <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleQuickAdd(item.categoryId, item.amount)}
+                        className="w-full flex flex-col items-center active:opacity-70"
+                      >
                         <div 
-                          className="category-icon"
+                          className="category-icon mb-2"
                           style={{ backgroundColor: `${cat.color}15` }}
                         >
                           <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
                         </div>
-                        <span className="text-body-medium text-foreground">{catLabel(cat)}</span>
-                      </div>
-                      <span className={`text-body-medium ${isOver ? 'text-destructive' : 'text-foreground'}`}>
-                        {pct}%
-                      </span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className={`progress-fill ${isOver ? 'progress-fill-danger' : ''}`}
-                        style={{ width: `${Math.min(pct, 100)}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-2">
-                      <span className="text-caption">{formatUZS(spent)}</span>
-                      <span className="text-caption">{formatUZS(lim.amount)}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                        <p className="text-xs font-medium text-foreground">{catLabel(cat)}</p>
+                        <p className="text-caption">{formatUZS(item.amount)}</p>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+          <button
+            onClick={onAddExpense}
+            className="card-info min-w-[88px] flex flex-col items-center justify-center border-2 border-dashed border-border active:opacity-70 flex-shrink-0"
+            style={{ boxShadow: 'none' }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-2">
+              <Plus className="w-5 h-5 text-muted-foreground" />
             </div>
-          </section>
-        )}
-        
-        {/* === Quick Add Section === */}
-        <section className="mb-6">
+            <p className="text-xs text-muted-foreground">{t.add}</p>
+          </button>
+        </div>
+      </section>
+      
+      {/* === Secondary Content (on scroll) === */}
+      
+      {/* Budgets Section - Hidden initially, show if active */}
+      {limits.length > 0 && (
+        <section className="mb-card">
           <div className="section-header">
-            <h2 className="section-title">{t.quickAdd}</h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-            {localQuickAdds.map((item, i) => {
-              const cat = getCat(item.categoryId);
-              const isEditing = editingQuickAdd === item.id;
-              
-              return (
-                <div
-                  key={item.id}
-                  className="card-info min-w-[88px] relative"
-                >
-                  <AnimatePresence mode="wait">
-                    {isEditing ? (
-                      <motion.div
-                        key="edit"
-                        initial={fadeIn}
-                        animate={fadeInTo}
-                        exit={fadeIn}
-                        className="flex flex-col items-center"
-                      >
-                        <div className="flex items-center gap-1 mb-2">
-                          <button
-                            onClick={() => stepAmount(-1)}
-                            className="w-6 h-6 rounded bg-secondary flex items-center justify-center"
-                          >
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                          <input
-                            type="number"
-                            value={editAmount}
-                            onChange={(e) => setEditAmount(e.target.value)}
-                            className="w-14 text-center text-xs bg-secondary rounded p-1"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => stepAmount(1)}
-                            className="w-6 h-6 rounded bg-secondary flex items-center justify-center"
-                          >
-                            <ChevronUp className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingQuickAdd(null)}
-                            className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center"
-                          >
-                            <X className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                          <button
-                            onClick={() => handleSaveQuickAdd(item.id)}
-                            className="w-7 h-7 rounded-full bg-primary flex items-center justify-center"
-                          >
-                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="view"
-                        initial={fadeIn}
-                        animate={fadeInTo}
-                        exit={fadeIn}
-                        className="w-full flex flex-col items-center relative"
-                      >
-                        {/* Edit button - visible tap target */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingQuickAdd(item.id);
-                            setEditAmount(item.amount.toString());
-                          }}
-                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-secondary flex items-center justify-center z-10"
-                        >
-                          <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
-                        </button>
-                        
-                        {/* Main tap area - adds transaction */}
-                        <button
-                          onClick={() => handleQuickAdd(item.categoryId, item.amount)}
-                          className="w-full flex flex-col items-center active:opacity-70"
-                        >
-                          <div 
-                            className="category-icon mb-2"
-                            style={{ backgroundColor: `${cat.color}15` }}
-                          >
-                            <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
-                          </div>
-                          <p className="text-xs font-medium text-foreground">{catLabel(cat)}</p>
-                          <p className="text-caption">{formatUZS(item.amount)}</p>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-            <button
-              onClick={onAddExpense}
-              className="card-info min-w-[88px] flex flex-col items-center justify-center border-2 border-dashed border-border active:opacity-70"
-              style={{ boxShadow: 'none' }}
-            >
-              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-2">
-                <Plus className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground">{t.add}</p>
+            <h2 className="section-title">{t.monthlyBudgets}</h2>
+            <button onClick={() => setActiveScreen("limits")} className="section-action">
+              {t.viewAll}
             </button>
           </div>
+          <div className="space-y-[14px]">
+            {limits.slice(0, 3).map((lim, index) => {
+              const cat = getCat(lim.categoryId);
+              const spent = monthSpentByCategory(lim.categoryId);
+              const pct = lim.amount ? Math.round((spent / lim.amount) * 100) : 0;
+              const isOver = pct >= 100;
+              
+              return (
+                <motion.div 
+                  key={lim.id}
+                  initial={slideUp}
+                  animate={slideUpTo}
+                  transition={{ ...motionConfig, delay: index * 0.02 }}
+                  className="card-info"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="category-icon"
+                        style={{ backgroundColor: `${cat.color}15` }}
+                      >
+                        <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                      </div>
+                      <span className="text-body-medium text-foreground">{catLabel(cat)}</span>
+                    </div>
+                    <span className={`text-body-medium ${isOver ? 'text-destructive' : 'text-foreground'}`}>
+                      {pct}%
+                    </span>
+                  </div>
+                  <div className="progress-bar">
+                    <div 
+                      className={`progress-fill ${isOver ? 'progress-fill-danger' : ''}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span className="text-caption">{formatUZS(spent)}</span>
+                    <span className="text-caption">{formatUZS(lim.amount)}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </section>
-        
-        {/* === Recent Transactions === */}
+      )}
+      
+      {/* Recent Transactions - Minimal preview */}
+      {transactions.length > 0 && (
         <section className="mb-6">
           <div className="section-header">
             <h2 className="section-title">{t.allTransactions}</h2>
@@ -427,43 +377,37 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
             </button>
           </div>
           
-          {transactions.length === 0 ? (
-            <div className="card-info text-center py-8">
-              <p className="text-caption">{t.empty}</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {transactions.slice(0, 4).map((tx, index) => {
-                const cat = getCat(tx.categoryId);
-                return (
-                  <motion.div 
-                    key={tx.id}
-                    initial={slideUp}
-                    animate={slideUpTo}
-                    transition={{ delay: index * 0.03, duration: 0.2 }}
-                    className="list-item"
+          <div className="space-y-[14px]">
+            {transactions.slice(0, 3).map((tx, index) => {
+              const cat = getCat(tx.categoryId);
+              return (
+                <motion.div 
+                  key={tx.id}
+                  initial={slideUp}
+                  animate={slideUpTo}
+                  transition={{ ...motionConfig, delay: index * 0.02 }}
+                  className="list-item"
+                >
+                  <div 
+                    className="category-icon"
+                    style={{ backgroundColor: `${cat.color}15` }}
                   >
-                    <div 
-                      className="category-icon"
-                      style={{ backgroundColor: `${cat.color}15` }}
-                    >
-                      <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-body-medium text-foreground truncate">{tx.description}</p>
-                      <p className="text-caption">{tx.date}</p>
-                    </div>
-                    <p className={`text-body-medium ${tx.amount > 0 ? 'amount-income' : 'amount-expense'}`}>
-                      {tx.amount > 0 ? '+' : ''}{formatUZS(tx.amount)}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
+                    <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-medium text-foreground truncate">{tx.description}</p>
+                    <p className="text-caption">{tx.date}</p>
+                  </div>
+                  <p className={`text-body-medium ${tx.amount > 0 ? 'amount-income' : 'amount-expense'}`}>
+                    {tx.amount > 0 ? '+' : ''}{formatUZS(tx.amount)}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
         </section>
+      )}
 
-      </div>
     </div>
 
     {/* Modals */}
