@@ -344,7 +344,7 @@ export const HelpScreen: React.FC = () => {
 
   return (
     <div className="screen-container">
-      <div className="px-4 pt-4 pb-32">
+      <div className="px-4 pt-4">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <motion.button
