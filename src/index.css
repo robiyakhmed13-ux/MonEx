@@ -59,6 +59,9 @@
     --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     
+    /* Bottom navigation height constant */
+    --tab-bar-height: 88px;
+    
     /* Spacing Scale (8, 12, 16, 24, 32 ONLY) */
     --space-xs: 0.5rem;   /* 8px */
     --space-sm: 0.75rem;  /* 12px */
@@ -314,7 +317,7 @@
     padding-top: max(var(--safe-area-top), 16px);
     padding-left: var(--space-md);
     padding-right: var(--space-md);
-    padding-bottom: calc(120px + var(--safe-area-bottom));
+    padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
   }
   
   .screen-header {
