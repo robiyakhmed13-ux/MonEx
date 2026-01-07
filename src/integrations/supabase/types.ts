@@ -79,6 +79,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          language: string | null
           pin_hash: string | null
           telegram_id: number | null
           telegram_username: string | null
@@ -91,6 +92,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          language?: string | null
           pin_hash?: string | null
           telegram_id?: number | null
           telegram_username?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          language?: string | null
           pin_hash?: string | null
           telegram_id?: number | null
           telegram_username?: string | null
