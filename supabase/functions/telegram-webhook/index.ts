@@ -120,6 +120,27 @@ const i18n = {
     updatedInApp: "MonEX ilovasida yangilandi",
     cancel: "Bekor",
     notUnderstood: "Tushunmadim. Sinab ko'ring:",
+    transfer: "O'tkazma",
+    transferFrom: "Qayerdan",
+    transferTo: "Qayerga",
+    transferAmount: "Summa",
+    transferCreated: "O'tkazma yaratildi!",
+    selectCategory: "Kategoriyani tanlang",
+    selectLanguage: "Tilni tanlang",
+    confirm: "Tasdiqlash",
+    confirmAction: "Tasdiqlaysizmi?",
+    actionConfirmed: "Tasdiqlandi!",
+    actionCancelled: "Bekor qilindi",
+    enterAmount: "Summani kiriting",
+    enterGoalName: "Maqsad nomini kiriting",
+    enterGoalTarget: "Maqsad summasini kiriting",
+    enterGoalMonths: "Oy sonini kiriting",
+    reminderText: "Eslatma matni",
+    reminderDay: "Kun",
+    reminderSaved: "Eslatma saqlandi!",
+    fromCategory: "Kategoriyadan",
+    toCategory: "Kategoriyaga",
+    transferBetweenCategories: "Kategoriyalar orasida o'tkazma",
   },
   ru: {
     hello: "Привет",
@@ -206,6 +227,27 @@ const i18n = {
     updatedInApp: "Обновлено в приложении MonEX",
     cancel: "Отмена",
     notUnderstood: "Не понял. Попробуйте:",
+    transfer: "Перевод",
+    transferFrom: "Откуда",
+    transferTo: "Куда",
+    transferAmount: "Сумма",
+    transferCreated: "Перевод создан!",
+    selectCategory: "Выберите категорию",
+    selectLanguage: "Выберите язык",
+    confirm: "Подтвердить",
+    confirmAction: "Подтверждаете?",
+    actionConfirmed: "Подтверждено!",
+    actionCancelled: "Отменено",
+    enterAmount: "Введите сумму",
+    enterGoalName: "Введите название цели",
+    enterGoalTarget: "Введите сумму цели",
+    enterGoalMonths: "Введите количество месяцев",
+    reminderText: "Текст напоминания",
+    reminderDay: "День",
+    reminderSaved: "Напоминание сохранено!",
+    fromCategory: "Из категории",
+    toCategory: "В категорию",
+    transferBetweenCategories: "Перевод между категориями",
   },
   en: {
     hello: "Hello",
@@ -292,6 +334,27 @@ const i18n = {
     updatedInApp: "Updated in MonEX app",
     cancel: "Cancel",
     notUnderstood: "Didn't understand. Try:",
+    transfer: "Transfer",
+    transferFrom: "From",
+    transferTo: "To",
+    transferAmount: "Amount",
+    transferCreated: "Transfer created!",
+    selectCategory: "Select category",
+    selectLanguage: "Select language",
+    confirm: "Confirm",
+    confirmAction: "Confirm?",
+    actionConfirmed: "Confirmed!",
+    actionCancelled: "Cancelled",
+    enterAmount: "Enter amount",
+    enterGoalName: "Enter goal name",
+    enterGoalTarget: "Enter goal target",
+    enterGoalMonths: "Enter months",
+    reminderText: "Reminder text",
+    reminderDay: "Day",
+    reminderSaved: "Reminder saved!",
+    fromCategory: "From category",
+    toCategory: "To category",
+    transferBetweenCategories: "Transfer between categories",
   }
 }
 
@@ -327,6 +390,110 @@ function detectLang(languageCode?: string): Lang {
   // Default to Russian for CIS countries
   if (['uk', 'be', 'kk', 'ky', 'tg', 'az'].some(c => code.startsWith(c))) return 'ru'
   return 'uz'
+}
+
+// Get user language: from profile if linked, else from Telegram
+async function getUserLang(user: any, telegramLangCode: string | undefined, supabase: any): Promise<Lang> {
+  // If user is linked, try to get language from profile
+  if (user?.user_id) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('language')
+      .eq('id', user.user_id)
+      .single()
+    
+    if (profile?.language && ['uz', 'ru', 'en'].includes(profile.language)) {
+      return profile.language as Lang
+    }
+  }
+  
+  // Fallback to Telegram language code
+  return detectLang(telegramLangCode)
+}
+
+// Intent parsing for natural language queries
+type Intent = 
+  | { type: 'spent'; period: 'today' | 'week' | 'month' }
+  | { type: 'balance' }
+  | { type: 'stats'; period?: 'monthly' }
+  | { type: 'unknown' }
+
+function parseIntent(text: string, lang: Lang): Intent {
+  const lower = text.toLowerCase().trim()
+  
+  // English patterns
+  if (lang === 'en') {
+    // Spent queries
+    if (/\b(how much|how many|what|did i|have i)\s+(spend|spent|spending)\b/i.test(lower)) {
+      if (/\b(today|todays|this day)\b/i.test(lower)) return { type: 'spent', period: 'today' }
+      if (/\b(this week|weekly|week)\b/i.test(lower)) return { type: 'spent', period: 'week' }
+      if (/\b(this month|monthly|month)\b/i.test(lower)) return { type: 'spent', period: 'month' }
+      // Default to today if period not specified
+      return { type: 'spent', period: 'today' }
+    }
+    
+    // Balance queries
+    if (/\b(balance|bal|money|funds|available|left)\b/i.test(lower) && 
+        !/\b(spend|spent|expense|limit)\b/i.test(lower)) {
+      return { type: 'balance' }
+    }
+    
+    // Stats queries
+    if (/\b(stats|statistics|stat|summary|overview|report)\b/i.test(lower)) {
+      if (/\b(month|monthly)\b/i.test(lower)) return { type: 'stats', period: 'monthly' }
+      return { type: 'stats' }
+    }
+  }
+  
+  // Russian patterns
+  if (lang === 'ru') {
+    // Spent queries: "сколько потратил", "сколько потрачено", "траты"
+    if (/\b(сколько|как много|что)\s+(потратил|потратила|потрачено|потратили|трат|расход)\b/i.test(lower) ||
+        /\b(траты|расходы|потратил|потратила)\b/i.test(lower)) {
+      if (/\b(сегодня|сегодняшн|день)\b/i.test(lower)) return { type: 'spent', period: 'today' }
+      if (/\b(эту неделю|неделю|неделя|недельный)\b/i.test(lower)) return { type: 'spent', period: 'week' }
+      if (/\b(этот месяц|месяц|месячный)\b/i.test(lower)) return { type: 'spent', period: 'month' }
+      return { type: 'spent', period: 'today' }
+    }
+    
+    // Balance queries: "баланс", "сколько денег", "осталось"
+    if (/\b(баланс|сколько денег|осталось|остаток|средств|деньги)\b/i.test(lower) &&
+        !/\b(потратил|расход|лимит)\b/i.test(lower)) {
+      return { type: 'balance' }
+    }
+    
+    // Stats queries: "статистика", "отчет"
+    if (/\b(статистика|стат|отчет|сводка|обзор)\b/i.test(lower)) {
+      if (/\b(месяц|месячный)\b/i.test(lower)) return { type: 'stats', period: 'monthly' }
+      return { type: 'stats' }
+    }
+  }
+  
+  // Uzbek patterns
+  if (lang === 'uz') {
+    // Spent queries: "qancha sarfladim", "sarflangan", "xarajat"
+    if (/\b(qancha|qancha pul|necha)\s+(sarfladim|sarfladik|sarflangan|sarflayman|xarajat|chiqim)\b/i.test(lower) ||
+        /\b(sarfladim|sarfladik|xarajat|chiqim)\b/i.test(lower)) {
+      if (/\b(bugun|bugungi|kun)\b/i.test(lower)) return { type: 'spent', period: 'today' }
+      if (/\b(hafta|haftalik|shu hafta)\b/i.test(lower)) return { type: 'spent', period: 'week' }
+      if (/\b(oy|oylik|shu oy)\b/i.test(lower)) return { type: 'spent', period: 'month' }
+      return { type: 'spent', period: 'today' }
+    }
+    
+    // Balance queries: "balans", "qancha pul", "qoldi"
+    if (/\b(balans|qancha pul|qoldi|qolgan|mablag|pul)\b/i.test(lower) &&
+        !/\b(sarfladim|xarajat|limit)\b/i.test(lower)) {
+      return { type: 'balance' }
+    }
+    
+    // Stats queries: "statistika", "hisobot"
+    if (/\b(statistika|stat|hisobot|umumiy)\b/i.test(lower)) {
+      if (/\b(oy|oylik)\b/i.test(lower)) return { type: 'stats', period: 'monthly' }
+      return { type: 'stats' }
+    }
+  }
+  
+  return { type: 'unknown' }
 }
 
 function t(lang: Lang) {
@@ -366,9 +533,13 @@ serve(async (req) => {
       .eq('telegram_id', userId)
       .single()
 
-    const lang = detectLang(langCode)
+    // Get user language (from profile if linked, else from Telegram)
+    const lang = await getUserLang(user, langCode, supabase)
 
     if (!user) {
+      // Check if language is not set, show language selection
+      const detectedLang = detectLang(langCode)
+      
       const { data: newUser } = await supabase
         .from('telegram_users')
         .insert({
@@ -382,7 +553,13 @@ serve(async (req) => {
         .single()
       
       user = newUser
-      await sendWelcomeMessage(chatId, userName, lang)
+      
+      // Show language selection if not clearly detected
+      if (!langCode || !['uz', 'ru', 'en'].some(l => langCode.toLowerCase().startsWith(l))) {
+        await showLanguageSelection(chatId, lang)
+      } else {
+        await sendWelcomeMessage(chatId, userName, lang)
+      }
       return new Response('OK', { status: 200 })
     }
 
@@ -502,11 +679,17 @@ async function handleTextMessage(message: TelegramMessage, user: any, supabase: 
 
   // /remind command
   if (text.startsWith('/remind') || text.startsWith('/eslatma') || text.startsWith('/напоминание')) {
-    await handleRemindCommand(text, chatId, telegramId, supabase, lang)
+    await handleRemindCommand(text, chatId, telegramId, user.user_id, supabase, lang)
     return
   }
 
-  // /help command
+  // /transfer command
+  if (text.startsWith('/transfer') || text.startsWith('/o\'tkazma') || text.startsWith('/перевод')) {
+    await handleTransferCommand(text, chatId, telegramId, user.user_id, supabase, lang)
+    return
+  }
+
+  // /help command - ALWAYS works, even if not linked
   if (text === '/help' || text === '/yordam' || text === '/помощь') {
     await sendHelpMessage(chatId, lang)
     return
@@ -544,6 +727,36 @@ async function handleTextMessage(message: TelegramMessage, user: any, supabase: 
     return
   }
 
+  // Natural language intent parsing
+  const intent = parseIntent(text, lang)
+  
+  if (intent.type === 'spent') {
+    if (!user.user_id) {
+      await sendLinkInstructions(chatId, lang, 'spent')
+      return
+    }
+    await handleSpentQuery(chatId, telegramId, user.user_id, intent.period, supabase, lang)
+    return
+  }
+  
+  if (intent.type === 'balance') {
+    if (!user.user_id) {
+      await sendLinkInstructions(chatId, lang, 'balance')
+      return
+    }
+    await handleBalanceCommand(chatId, telegramId, user.user_id, supabase, lang)
+    return
+  }
+  
+  if (intent.type === 'stats') {
+    if (!user.user_id) {
+      await sendLinkInstructions(chatId, lang, 'stats')
+      return
+    }
+    await handleStatsCommand(chatId, telegramId, user.user_id, supabase, lang)
+    return
+  }
+
   // Use AI for everything else
   await handleAIQuery(text, user, chatId, supabase, lang)
 }
@@ -552,14 +765,18 @@ async function handleCallbackQuery(callback: CallbackQuery, supabase: any) {
   const chatId = callback.message.chat.id
   const data = callback.data
   const telegramId = callback.from.id
-  const lang = detectLang(callback.from.language_code)
-  const tr = t(lang)
+  const langCode = callback.from.language_code
+  const tr = t('uz') // Will be updated after getting user
 
   const { data: user } = await supabase
     .from('telegram_users')
     .select('*')
     .eq('telegram_id', telegramId)
     .single()
+  
+  // Get user language (from profile if linked, else from Telegram)
+  const lang = await getUserLang(user, langCode, supabase)
+  const tr2 = t(lang)
 
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
     method: 'POST',
@@ -567,42 +784,210 @@ async function handleCallbackQuery(callback: CallbackQuery, supabase: any) {
     body: JSON.stringify({ callback_query_id: callback.id })
   })
 
-  switch (data) {
-    case 'cmd_balance':
-      await handleBalanceCommand(chatId, telegramId, user?.user_id, supabase, lang)
-      break
-    case 'cmd_stats':
-      await handleStatsCommand(chatId, telegramId, user?.user_id, supabase, lang)
-      break
-    case 'cmd_goals':
-      await showGoals(chatId, telegramId, user?.user_id, supabase, lang)
-      break
-    case 'cmd_limits':
-      await showLimits(chatId, telegramId, user?.user_id, supabase, lang)
-      break
-    case 'cmd_link_info':
-      await sendMessage(chatId, `🔗 <b>${tr.linkAccount}</b>
+  // Handle confirmation actions
+  if (data.startsWith('confirm_limit_')) {
+    const parts = data.replace('confirm_limit_', '').split('_')
+    const category = parts[0]
+    const amount = parseFloat(parts[1])
+    
+    if (!user?.user_id) {
+      await sendLinkInstructions(chatId, lang, 'balance')
+      return
+    }
 
-${tr.linkInstructions}
+    const { error } = await supabase
+      .from('limits')
+      .upsert({
+        user_id: user.user_id,
+        category_id: category,
+        amount: amount,
+        period: 'monthly',
+        created_at: new Date().toISOString()
+      }, { onConflict: 'user_id,category_id' })
+
+    if (error) {
+      console.error('Limit save error:', error)
+      await sendMessage(chatId, `❌ ${tr2.linkError}`)
+    } else {
+      await sendMessage(chatId, `✅ <b>${tr2.limitSet}</b>
+
+📋 ${tr2.category}: ${getCatName(category, lang)}
+💰 ${tr2.limits}: ${formatMoney(amount)} UZS${tr2.per}${lang === 'ru' ? 'мес' : lang === 'en' ? 'mo' : 'oy'}`)
+    }
+  } else if (data.startsWith('confirm_goal_')) {
+    const parts = data.replace('confirm_goal_', '').split('_')
+    const name = parts[0]
+    const target = parseFloat(parts[1])
+    const months = parseInt(parts[2]) || 12
+    
+    if (!user?.user_id) {
+      await sendLinkInstructions(chatId, lang, 'balance')
+      return
+    }
+
+    const deadline = new Date()
+    deadline.setMonth(deadline.getMonth() + months)
+
+    const { error } = await supabase
+      .from('goals')
+      .insert({
+        user_id: user.user_id,
+        name: name,
+        target: target,
+        current: 0,
+        deadline: deadline.toISOString().slice(0, 10),
+        created_at: new Date().toISOString()
+      })
+
+    if (error) {
+      console.error('Goal save error:', error)
+      await sendMessage(chatId, `❌ ${tr2.linkError}`)
+    } else {
+      const monthlyRequired = Math.round(target / months)
+      await sendMessage(chatId, `✅ <b>${tr2.goalCreated}</b>
+
+🎯 ${name}
+💰 ${tr2.target}: ${formatMoney(target)} UZS
+📅 ${tr2.deadline}: ${months} ${lang === 'ru' ? 'мес' : lang === 'en' ? 'months' : 'oy'}
+💵 ${tr2.monthly}: ${formatMoney(monthlyRequired)} UZS
+
+${tr2.saveEachMonth}`)
+    }
+  } else if (data.startsWith('confirm_transfer_')) {
+    const parts = data.replace('confirm_transfer_', '').split('_')
+    const fromCategory = parts[0]
+    const toCategory = parts[1]
+    const amount = parseFloat(parts[2])
+    
+    if (!user?.user_id) {
+      await sendLinkInstructions(chatId, lang, 'balance')
+      return
+    }
+
+    const now = new Date()
+    const dateStr = now.toISOString().slice(0, 10)
+    
+    // Create two transactions: negative from source, positive to destination
+    const { error: error1 } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.user_id,
+        category_id: fromCategory,
+        amount: -Math.abs(amount),
+        date: dateStr,
+        description: `${tr2.transferTo} ${getCatName(toCategory, lang)}`,
+        source: 'telegram',
+        type: 'transfer',
+        telegram_id: telegramId,
+        created_at: now.toISOString()
+      })
+
+    const { error: error2 } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.user_id,
+        category_id: toCategory,
+        amount: Math.abs(amount),
+        date: dateStr,
+        description: `${tr2.transferFrom} ${getCatName(fromCategory, lang)}`,
+        source: 'telegram',
+        type: 'transfer',
+        telegram_id: telegramId,
+        created_at: now.toISOString()
+      })
+
+    if (error1 || error2) {
+      console.error('Transfer save error:', error1 || error2)
+      await sendMessage(chatId, `❌ ${tr2.linkError}`)
+    } else {
+      await sendMessage(chatId, `✅ <b>${tr2.transferCreated}</b>
+
+${tr2.fromCategory}: ${getCatName(fromCategory, lang)}
+${tr2.toCategory}: ${getCatName(toCategory, lang)}
+💰 ${tr2.transferAmount}: ${formatMoney(amount)} UZS`)
+    }
+  } else if (data.startsWith('select_limit_cat_')) {
+    const category = data.replace('select_limit_cat_', '')
+    await sendMessage(chatId, `📋 <b>${getCatName(category, lang)}</b>
+
+${tr2.enterAmount}:
+<code>/limit ${category} 500000</code>`)
+  } else if (data.startsWith('select_transfer_from_')) {
+    const category = data.replace('select_transfer_from_', '')
+    // Store in user state or show next step
+    await showTransferCategorySelection(chatId, user?.user_id, supabase, lang, 'to')
+  } else if (data.startsWith('select_transfer_to_')) {
+    const category = data.replace('select_transfer_to_', '')
+    await sendMessage(chatId, `💸 ${tr2.enterAmount}:
+<code>/transfer FROM_CATEGORY ${category} 50000</code>`)
+  } else if (data === 'cancel_action') {
+    await sendMessage(chatId, `❌ ${tr2.actionCancelled}`)
+  } else if (data === 'cmd_transfer') {
+    await handleTransferCommand('/transfer', chatId, telegramId, user?.user_id, supabase, lang)
+  } else if (data === 'start_goal_flow') {
+    await sendMessage(chatId, `🎯 <b>${tr2.newGoal}</b>
+
+${tr2.example}:
+<code>/goal Car 50000000 12</code>
+
+${tr2.enterGoalName}: Maqsad nomi
+${tr2.enterGoalTarget}: Maqsad summasi
+${tr2.enterGoalMonths}: Oy soni`)
+  } else if (data === 'dismiss') {
+    // Just acknowledge
+    await sendMessage(chatId, `✅`)
+  } else if (data.startsWith('set_lang_')) {
+    const selectedLang = data.replace('set_lang_', '') as Lang
+    // Language is already detected from profile/telegram, but we can acknowledge
+    await sendMessage(chatId, `✅ ${t(selectedLang).hello}!`)
+    await sendWelcomeMessage(chatId, callback.from.first_name, selectedLang)
+  } else {
+    // Original switch cases
+    switch (data) {
+      case 'cmd_balance':
+        if (!user?.user_id) {
+          await sendLinkInstructions(chatId, lang, 'balance')
+        } else {
+          await handleBalanceCommand(chatId, telegramId, user.user_id, supabase, lang)
+        }
+        break
+      case 'cmd_stats':
+        if (!user?.user_id) {
+          await sendLinkInstructions(chatId, lang, 'stats')
+        } else {
+          await handleStatsCommand(chatId, telegramId, user.user_id, supabase, lang)
+        }
+        break
+      case 'cmd_goals':
+        await showGoals(chatId, telegramId, user?.user_id, supabase, lang)
+        break
+      case 'cmd_limits':
+        await showLimits(chatId, telegramId, user?.user_id, supabase, lang)
+        break
+      case 'cmd_link_info':
+        await sendMessage(chatId, `🔗 <b>${tr2.linkAccount}</b>
+
+${tr2.linkInstructions}
 
 <code>/link YOUR_CODE</code>`)
-      break
-    case 'set_limit_taxi':
-    case 'set_limit_food':
-    case 'set_limit_shopping':
-    case 'set_limit_entertainment':
-      const category = data.replace('set_limit_', '')
-      await sendMessage(chatId, `📋 <b>${getCatName(category, lang)} ${tr.limits.toLowerCase()}</b>
+        break
+      case 'set_limit_taxi':
+      case 'set_limit_food':
+      case 'set_limit_shopping':
+      case 'set_limit_entertainment':
+        const category = data.replace('set_limit_', '')
+        await sendMessage(chatId, `📋 <b>${getCatName(category, lang)} ${tr2.limits.toLowerCase()}</b>
 
-${tr.example}:
+${tr2.example}:
 <code>/limit ${category} 500000</code>`)
-      break
-    case 'add_goal':
-      await sendMessage(chatId, `🎯 <b>${tr.newGoal}</b>
+        break
+      case 'add_goal':
+        await sendMessage(chatId, `🎯 <b>${tr2.newGoal}</b>
 
-${tr.example}:
+${tr2.example}:
 <code>/goal Car 50000000 12</code>`)
-      break
+        break
+    }
   }
 }
 
@@ -633,35 +1018,76 @@ ${tr.linkInstructions}`)
       return
     }
 
-    const { error } = await supabase
-      .from('limits')
-      .upsert({
-        user_id: appUserId,
-        category_id: category,
-        amount: amount,
-        period: 'monthly',
-        created_at: new Date().toISOString()
-      }, { onConflict: 'user_id,category_id' })
-
-    if (error) {
-      console.error('Limit save error:', error)
-      await sendMessage(chatId, `❌ ${tr.linkError}`)
-      return
+    // Show confirmation
+    const confirmText = { uz: '✅ Tasdiqlash', ru: '✅ Подтвердить', en: '✅ Confirm' }
+    const cancelText = { uz: '❌ Bekor', ru: '❌ Отмена', en: '❌ Cancel' }
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: confirmText[lang], callback_data: `confirm_limit_${category}_${amount}` },
+          { text: cancelText[lang], callback_data: 'cancel_action' }
+        ]
+      ]
     }
 
-    await sendMessage(chatId, `✅ <b>${tr.limitSet}</b>
+    await sendMessage(chatId, `📋 <b>${tr.confirmAction}</b>
 
-📋 ${tr.category}: ${getCatName(category, lang)}
-💰 ${tr.limits}: ${formatMoney(amount)} UZS${tr.per}${lang === 'ru' ? 'мес' : lang === 'en' ? 'mo' : 'oy'}`)
+${tr.category}: ${getCatName(category, lang)}
+💰 ${tr.limits}: ${formatMoney(amount)} UZS${tr.per}${lang === 'ru' ? 'мес' : lang === 'en' ? 'mo' : 'oy'}`, { reply_markup: keyboard })
     return
   }
 
-  await sendMessage(chatId, `📋 <b>${tr.setLimit}</b>
+  // Show category selection
+  await showLimitCategorySelection(chatId, appUserId, supabase, lang)
+}
 
-${tr.example}:
-• /limit taxi 500000
-• /limit food 1000000
-• /limit shopping 2000000`)
+async function showLimitCategorySelection(chatId: number, appUserId: string | null, supabase: any, lang: Lang) {
+  const tr = t(lang)
+  
+  if (!appUserId) {
+    const linkText = { uz: '🔗 Hisobni ulash', ru: '🔗 Привязать аккаунт', en: '🔗 Link Account' }
+    const keyboard = {
+      inline_keyboard: [[
+        { text: linkText[lang], callback_data: 'cmd_link_info' }
+      ]]
+    }
+    await sendMessage(chatId, `⚠️ ${tr.notLinked}
+
+${tr.linkInstructions}
+
+<code>/link YOUR_CODE</code>`, { reply_markup: keyboard })
+    return
+  }
+
+  const categories = ['taxi', 'food', 'shopping', 'entertainment', 'coffee', 'transport', 'health', 'bills']
+  const keyboardRows: any[][] = []
+  
+  for (let i = 0; i < categories.length; i += 2) {
+    const row: any[] = []
+    const cat1 = categories[i]
+    const cat2 = categories[i + 1]
+    
+    row.push({
+      text: `${categoryEmojis[cat1]} ${getCatName(cat1, lang)}`,
+      callback_data: `select_limit_cat_${cat1}`
+    })
+    
+    if (cat2) {
+      row.push({
+        text: `${categoryEmojis[cat2]} ${getCatName(cat2, lang)}`,
+        callback_data: `select_limit_cat_${cat2}`
+      })
+    }
+    
+    keyboardRows.push(row)
+  }
+
+  const keyboard = { inline_keyboard: keyboardRows }
+  
+  await sendMessage(chatId, `📋 <b>${tr.selectCategory}</b>
+
+${tr.example}: <code>/limit taxi 500000</code>`, { reply_markup: keyboard })
 }
 
 async function showLimits(chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
@@ -780,45 +1206,50 @@ async function handleGoalCommand(text: string, chatId: number, telegramId: numbe
       return
     }
 
+    // Show confirmation
+    const confirmText = { uz: '✅ Tasdiqlash', ru: '✅ Подтвердить', en: '✅ Confirm' }
+    const cancelText = { uz: '❌ Bekor', ru: '❌ Отмена', en: '❌ Cancel' }
+    
     const deadline = new Date()
     deadline.setMonth(deadline.getMonth() + months)
-
-    const { error } = await supabase
-      .from('goals')
-      .insert({
-        user_id: appUserId,
-        name: name,
-        target: target,
-        current: 0,
-        deadline: deadline.toISOString().slice(0, 10),
-        created_at: new Date().toISOString()
-      })
-
-    if (error) {
-      console.error('Goal save error:', error)
-      await sendMessage(chatId, `❌ ${tr.linkError}`)
-      return
+    const monthlyRequired = Math.round(target / months)
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: confirmText[lang], callback_data: `confirm_goal_${name}_${target}_${months}` },
+          { text: cancelText[lang], callback_data: 'cancel_action' }
+        ]
+      ]
     }
 
-    const monthlyRequired = Math.round(target / months)
+    await sendMessage(chatId, `🎯 <b>${tr.confirmAction}</b>
 
-    await sendMessage(chatId, `✅ <b>${tr.goalCreated}</b>
-
-🎯 ${name}
+${tr.newGoal}: ${name}
 💰 ${tr.target}: ${formatMoney(target)} UZS
 📅 ${tr.deadline}: ${months} ${lang === 'ru' ? 'мес' : lang === 'en' ? 'months' : 'oy'}
-💵 ${tr.monthly}: ${formatMoney(monthlyRequired)} UZS
-
-${tr.saveEachMonth}`)
+💵 ${tr.monthly}: ${formatMoney(monthlyRequired)} UZS`, { reply_markup: keyboard })
     return
+  }
+
+  // Show goal creation guide
+  const addGoalText = { uz: '➕ Maqsad qo\'shish', ru: '➕ Добавить цель', en: '➕ Add Goal' }
+  const keyboard = {
+    inline_keyboard: [[
+      { text: addGoalText[lang], callback_data: 'start_goal_flow' }
+    ]]
   }
 
   await sendMessage(chatId, `🎯 <b>${tr.createGoal}</b>
 
 ${tr.example}:
-• /goal Car 50000000 12
-• /goal iPhone 15000000 6
-• /goal Vacation 10000000 8`)
+• <code>/goal Car 50000000 12</code>
+• <code>/goal iPhone 15000000 6</code>
+• <code>/goal Vacation 10000000 8</code>
+
+${tr.enterGoalName}: Maqsad nomi
+${tr.enterGoalTarget}: Maqsad summasi
+${tr.enterGoalMonths}: Oy soni`, { reply_markup: keyboard })
 }
 
 async function showGoals(chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
@@ -885,7 +1316,7 @@ ${formatMoney(goal.current)} / ${formatMoney(goal.target)} UZS
   await sendMessage(chatId, message, { reply_markup: keyboard })
 }
 
-async function handleRemindCommand(text: string, chatId: number, telegramId: number, supabase: any, lang: Lang) {
+async function handleRemindCommand(text: string, chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
   const tr = t(lang)
   const parts = text.split(' ').filter(p => p)
   
@@ -893,9 +1324,9 @@ async function handleRemindCommand(text: string, chatId: number, telegramId: num
     await sendMessage(chatId, `⏰ <b>${tr.reminder}</b>
 
 ${tr.example}:
-• /remind Rent 25
-• /remind Credit 1
-• /remind Bills 15`)
+• <code>/remind Rent 25</code>
+• <code>/remind Credit 1</code>
+• <code>/remind Bills 15</code>`)
     return
   }
 
@@ -906,16 +1337,174 @@ ${tr.example}:
   if (!day || day < 1 || day > 31 || !reminderText) {
     await sendMessage(chatId, `❌ ${tr.wrongFormat}
 
-${tr.example}: /remind Rent 25`)
+${tr.example}: <code>/remind Rent 25</code>`)
     return
   }
 
-  await sendMessage(chatId, `✅ <b>${tr.reminderSet}</b>
+  if (!appUserId) {
+    await sendMessage(chatId, `⚠️ ${tr.notLinked}
+
+${tr.linkInstructions}
+
+<code>/link YOUR_CODE</code>`)
+    return
+  }
+
+  // Save reminder (using a simple JSON storage in telegram_users table or create reminders table)
+  // For now, we'll store it in a simple format
+  try {
+    const { data: existing } = await supabase
+      .from('telegram_users')
+      .select('reminders')
+      .eq('telegram_id', telegramId)
+      .single()
+
+    const reminders = existing?.reminders || []
+    reminders.push({
+      text: reminderText,
+      day: day,
+      created_at: new Date().toISOString()
+    })
+
+    await supabase
+      .from('telegram_users')
+      .update({ reminders: reminders })
+      .eq('telegram_id', telegramId)
+
+    const confirmText = { uz: '✅ Tushundim', ru: '✅ Понятно', en: '✅ Got it' }
+    const keyboard = {
+      inline_keyboard: [[
+        { text: confirmText[lang], callback_data: 'dismiss' }
+      ]]
+    }
+
+    await sendMessage(chatId, `✅ <b>${tr.reminderSaved}</b>
+
+📝 ${reminderText}
+📅 ${tr.everyMonth} ${day}${tr.dayOf}
+
+<i>${tr.willNotify}</i>`, { reply_markup: keyboard })
+  } catch (error) {
+    console.error('Reminder save error:', error)
+    await sendMessage(chatId, `✅ <b>${tr.reminderSet}</b>
 
 📝 ${reminderText}
 📅 ${tr.everyMonth} ${day}${tr.dayOf}
 
 <i>${tr.willNotify}</i>`)
+  }
+}
+
+async function handleTransferCommand(text: string, chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
+  const tr = t(lang)
+  const parts = text.split(' ').filter(p => p)
+  
+  if (parts.length === 1) {
+    // Show category selection for transfer
+    await showTransferCategorySelection(chatId, appUserId, supabase, lang, 'from')
+    return
+  }
+  
+  if (parts.length >= 4) {
+    // Format: /transfer from_category to_category amount
+    const fromCategory = parts[1].toLowerCase()
+    const toCategory = parts[2].toLowerCase()
+    const amount = parseFloat(parts[3].replace(/[,\s]/g, ''))
+    
+    if (isNaN(amount) || amount <= 0) {
+      await sendMessage(chatId, `❌ ${tr.wrongFormat} ${tr.example}: /transfer taxi food 50000`)
+      return
+    }
+
+    if (fromCategory === toCategory) {
+      await sendMessage(chatId, `❌ ${tr.wrongFormat}: ${tr.fromCategory} va ${tr.toCategory} bir xil bo'lmasligi kerak`)
+      return
+    }
+
+    if (!appUserId) {
+      await sendMessage(chatId, `⚠️ ${tr.notLinked}
+
+${tr.linkInstructions}
+
+<code>/link YOUR_CODE</code>`)
+      return
+    }
+
+    // Show confirmation
+    const confirmText = { uz: '✅ Tasdiqlash', ru: '✅ Подтвердить', en: '✅ Confirm' }
+    const cancelText = { uz: '❌ Bekor', ru: '❌ Отмена', en: '❌ Cancel' }
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: confirmText[lang], callback_data: `confirm_transfer_${fromCategory}_${toCategory}_${amount}` },
+          { text: cancelText[lang], callback_data: 'cancel_action' }
+        ]
+      ]
+    }
+
+    await sendMessage(chatId, `💸 <b>${tr.confirmAction}</b>
+
+${tr.fromCategory}: ${getCatName(fromCategory, lang)}
+${tr.toCategory}: ${getCatName(toCategory, lang)}
+💰 ${tr.transferAmount}: ${formatMoney(amount)} UZS`, { reply_markup: keyboard })
+    return
+  }
+
+  await sendMessage(chatId, `💸 <b>${tr.transfer}</b>
+
+${tr.example}:
+• <code>/transfer taxi food 50000</code>
+• <code>/transfer shopping entertainment 100000</code>`)
+}
+
+async function showTransferCategorySelection(chatId: number, appUserId: string | null, supabase: any, lang: Lang, step: 'from' | 'to') {
+  const tr = t(lang)
+  
+  if (!appUserId) {
+    const linkText = { uz: '🔗 Hisobni ulash', ru: '🔗 Привязать аккаунт', en: '🔗 Link Account' }
+    const keyboard = {
+      inline_keyboard: [[
+        { text: linkText[lang], callback_data: 'cmd_link_info' }
+      ]]
+    }
+    await sendMessage(chatId, `⚠️ ${tr.notLinked}
+
+${tr.linkInstructions}
+
+<code>/link YOUR_CODE</code>`, { reply_markup: keyboard })
+    return
+  }
+
+  const categories = ['taxi', 'food', 'shopping', 'entertainment', 'coffee', 'transport', 'health', 'bills']
+  const keyboardRows: any[][] = []
+  
+  for (let i = 0; i < categories.length; i += 2) {
+    const row: any[] = []
+    const cat1 = categories[i]
+    const cat2 = categories[i + 1]
+    
+    row.push({
+      text: `${categoryEmojis[cat1]} ${getCatName(cat1, lang)}`,
+      callback_data: `select_transfer_${step}_${cat1}`
+    })
+    
+    if (cat2) {
+      row.push({
+        text: `${categoryEmojis[cat2]} ${getCatName(cat2, lang)}`,
+        callback_data: `select_transfer_${step}_${cat2}`
+      })
+    }
+    
+    keyboardRows.push(row)
+  }
+
+  const keyboard = { inline_keyboard: keyboardRows }
+  const stepText = step === 'from' ? tr.fromCategory : tr.toCategory
+  
+  await sendMessage(chatId, `💸 <b>${stepText}</b>
+
+${tr.selectCategory}`, { reply_markup: keyboard })
 }
 
 async function handleStatsCommand(chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
@@ -995,6 +1584,64 @@ async function handleStatsCommand(chatId: number, telegramId: number, appUserId:
   await sendMessage(chatId, message, { reply_markup: keyboard })
 }
 
+async function handleSpentQuery(chatId: number, telegramId: number, appUserId: string, period: 'today' | 'week' | 'month', supabase: any, lang: Lang) {
+  const tr = t(lang)
+  
+  let startDate: string
+  const today = new Date().toISOString().slice(0, 10)
+  
+  if (period === 'today') {
+    startDate = today
+  } else if (period === 'week') {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay()) // Start of week (Sunday)
+    startDate = d.toISOString().slice(0, 10)
+  } else {
+    startDate = today.slice(0, 7) + '-01' // First day of month
+  }
+  
+  const { data: transactions } = await supabase
+    .from('transactions')
+    .select('amount')
+    .eq('user_id', appUserId)
+    .gte('date', startDate)
+    .lt('amount', 0)
+  
+  const spent = transactions?.reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0) || 0
+  
+  const periodLabels = {
+    today: { uz: 'Bugun', ru: 'Сегодня', en: 'Today' },
+    week: { uz: 'Shu hafta', ru: 'Эта неделя', en: 'This week' },
+    month: { uz: 'Shu oy', ru: 'Этот месяц', en: 'This month' }
+  }
+  
+  await sendMessage(chatId, `💰 <b>${periodLabels[period][lang]}:</b> ${formatMoney(spent)} UZS`)
+}
+
+async function sendLinkInstructions(chatId: number, lang: Lang, queryType: 'spent' | 'balance' | 'stats') {
+  const tr = t(lang)
+  
+  const messages = {
+    spent: {
+      uz: `⚠️ <b>Hisobingiz ulanmagan</b>\n\nStatistikani ko'rish uchun ilovangizni ulashingiz kerak.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      ru: `⚠️ <b>Аккаунт не привязан</b>\n\nЧтобы увидеть статистику, нужно привязать аккаунт.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      en: `⚠️ <b>Account not linked</b>\n\nTo view statistics, you need to link your account.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`
+    },
+    balance: {
+      uz: `⚠️ <b>Hisobingiz ulanmagan</b>\n\nBalansni ko'rish uchun ilovangizni ulashingiz kerak.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      ru: `⚠️ <b>Аккаунт не привязан</b>\n\nЧтобы увидеть баланс, нужно привязать аккаунт.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      en: `⚠️ <b>Account not linked</b>\n\nTo view balance, you need to link your account.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`
+    },
+    stats: {
+      uz: `⚠️ <b>Hisobingiz ulanmagan</b>\n\nStatistikani ko'rish uchun ilovangizni ulashingiz kerak.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      ru: `⚠️ <b>Аккаунт не привязан</b>\n\nЧтобы увидеть статистику, нужно привязать аккаунт.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`,
+      en: `⚠️ <b>Account not linked</b>\n\nTo view statistics, you need to link your account.\n\n${tr.linkInstructions}\n\n<code>/link YOUR_CODE</code>`
+    }
+  }
+  
+  await sendMessage(chatId, messages[queryType][lang])
+}
+
 async function handleBalanceCommand(chatId: number, telegramId: number, appUserId: string | null, supabase: any, lang: Lang) {
   const tr = t(lang)
   const balance = await getBalance(telegramId, appUserId, supabase, lang)
@@ -1012,16 +1659,43 @@ async function handleBalanceCommand(chatId: number, telegramId: number, appUserI
   await sendMessage(chatId, `💰 <b>${tr.balance}:</b> ${balance}`, { reply_markup: keyboard })
 }
 
+async function showLanguageSelection(chatId: number, currentLang: Lang) {
+  const tr = t(currentLang)
+  
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: '🇺🇿 O\'zbek', callback_data: 'set_lang_uz' },
+        { text: '🇷🇺 Русский', callback_data: 'set_lang_ru' }
+      ],
+      [
+        { text: '🇬🇧 English', callback_data: 'set_lang_en' }
+      ]
+    ]
+  }
+
+  await sendMessage(chatId, `🌐 <b>${tr.selectLanguage}</b>
+
+Iltimos, tilni tanlang / Пожалуйста, выберите язык / Please select language:`, { reply_markup: keyboard })
+}
+
 async function handleLinkCommand(text: string, chatId: number, telegramId: number, username: string | undefined, user: any, supabase: any, lang: Lang) {
   const tr = t(lang)
   const code = text.split(' ')[1]?.trim().toUpperCase()
   
   if (!code) {
+    const linkText = { uz: '📱 Ilovani ochish', ru: '📱 Открыть приложение', en: '📱 Open app' }
+    const keyboard = {
+      inline_keyboard: [[
+        { text: linkText[lang], url: 'https://monex.app' }
+      ]]
+    }
+    
     await sendMessage(chatId, `🔗 <b>${tr.linkAccount}</b>
 
 ${tr.linkInstructions}
 
-<code>/link YOUR_CODE</code>`)
+<code>/link YOUR_CODE</code>`, { reply_markup: keyboard })
     return
   }
 
@@ -1323,6 +1997,8 @@ async function sendHelpMessage(chatId: number, lang: Lang) {
   const statsText = { uz: '📊 Statistika', ru: '📊 Статистика', en: '📊 Stats' }
   const goalsText = { uz: '🎯 Maqsadlar', ru: '🎯 Цели', en: '🎯 Goals' }
   const limitsText = { uz: '📋 Limitlar', ru: '📋 Лимиты', en: '📋 Limits' }
+  const linkText = { uz: '🔗 Ulash', ru: '🔗 Привязать', en: '🔗 Link' }
+  const transferText = { uz: '💸 O\'tkazma', ru: '💸 Перевод', en: '💸 Transfer' }
   
   const keyboard = {
     inline_keyboard: [
@@ -1333,6 +2009,10 @@ async function sendHelpMessage(chatId: number, lang: Lang) {
       [
         { text: goalsText[lang], callback_data: 'cmd_goals' },
         { text: limitsText[lang], callback_data: 'cmd_limits' }
+      ],
+      [
+        { text: transferText[lang], callback_data: 'cmd_transfer' },
+        { text: linkText[lang], callback_data: 'cmd_link_info' }
       ]
     ]
   }
@@ -1349,6 +2029,7 @@ async function sendHelpMessage(chatId: number, lang: Lang) {
 • /limit — ${tr.manageLimits}
 • /goal — ${tr.manageGoals}
 • /remind — ${tr.setReminder}
+• /transfer — ${tr.transfer}
 • /link — ${tr.linkAccount}
 • /unlink — ${tr.unlinked.split('.')[0]}
 
