@@ -164,13 +164,13 @@ export const SettingsScreen = memo(() => {
   const getCurrentCurrencySymbol = () => CURRENCIES.find(c => c.code === currency)?.symbol || "UZS";
   
   return (
-    <div className="screen-container">
+    <div className="screen-container overflow-y-auto">
       {/* Header - Large Title */}
-      <div className="screen-header">
+      <div className="screen-header sticky top-0 bg-background/95 backdrop-blur-sm z-10 -mx-4 px-4 py-3">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setActiveScreen("home")}
-            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80 transition-opacity"
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center active:opacity-80 transition-opacity shadow-sm"
           >
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
@@ -625,7 +625,7 @@ const MenuItem = ({
   </button>
 );
 
-// Reusable Picker Modal - Centered for all devices
+// Reusable Picker Modal - Centered for all devices with improved scrolling
 const PickerModal = ({ 
   title, 
   onClose, 
@@ -639,30 +639,42 @@ const PickerModal = ({
   selected: string;
   onSelect: (key: string) => void;
 }) => (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+  <div 
+    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" 
+    onClick={onClose}
+    style={{ touchAction: 'none' }}
+  >
     <motion.div 
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className="bg-background rounded-3xl p-6 w-full max-w-sm max-h-[70vh] flex flex-col shadow-2xl"
+      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="bg-background rounded-3xl p-6 w-full max-w-sm max-h-[70vh] flex flex-col shadow-2xl border border-border/50"
       onClick={(e) => e.stopPropagation()}
     >
       <h3 className="text-xl font-bold text-foreground mb-4 flex-shrink-0 text-center">{title}</h3>
-      <div className="space-y-2 overflow-y-auto flex-1 pb-2 -mx-2 px-2 touch-pan-y">
+      <div 
+        className="space-y-2 overflow-y-auto flex-1 pb-2 -mx-2 px-2 overscroll-contain"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {options.map((opt) => {
           const IconComp = opt.icon;
+          const isSelected = selected === opt.key;
           return (
             <button
               key={opt.key}
               onClick={() => onSelect(opt.key)}
-              className={`w-full p-4 rounded-xl flex items-center gap-3 transition-all ${
-                selected === opt.key 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-secondary text-foreground hover:bg-secondary/80'
+              className={`w-full p-4 rounded-2xl flex items-center gap-3 transition-all duration-200 ${
+                isSelected 
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' 
+                  : 'bg-secondary/80 text-foreground hover:bg-secondary active:scale-[0.98]'
               }`}
             >
-              {IconComp && <IconComp className="w-5 h-5" />}
+              {IconComp && <IconComp className={`w-5 h-5 ${isSelected ? '' : 'text-muted-foreground'}`} />}
               <span className="font-medium">{opt.label}</span>
+              {isSelected && (
+                <Check className="w-5 h-5 ml-auto" />
+              )}
             </button>
           );
         })}
