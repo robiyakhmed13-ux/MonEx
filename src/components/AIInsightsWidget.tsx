@@ -195,62 +195,41 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
     );
   }
 
-  return (
-    <section className="mb-6">
-      {/* Section Header */}
-      <div className="section-header">
-        <div className="flex items-center gap-2">
-          <h2 className="section-title">{labels.title}</h2>
-          <button
-            onClick={() => fetchInsights(true)}
-            disabled={loading}
-            className="p-1 rounded active:opacity-60"
-            aria-label="Refresh insights"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        {insights.length > 0 && (
-          <button onClick={onOpenFullPanel} className="section-action">
-            {labels.viewAll}
-          </button>
-        )}
-      </div>
+  // Filter insights: Only show critical or high severity (premium - AI speaks rarely, but wisely)
+  const criticalInsights = insights.filter(insight => 
+    insight.severity === 'critical' || insight.severity === 'high'
+  );
+  
+  // Show only the first critical insight (one card max)
+  const displayInsight = criticalInsights.length > 0 ? criticalInsights[0] : null;
 
-      {/* Insight Cards - One idea per card, emoji + text */}
-      <div className="space-y-[14px]">
-        <AnimatePresence mode="popLayout">
-          {insights.map((insight, index) => (
-            <motion.button
-              key={insight.id || `insight-${index}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.2 }}
-              onClick={onOpenFullPanel}
-              className="w-full text-left active:opacity-80"
-            >
-              <div 
-                className="bg-card rounded-[18px] p-4 shadow-[0_1px_3px_0_rgb(0_0_0_/_0.04),0_1px_2px_-1px_rgb(0_0_0_/_0.04)] flex items-center gap-3"
-                style={{
-                  // No borders, soft shadow already applied via CSS
-                  // Spacing between cards: 14px (between 12-16)
-                }}
-              >
-                {/* Emoji */}
-                <span className="text-2xl flex-shrink-0" role="img" aria-label={insight.emoji}>
-                  {insight.emoji}
-                </span>
-                
-                {/* Text - Max 2 text sizes per card */}
-                <p className="text-body text-foreground flex-1 line-clamp-2">
-                  {insight.text}
-                </p>
-              </div>
-            </motion.button>
-          ))}
-        </AnimatePresence>
-      </div>
+  // If no critical insights, show nothing (silence is premium)
+  if (!displayInsight) {
+    return null;
+  }
+
+  return (
+    <section className="mb-card">
+      {/* Single Critical Insight Card - Premium minimal */}
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        onClick={onOpenFullPanel}
+        className="w-full text-left active:opacity-80"
+      >
+        <div className="card-insight">
+          {/* Emoji */}
+          <span className="text-2xl flex-shrink-0" role="img" aria-label={displayInsight.emoji}>
+            {displayInsight.emoji}
+          </span>
+          
+          {/* Text - One sentence only */}
+          <p className="text-body text-foreground flex-1 line-clamp-2">
+            {displayInsight.text}
+          </p>
+        </div>
+      </motion.button>
     </section>
   );
 };
