@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.telegram-daily-summary]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = true
+
+[functions.daily-push-check]
+verify_jwt = false
