@@ -2,138 +2,196 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { 
-  ChevronRight, RefreshCw, AlertTriangle, TrendingUp, 
-  Lightbulb, Trophy, Target, Zap, CheckCircle
-} from "lucide-react";
+import { RefreshCw, CheckCircle } from "lucide-react";
 
 /**
  * AI Insights Widget - Design System Rules:
- * - Insight Card pattern: 1 sentence max + premium icon
- * - AI speaks rarely but wisely
- * - Max 1-2 sentences, no paragraphs
- * - Always actionable or silent
+ * - Card radius 16-20, padding 16, spacing 12-16
+ * - No borders, soft shadow or divider
+ * - One idea per card
+ * - Max 2 text sizes per card
  * - Auto-refresh every 6 hours
- * - ICONS instead of emojis (premium feel)
+ * - Store lastUpdated timestamp
  */
 
 interface Insight {
-  type: 'warning' | 'pattern' | 'prediction' | 'suggestion' | 'achievement';
+  id: string;
+  emoji: string;
+  text: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
-  icon: string;
-  title: string;
-  message: string;
+  action?: string;
 }
 
-const CACHE_KEY = 'monex_ai_insights';
+const CACHE_KEY = 'monex_insights_cache';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 interface AIInsightsWidgetProps {
   onOpenFullPanel: () => void;
 }
 
-// Map insight types to premium Lucide icons
-const getInsightIcon = (type: Insight['type'], severity: Insight['severity']) => {
-  switch (type) {
-    case 'warning':
-      return <AlertTriangle className="w-5 h-5 text-destructive" />;
-    case 'pattern':
-      return <TrendingUp className="w-5 h-5 text-primary" />;
-    case 'prediction':
-      return <Target className="w-5 h-5 text-primary" />;
-    case 'suggestion':
-      return <Lightbulb className="w-5 h-5 text-amber-500" />;
-    case 'achievement':
-      return <Trophy className="w-5 h-5 text-income" />;
-    default:
-      return <Zap className="w-5 h-5 text-primary" />;
-  }
-};
-
 export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPanel }) => {
-  const { transactions, balance, currency, limits, goals, lang } = useApp();
+  const { transactions, balance, lang, session } = useApp();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
   // Labels in correct language based on lang setting
   const labels = {
-    title: lang === 'ru' ? 'Инсайты' : lang === 'uz' ? 'Tushunchalar' : 'Insights',
+    title: lang === 'ru' ? 'AI Инсайты' : lang === 'uz' ? 'AI Tushunchalar' : 'AI Insights',
     viewAll: lang === 'ru' ? 'Ещё' : lang === 'uz' ? 'Ko\'proq' : 'More',
     noInsights: lang === 'ru' ? 'Всё в порядке' : lang === 'uz' ? 'Hammasi yaxshi' : 'All good',
     analyzing: lang === 'ru' ? 'Анализ...' : lang === 'uz' ? 'Tahlil...' : 'Analyzing...',
   };
 
   const fetchInsights = useCallback(async (force = false) => {
-    // Check cache first
+    // Check if authenticated
+    if (!session) {
+      setInsights([]);
+      return;
+    }
+
+    // Check cache first (unless forced)
     if (!force) {
       try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Date.now() - parsed.timestamp < CACHE_TTL) {
-            setInsights(parsed.insights);
+          const cacheAge = Date.now() - parsed.timestamp;
+          
+          // Use cache if less than 6 hours old
+          if (cacheAge < CACHE_TTL) {
+            setInsights(parsed.insights || []);
+            setLastUpdated(parsed.timestamp);
             return;
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        // Invalid cache, continue to fetch
+      }
     }
 
+    // If no transactions, return empty (but don't show error)
     if (transactions.length === 0) {
       setInsights([]);
+      setLastUpdated(Date.now());
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        insights: [],
+        timestamp: Date.now(),
+      }));
       return;
     }
 
     setLoading(true);
 
     try {
-      const data = await api.aiCopilot({
-        transactions: transactions.slice(0, 50),
+      const data = await api.insights({
+        transactions: transactions.map(tx => ({
+          id: tx.id,
+          type: tx.type,
+          amount: tx.amount,
+          categoryId: tx.categoryId,
+          description: tx.description,
+          date: tx.date,
+          time: tx.time,
+        })),
         balance,
-        currency,
-        limits: limits.map(l => ({ categoryId: l.categoryId, amount: l.amount })),
-        goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current })),
-        lang, // Pass language to API
+        lang,
       });
 
       if (data?.insights && !data?.error) {
-        const newInsights = data.insights.slice(0, 3);
+        const newInsights = Array.isArray(data.insights) ? data.insights : [];
         setInsights(newInsights);
+        const timestamp = Date.now();
+        setLastUpdated(timestamp);
+        
+        // Cache the results
         localStorage.setItem(CACHE_KEY, JSON.stringify({
           insights: newInsights,
-          timestamp: Date.now(),
+          timestamp,
         }));
+      } else if (data?.error) {
+        console.error('Insights API error:', data.error);
+        // On error, keep existing insights or show empty
+        if (insights.length === 0) {
+          setInsights([]);
+        }
       }
     } catch (err) {
       console.error('AI Insights error:', err);
+      // On error, keep existing insights or show empty
+      if (insights.length === 0) {
+        setInsights([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [transactions, balance, currency, limits, goals, lang]);
+  }, [transactions, balance, lang, session, insights.length]);
 
+  // Check on mount if refresh is needed (>6 hours)
   useEffect(() => {
-    fetchInsights();
-    // Auto-refresh every 6 hours
-    const interval = setInterval(() => fetchInsights(true), CACHE_TTL);
+    const checkAndRefresh = () => {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const cacheAge = Date.now() - parsed.timestamp;
+          
+          // If cache is older than 6 hours, refresh
+          if (cacheAge >= CACHE_TTL) {
+            fetchInsights(true);
+          } else {
+            // Use cached data
+            setInsights(parsed.insights || []);
+            setLastUpdated(parsed.timestamp);
+          }
+        } else {
+          // No cache, fetch immediately
+          fetchInsights(false);
+        }
+      } catch (e) {
+        // Invalid cache, fetch immediately
+        fetchInsights(false);
+      }
+    };
+
+    checkAndRefresh();
+  }, []); // Only run on mount
+
+  // Auto-refresh every 6 hours
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInsights(true);
+    }, CACHE_TTL);
     return () => clearInterval(interval);
   }, [fetchInsights]);
 
-  // Loading state - minimal with icon
+  // Loading state - minimal
   if (loading && insights.length === 0) {
     return (
-      <div className="card-insight mb-6 animate-pulse">
-        <Zap className="w-5 h-5 text-primary" />
-        <span className="text-body text-muted-foreground">{labels.analyzing}</span>
-      </div>
+      <section className="mb-6">
+        <div className="section-header">
+          <h2 className="section-title">{labels.title}</h2>
+        </div>
+        <div className="bg-card rounded-[18px] p-4 shadow-[0_1px_3px_0_rgb(0_0_0_/_0.04),0_1px_2px_-1px_rgb(0_0_0_/_0.04)] flex items-center gap-3 animate-pulse">
+          <div className="w-5 h-5 rounded-full bg-secondary" />
+          <span className="text-body text-muted-foreground">{labels.analyzing}</span>
+        </div>
+      </section>
     );
   }
 
-  // No insights - show simple "all good" message with icon
+  // No insights - show simple "all good" message
   if (insights.length === 0) {
     return (
-      <div className="card-insight mb-6">
-        <CheckCircle className="w-5 h-5 text-income" />
-        <span className="text-body text-foreground">{labels.noInsights}</span>
-      </div>
+      <section className="mb-6">
+        <div className="section-header">
+          <h2 className="section-title">{labels.title}</h2>
+        </div>
+        <div className="bg-card rounded-[18px] p-4 shadow-[0_1px_3px_0_rgb(0_0_0_/_0.04),0_1px_2px_-1px_rgb(0_0_0_/_0.04)] flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-[hsl(var(--income))]" />
+          <span className="text-body text-foreground">{labels.noInsights}</span>
+        </div>
+      </section>
     );
   }
 
@@ -147,34 +205,48 @@ export const AIInsightsWidget: React.FC<AIInsightsWidgetProps> = ({ onOpenFullPa
             onClick={() => fetchInsights(true)}
             disabled={loading}
             className="p-1 rounded active:opacity-60"
+            aria-label="Refresh insights"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        <button onClick={onOpenFullPanel} className="section-action flex items-center gap-1">
-          {labels.viewAll}
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        {insights.length > 0 && (
+          <button onClick={onOpenFullPanel} className="section-action">
+            {labels.viewAll}
+          </button>
+        )}
       </div>
 
-      {/* Insight Cards - Premium icons, ONE idea per card */}
-      <div className="space-y-3">
+      {/* Insight Cards - One idea per card, emoji + text */}
+      <div className="space-y-[14px]">
         <AnimatePresence mode="popLayout">
           {insights.map((insight, index) => (
             <motion.button
-              key={`${insight.type}-${index}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              key={insight.id || `insight-${index}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ delay: index * 0.05, duration: 0.2 }}
               onClick={onOpenFullPanel}
-              className="card-insight w-full text-left active:opacity-80"
+              className="w-full text-left active:opacity-80"
             >
-              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
-                {getInsightIcon(insight.type, insight.severity)}
+              <div 
+                className="bg-card rounded-[18px] p-4 shadow-[0_1px_3px_0_rgb(0_0_0_/_0.04),0_1px_2px_-1px_rgb(0_0_0_/_0.04)] flex items-center gap-3"
+                style={{
+                  // No borders, soft shadow already applied via CSS
+                  // Spacing between cards: 14px (between 12-16)
+                }}
+              >
+                {/* Emoji */}
+                <span className="text-2xl flex-shrink-0" role="img" aria-label={insight.emoji}>
+                  {insight.emoji}
+                </span>
+                
+                {/* Text - Max 2 text sizes per card */}
+                <p className="text-body text-foreground flex-1 line-clamp-2">
+                  {insight.text}
+                </p>
               </div>
-              <p className="card-insight-text flex-1 line-clamp-1">{insight.message || insight.title}</p>
-              <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             </motion.button>
           ))}
         </AnimatePresence>
