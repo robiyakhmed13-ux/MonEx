@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { formatUZS } from "@/lib/storage";
@@ -57,7 +58,27 @@ const SEVERITY_ICON_COLORS: Record<string, string> = {
   critical: 'text-destructive',
 };
 
+// Map action types to screen names
+const getActionRoute = (action?: string): string | null => {
+  if (!action) return null;
+  
+  switch (action) {
+    case 'move_money':
+      return 'goals'; // Savings/Goals screen
+    case 'review_category':
+    case 'review_spending':
+      return 'transactions'; // Activity/Transactions screen
+    case 'set_limit':
+      return 'limits';
+    case 'enable_cooling':
+      return 'limits';
+    default:
+      return null;
+  }
+};
+
 export const AIScreen: React.FC = () => {
+  const navigate = useNavigate();
   const { transactions, balance, currency, limits, goals, lang, t, setActiveScreen } = useApp();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
@@ -133,6 +154,18 @@ export const AIScreen: React.FC = () => {
       analyzeFinances();
     }
   }, [lastAnalyzed, analyzeFinances]);
+
+  const handleActionClick = (action?: string, actionLabel?: string) => {
+    if (!action) return;
+    
+    const screen = getActionRoute(action);
+    if (screen) {
+      // Navigate using React Router (with hash for state-based navigation)
+      navigate(`#${screen}`, { replace: false });
+      // Also update the active screen in context
+      setActiveScreen(screen as any);
+    }
+  };
 
   // Tools list (screens)
   const tools = [
@@ -363,7 +396,16 @@ export const AIScreen: React.FC = () => {
                       </h3>
                       <p className="text-caption mt-1">{insight.message}</p>
                       {insight.actionLabel && (
-                        <button className="mt-2 text-xs text-primary font-medium flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleActionClick(insight.action, insight.actionLabel);
+                          }}
+                          className="mt-2 text-xs text-primary font-medium flex items-center gap-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-1 -ml-1 transition-colors hover:underline relative z-10 active:opacity-70 touch-manipulation"
+                          role="button"
+                          aria-label={insight.actionLabel}
+                          type="button"
+                        >
                           {insight.actionLabel}
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
