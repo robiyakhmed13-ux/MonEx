@@ -6,6 +6,7 @@ import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Bell } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -40,6 +41,9 @@ const LoadingFallback = () => (
 const HamyonApp: React.FC = () => {
   const { activeScreen, onboardingComplete, setOnboardingComplete } = useApp();
   const { notifications, unreadCount, markAsRead, clearAll } = useSmartNotifications();
+  
+  // Register push notifications
+  usePushNotifications();
   
   // Modal states
   const [showAddTx, setShowAddTx] = useState(false);
