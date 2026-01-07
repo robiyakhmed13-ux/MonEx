@@ -11,6 +11,7 @@ interface Profile {
   full_name: string | null;
   telegram_id: number | null;
   telegram_username: string | null;
+  language?: string | null;
 }
 
 interface AppState {
@@ -174,16 +175,57 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const isAuthenticated = !!session;
 
-  // App state
-  const [lang, setLang] = useState<LangKey>(() => {
-    const saved = safeJSON.get("hamyon_lang", null);
-    if (saved) return saved as LangKey;
+  // Helper function to detect language from various sources
+  const detectLanguage = (): LangKey => {
+    // 1. Check localStorage first
+    const saved = safeJSON.get("monex_lang", null);
+    if (saved && (saved === 'en' || saved === 'ru' || saved === 'uz')) {
+      return saved as LangKey;
+    }
+    
+    // 2. Check Telegram WebApp language if available
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (tgUser && 'language_code' in tgUser && tgUser.language_code) {
+      const tgLang = String(tgUser.language_code).toLowerCase();
+      if (tgLang.startsWith('uz')) return 'uz';
+      if (tgLang.startsWith('ru')) return 'ru';
+    }
+    
+    // 3. Fall back to navigator.language
     const browserLang = navigator.language.toLowerCase();
     if (browserLang.startsWith('uz')) return 'uz';
     if (browserLang.startsWith('ru')) return 'ru';
+    
+    // 4. Default to English
     return 'en';
-  });
-  const t = I18N[lang] || I18N.uz;
+  };
+
+  // App state
+  const [lang, setLangState] = useState<LangKey>(detectLanguage);
+  const t = I18N[lang] || I18N.en;
+  
+  // Wrapper for setLang that also persists and syncs
+  const setLang = useCallback((newLang: LangKey) => {
+    setLangState(newLang);
+    safeJSON.set("monex_lang", newLang);
+    
+    // Sync to Supabase profile (non-blocking, don't wait)
+    if (isAuthenticated && user?.id) {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ language: newLang } as any)
+            .eq('id', user.id);
+          if (error) {
+            console.warn('Failed to sync language to profile:', error);
+          }
+        } catch (err: any) {
+          console.warn('Error syncing language:', err);
+        }
+      })();
+    }
+  }, [isAuthenticated, user?.id]);
   
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
   const [remoteOk, setRemoteOk] = useState(false);
@@ -259,8 +301,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTgUser(u);
   }, []);
   
+  // Sync language from profile when profile loads (non-blocking, only if no localStorage preference)
+  useEffect(() => {
+    if (profile?.language && (profile.language === 'en' || profile.language === 'ru' || profile.language === 'uz')) {
+      const savedLang = safeJSON.get("monex_lang", null);
+      // Only use profile language if user hasn't explicitly set one in localStorage
+      if (!savedLang && lang !== profile.language) {
+        setLangState(profile.language as LangKey);
+        safeJSON.set("monex_lang", profile.language);
+      }
+    }
+  }, [profile?.language]); // Only run when profile language changes
+
   // Persist to localStorage
-  useEffect(() => safeJSON.set("hamyon_lang", lang), [lang]);
   useEffect(() => safeJSON.set("hamyon_dataMode", dataMode), [dataMode]);
   useEffect(() => safeJSON.set("hamyon_balance", balance), [balance]);
   useEffect(() => safeJSON.set("hamyon_transactions", transactions), [transactions]);
@@ -460,6 +513,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // Transaction operations
   const addTransaction = useCallback(async (txData: Omit<Transaction, "id">) => {
+    let tx: Transaction;
+    
     if (isAuthenticated && user?.id) {
       // Save to Supabase
       const { data, error } = await supabase
@@ -482,7 +537,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
 
-      const tx: Transaction = {
+      tx = {
         id: data.id,
         type: data.type as 'expense' | 'income',
         amount: Number(data.amount),
@@ -494,14 +549,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setTransactions((prev) => [tx, ...prev]);
       setBalance((b) => b + tx.amount);
+
+      // Check triggers and send push notifications (non-blocking)
+      if (tx.type === 'expense' && tx.amount < 0) {
+        import('@/lib/pushTriggers').then(async ({ checkTransactionTriggers, sendPushNotificationForTrigger }) => {
+          const updatedTransactions = [tx, ...transactions];
+          const triggers = await checkTransactionTriggers(
+            tx,
+            user.id,
+            updatedTransactions,
+            limits,
+            goals,
+            balance + tx.amount
+          );
+          
+          for (const trigger of triggers) {
+            await sendPushNotificationForTrigger(user.id, trigger);
+          }
+        }).catch(err => console.error('Error checking triggers:', err));
+      }
     } else {
       // Local only
-      const tx: Transaction = { ...txData, id: uid() };
+      tx = { ...txData, id: uid() };
       setTransactions((prev) => [tx, ...prev]);
       setBalance((b) => b + tx.amount);
     }
     showToast("✓", true);
-  }, [isAuthenticated, user?.id, showToast, t]);
+  }, [isAuthenticated, user?.id, showToast, t, transactions, limits, goals, balance]);
   
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (isAuthenticated && user?.id) {
