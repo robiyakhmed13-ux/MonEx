@@ -88,7 +88,7 @@ export const BudgetSimulatorModal: React.FC<BudgetSimulatorModalProps> = ({ isOp
       const firstGoal = goals[0];
       const remaining = firstGoal.target - firstGoal.current;
       if (remaining > 0) {
-        const dailySavings = monthlySavings / 30;
+        const dailySavings = monthlySavings / 20; // 20 working days per month (9-5 job)
         daysToGoal = Math.ceil(remaining / dailySavings);
       }
     }
@@ -103,17 +103,16 @@ export const BudgetSimulatorModal: React.FC<BudgetSimulatorModalProps> = ({ isOp
     };
   }, [selectedCategory, reductionPercent, categorySpending, goals]);
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-        onClick={onClose}
-      >
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          onClick={onClose}
+        >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -305,6 +304,7 @@ export const BudgetSimulatorModal: React.FC<BudgetSimulatorModalProps> = ({ isOp
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };
