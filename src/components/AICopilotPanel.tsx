@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
+import { Capacitor } from "@capacitor/core";
 import { 
   Brain,
   X, 
@@ -54,21 +56,74 @@ const SEVERITY_ICON_COLORS: Record<string, string> = {
   critical: 'text-destructive',
 };
 
+// Map action types to screen names
+const getActionRoute = (action?: string): string | null => {
+  if (!action) return null;
+  
+  switch (action) {
+    case 'move_money':
+      return 'goals'; // Savings/Goals screen
+    case 'review_category':
+    case 'review_spending':
+      return 'transactions'; // Activity/Transactions screen
+    case 'set_limit':
+      return 'limits';
+    case 'enable_cooling':
+      return 'limits';
+    default:
+      return null;
+  }
+};
+
+// Haptic feedback helper (only on native platforms)
+const triggerHaptic = async () => {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      // Dynamic import to avoid errors if package not installed
+      const hapticsModule = await import("@capacitor/haptics" as any);
+      if (hapticsModule?.Haptics) {
+        await hapticsModule.Haptics.impact({ style: hapticsModule.ImpactStyle?.Light || 'light' });
+      }
+    } catch (err) {
+      // Silently fail if haptics not available
+      console.debug('Haptics not available:', err);
+    }
+  }
+};
+
 export const AICopilotPanel: React.FC<AICopilotPanelProps> = ({ isOpen, onClose }) => {
-  const { transactions, balance, currency, limits, goals, lang, t } = useApp();
+  const navigate = useNavigate();
+  const { transactions, balance, currency, limits, goals, lang, t, setActiveScreen } = useApp();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastAnalyzed, setLastAnalyzed] = useState<Date | null>(null);
+  
+  const handleActionClick = async (action?: string, actionLabel?: string) => {
+    if (!action) return;
+    
+    // Trigger haptic feedback on tap
+    await triggerHaptic();
+    
+    const screen = getActionRoute(action);
+    if (screen) {
+      // Close the modal first
+      onClose();
+      // Navigate using React Router (with hash for state-based navigation)
+      navigate(`#${screen}`, { replace: false });
+      // Also update the active screen in context
+      setActiveScreen(screen as any);
+    }
+  };
 
   const labels = {
-    title: lang === 'ru' ? 'AI Копилот' : lang === 'uz' ? 'AI Kopilot' : 'AI Copilot',
-    subtitle: lang === 'ru' ? 'Финансовый помощник MonEX' : lang === 'uz' ? 'MonEX moliyaviy yordamchi' : 'MonEX Financial Assistant',
-    analyzing: lang === 'ru' ? 'Анализирую ваши финансы...' : lang === 'uz' ? 'Moliyangizni tahlil qilmoqdaman...' : 'Analyzing your finances...',
-    refresh: lang === 'ru' ? 'Обновить анализ' : lang === 'uz' ? 'Tahlilni yangilash' : 'Refresh Analysis',
-    noInsights: lang === 'ru' ? 'Всё отлично! Нет предупреждений.' : lang === 'uz' ? 'Hammasi yaxshi! Ogohlantirishlar yo\'q.' : 'All good! No warnings.',
-    lastUpdated: lang === 'ru' ? 'Обновлено' : lang === 'uz' ? 'Yangilangan' : 'Updated',
-    errorMsg: lang === 'ru' ? 'Ошибка анализа' : lang === 'uz' ? 'Tahlil xatosi' : 'Analysis error',
+    title: t.aiCopilot,
+    subtitle: t.aiCopilotSubtitle,
+    analyzing: t.analyzingFinances,
+    refresh: t.refreshAnalysis,
+    noInsights: t.noWarnings,
+    lastUpdated: t.updated,
+    errorMsg: t.analysisError,
   };
 
   const analyzeFinances = useCallback(async () => {
@@ -233,8 +288,22 @@ export const AICopilotPanel: React.FC<AICopilotPanelProps> = ({ isOpen, onClose 
                         {insight.message}
                       </p>
                       {insight.actionLabel && (
-                        <button className="mt-2 text-sm text-primary font-medium flex items-center gap-1 hover:underline">
-                          {insight.actionLabel}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleActionClick(insight.action, insight.actionLabel);
+                          }}
+                          onTouchStart={(e) => {
+                            // Ensure touch events work on mobile
+                            e.stopPropagation();
+                          }}
+                          className="mt-3 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 active:bg-primary/30 border border-primary/20 hover:border-primary/30 text-primary font-medium flex items-center justify-center gap-2 transition-all duration-200 relative z-20 touch-manipulation select-none focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+                          role="button"
+                          aria-label={insight.actionLabel}
+                          type="button"
+                        >
+                          <span>{insight.actionLabel}</span>
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       )}
