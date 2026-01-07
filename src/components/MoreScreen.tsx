@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { safeJSON } from "@/lib/storage";
+import { safeJSON, formatUZS } from "@/lib/storage";
 import { 
   Target, CreditCard, PieChart, Wallet, TrendingUp, Calculator,
   Receipt, Users, Repeat, FileText, DollarSign, ArrowLeft,
-  Settings, Search, Star, X, Brain, Sparkles, Flag
+  Settings, Search, Star, X, Brain, Sparkles, Flag, Plus,
+  Calendar, ChevronRight
 } from "lucide-react";
 import { ScreenType } from "@/types";
 import { AICopilotPanel } from "./AICopilotPanel";
@@ -41,12 +42,14 @@ const TOOLS: ToolItem[] = [
 const STORAGE_KEY = "hamyon_tool_usage";
 
 export const MoreScreen: React.FC = () => {
-  const { setActiveScreen, t, lang } = useApp();
+  const { setActiveScreen, t, lang, goals, limits, getCat, catLabel, monthSpentByCategory, setActiveScreen: navigateTo } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [toolUsage, setToolUsage] = useState<Record<string, number>>(() => safeJSON.get(STORAGE_KEY, {}));
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [showFinancePlanner, setShowFinancePlanner] = useState(false);
   const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
+  
+  const motionConfig = { duration: 0.2, ease: "easeOut" as const };
 
   const handleToolClick = (screen: ScreenType) => {
     const newUsage = { ...toolUsage, [screen]: (toolUsage[screen] || 0) + 1 };
@@ -77,186 +80,188 @@ export const MoreScreen: React.FC = () => {
 
   return (
     <div className="screen-container">
-      {/* Large Title */}
+      {/* Premium Header */}
       <header className="screen-header">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setActiveScreen("home")}
-            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
-          >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
-          <h1 className="text-large-title text-foreground">{getLabel("tools")}</h1>
-        </div>
+        <h1 className="text-large-title text-foreground">
+          {lang === "ru" ? "Планирование" : lang === "uz" ? "Rejalashtirish" : "Planning"}
+        </h1>
+        <p className="text-caption mt-1">
+          {lang === "ru" ? "Ваши цели и инструменты" : lang === "uz" ? "Maqsadlaringiz va asboblar" : "Your goals and tools"}
+        </p>
       </header>
-
-      {/* AI Features Section */}
-      <section className="mb-6">
-        <div className="section-header">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-500" />
+      
+      {/* HERO: Active Goals */}
+      {goals.length > 0 && (
+        <section className="mb-card">
+          <div className="section-header">
             <h2 className="section-title">
-              {lang === "ru" ? "AI Возможности" : lang === "uz" ? "AI Imkoniyatlar" : "AI Features"}
+              {lang === "ru" ? "Цели" : lang === "uz" ? "Maqsadlar" : "Goals"}
             </h2>
+            <button onClick={() => navigateTo("goals")} className="section-action">
+              {t.viewAll}
+            </button>
           </div>
+          <div className="space-y-[14px]">
+            {goals.slice(0, 2).map((goal, index) => {
+              const progress = goal.target ? Math.min((goal.current / goal.target) * 100, 100) : 0;
+              return (
+                <motion.div
+                  key={goal.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...motionConfig, delay: index * 0.03 }}
+                  onClick={() => navigateTo("goals")}
+                  className="card-elevated active:opacity-80"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <span className="text-xl">{goal.emoji || "🎯"}</span>
+              </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body-medium text-foreground truncate">{goal.name}</p>
+                      <p className="text-caption">{progress.toFixed(0)}%</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill progress-fill-success"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+          {goals.length > 2 && (
+            <button
+              onClick={() => navigateTo("goals")}
+              className="mt-3 w-full py-2 text-caption text-primary text-center active:opacity-70"
+            >
+              {lang === "ru" ? `+${goals.length - 2} еще` : lang === "uz" ? `+${goals.length - 2} yana` : `+${goals.length - 2} more`}
+            </button>
+          )}
+        </section>
+      )}
+      
+      {/* Monthly Budgets */}
+      {limits.length > 0 && (
+        <section className="mb-card">
+          <div className="section-header">
+            <h2 className="section-title">
+              {lang === "ru" ? "Бюджеты" : lang === "uz" ? "Byudjetlar" : "Budgets"}
+            </h2>
+            <button onClick={() => navigateTo("limits")} className="section-action">
+              {t.viewAll}
+            </button>
+          </div>
+          <div className="space-y-[14px]">
+            {limits.slice(0, 2).map((lim, index) => {
+              const cat = getCat(lim.categoryId);
+              const spent = monthSpentByCategory(lim.categoryId);
+              const pct = lim.amount ? Math.round((spent / lim.amount) * 100) : 0;
+              const isOver = pct >= 100;
+              return (
+                <motion.div
+                  key={lim.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...motionConfig, delay: index * 0.03 }}
+                  onClick={() => navigateTo("limits")}
+                  className="card-info active:opacity-80"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-body-medium text-foreground">{catLabel(cat)}</span>
+                    <span className={`text-body-medium ${isOver ? 'text-destructive' : 'text-foreground'}`}>
+                      {pct}%
+                    </span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className={`progress-fill ${isOver ? 'progress-fill-danger' : ''}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Quick Actions */}
+      <section className="mb-card">
+        <div className="section-header">
+          <h2 className="section-title">
+            {lang === "ru" ? "Быстрые действия" : lang === "uz" ? "Tezkor harakatlar" : "Quick Actions"}
+          </h2>
         </div>
-
-        <div className="space-y-3">
-          {/* AI Copilot */}
-          <button
-            onClick={() => setShowAICopilot(true)}
-            className="card-action w-full flex items-center gap-4 active:opacity-80"
+        <div className="grid grid-cols-2 gap-card">
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...motionConfig, delay: 0.05 }}
+            onClick={() => navigateTo("goals")}
+            className="card-info text-left active:opacity-80"
           >
-            <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
-              <Brain className="w-6 h-6 text-violet-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+              <Target className="w-5 h-5 text-primary" />
             </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-body-medium text-foreground">
-                {lang === 'ru' ? 'AI Финансовый Копилот' : lang === 'uz' ? 'AI Moliyaviy Kopilot' : 'AI Financial Copilot'}
-              </p>
-              <p className="text-caption truncate">
-                {lang === 'ru' ? 'Анализ поведения и прогнозы' : lang === 'uz' ? 'Xulq tahlili' : 'Behavioral analysis'}
-              </p>
-            </div>
-            <span className="text-muted-foreground">→</span>
-          </button>
-
-          {/* Finance Planner */}
-          <button
-            onClick={() => setShowFinancePlanner(true)}
-            className="card-action w-full flex items-center gap-4 active:opacity-80"
+            <p className="text-body-medium text-foreground mb-1">
+              {lang === "ru" ? "Цели" : lang === "uz" ? "Maqsadlar" : "Goals"}
+            </p>
+            <p className="text-caption">{goals.length} {lang === "ru" ? "активных" : lang === "uz" ? "faol" : "active"}</p>
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...motionConfig, delay: 0.08 }}
+            onClick={() => navigateTo("limits")}
+            className="card-info text-left active:opacity-80"
           >
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-emerald-500" />
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-2">
+              <CreditCard className="w-5 h-5 text-orange-500" />
             </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-body-medium text-foreground">
-                {lang === 'ru' ? 'Финансовый Планировщик' : lang === 'uz' ? 'Moliyaviy Rejalashtiruvchi' : 'Finance Planner'}
-              </p>
-              <p className="text-caption truncate">
-                {lang === 'ru' ? 'Генератор целей и планов' : lang === 'uz' ? 'Maqsad yaratuvchi' : 'Goals & plans generator'}
-              </p>
-            </div>
-            <span className="text-muted-foreground">→</span>
-          </button>
-
-          {/* Budget Simulator */}
-          <button
-            onClick={() => setShowBudgetSimulator(true)}
-            className="card-action w-full flex items-center gap-4 active:opacity-80"
-          >
-            <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
-              <Calculator className="w-6 h-6 text-amber-500" />
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-body-medium text-foreground">
-                {lang === 'ru' ? 'Симулятор бюджета' : lang === 'uz' ? 'Byudjet simulyatori' : 'Budget Simulator'}
-              </p>
-              <p className="text-caption truncate">
-                {lang === 'ru' ? 'Сценарии "что если"' : lang === 'uz' ? '"Nima bo\'lsa"' : '"What if" scenarios'}
-              </p>
-            </div>
-            <span className="text-muted-foreground">→</span>
-          </button>
+            <p className="text-body-medium text-foreground mb-1">
+              {lang === "ru" ? "Бюджеты" : lang === "uz" ? "Byudjetlar" : "Budgets"}
+            </p>
+            <p className="text-caption">{limits.length} {lang === "ru" ? "установлено" : lang === "uz" ? "o'rnatilgan" : "set"}</p>
+          </motion.button>
         </div>
       </section>
 
-      {/* Search Bar */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={`${getLabel("search")}...`}
-          className="input-clean pl-12 pr-10"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground active:opacity-70"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Frequently Used */}
-      <AnimatePresence>
-        {frequentlyUsed.length > 0 && !searchQuery && (
-          <motion.section
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-6"
-          >
-            <div className="section-header">
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-500" />
-                <h2 className="section-title">{getLabel("frequentlyUsed")}</h2>
-              </div>
-            </div>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-              {frequentlyUsed.map((tool) => (
-                <button
-                  key={tool.screen}
-                  onClick={() => handleToolClick(tool.screen)}
-                  className="card-info min-w-[140px] flex items-center gap-3 active:opacity-70"
-                >
-                  <div 
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
-                    style={{ backgroundColor: tool.color }}
-                  >
-                    {tool.icon}
-                  </div>
-                  <span className="text-body-medium text-foreground">{getLabel(tool.labelKey)}</span>
-                </button>
-              ))}
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* All Tools Section */}
-      {!searchQuery && (
+      {/* All Tools - Premium Grid */}
+      <section>
         <div className="section-header">
-          <h2 className="section-title">{getLabel("allTools")}</h2>
+          <h2 className="section-title">
+            {lang === "ru" ? "Инструменты" : lang === "uz" ? "Asboblar" : "Tools"}
+          </h2>
         </div>
-      )}
 
-      {/* Tools Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {filteredTools.map((tool, index) => (
-          <motion.button
-            key={tool.screen}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.02, duration: 0.2 }}
-            onClick={() => handleToolClick(tool.screen)}
-            className="card-info text-left relative overflow-hidden active:opacity-70"
-          >
-            {/* Icon */}
-            <div 
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-white mb-3"
-              style={{ backgroundColor: tool.color }}
+        <div className="grid grid-cols-2 gap-card">
+          {filteredTools.map((tool, index) => (
+            <motion.button
+              key={tool.screen}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...motionConfig, delay: index * 0.02 }}
+              onClick={() => handleToolClick(tool.screen)}
+              className="card-info text-left active:opacity-80"
             >
-              {tool.icon}
-            </div>
-            
-            {/* Text */}
-            <h3 className="text-body-medium text-foreground mb-1">{getLabel(tool.labelKey)}</h3>
-            <p className="text-caption line-clamp-2">{getLabel(tool.descKey)}</p>
-          </motion.button>
-        ))}
-      </div>
-
-      {/* Empty state */}
-      {filteredTools.length === 0 && searchQuery && (
-        <div className="text-center py-12">
-          <Search className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-          <p className="text-caption">{t.empty}</p>
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
+                style={{ backgroundColor: `${tool.color}15` }}
+              >
+                <div style={{ color: tool.color }}>
+                  {tool.icon}
+                </div>
+              </div>
+              <h3 className="text-body-medium text-foreground mb-1">{getLabel(tool.labelKey)}</h3>
+              <p className="text-caption line-clamp-2">{getLabel(tool.descKey)}</p>
+            </motion.button>
+          ))}
         </div>
-      )}
+      </section>
 
       {/* AI Modals */}
       <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />
