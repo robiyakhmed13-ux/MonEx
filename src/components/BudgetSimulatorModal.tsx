@@ -78,8 +78,11 @@ export const BudgetSimulatorModal: React.FC<BudgetSimulatorModalProps> = ({ isOp
     const originalAmount = categorySpending[selectedCategory] || 0;
     if (originalAmount === 0) return null;
 
-    const newAmount = originalAmount * (1 - reductionPercent / 100);
+    // Calculate new monthly amount after reduction
+    const newAmount = Math.round(originalAmount * (1 - reductionPercent / 100));
+    // Monthly savings = original - new
     const monthlySavings = originalAmount - newAmount;
+    // Yearly savings = monthly savings * 12 months
     const yearlySavings = monthlySavings * 12;
 
     // Calculate days to reach first goal
@@ -88,7 +91,8 @@ export const BudgetSimulatorModal: React.FC<BudgetSimulatorModalProps> = ({ isOp
       const firstGoal = goals[0];
       const remaining = firstGoal.target - firstGoal.current;
       if (remaining > 0) {
-        const dailySavings = monthlySavings / 20; // 20 working days per month (9-5 job)
+        // Assuming 30 days per month for daily savings calculation
+        const dailySavings = monthlySavings / 30;
         daysToGoal = Math.ceil(remaining / dailySavings);
       }
     }
