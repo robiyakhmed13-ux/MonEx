@@ -1,14 +1,14 @@
 import React, { memo } from "react";
 import { useApp } from "@/context/AppContext";
-import { Home, Activity, Brain, Calendar, Plus } from "lucide-react";
+import { Home, Activity, Brain, Target, MoreHorizontal, Plus } from "lucide-react";
 import { ScreenType } from "@/types";
 
 /**
- * Premium Bottom Navigation - iOS 18 Style
- * - 5 tabs: Home, Activity, +, AI, Planning
+ * Bottom Navigation - Design System Rules:
  * - Icon + label only
- * - Selected tab = subtle primary tint
- * - Floating + button (premium style)
+ * - Selected tab = subtle tint, not bright
+ * - No badges everywhere
+ * - No floating buttons over tabs
  * - iOS-approved animations only (fade, no bounce)
  */
 
@@ -18,12 +18,13 @@ interface NavItem {
   labelKey: string;
 }
 
-// Premium 5-tab structure: Home → awareness, Activity → history, + → action, AI → guidance, Planning → future
+// Tabs: Home → awareness, Activity → history, AI → guidance, More → everything else
+// Goals removed as per design - available in More menu
 const NAV_ITEMS: NavItem[] = [
   { id: "home", icon: Home, labelKey: "home" },
   { id: "transactions", icon: Activity, labelKey: "activity" },
   { id: "ai", icon: Brain, labelKey: "ai" },
-  { id: "goals", icon: Calendar, labelKey: "planning" }, // Using goals screen as planning entry
+  { id: "more", icon: MoreHorizontal, labelKey: "more" },
 ];
 
 interface BottomNavProps {
@@ -37,8 +38,9 @@ export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
     const labels: Record<string, Record<string, string>> = {
       home: { uz: "Bosh", ru: "Главная", en: "Home" },
       activity: { uz: "Faoliyat", ru: "Активность", en: "Activity" },
-      planning: { uz: "Rejalashtirish", ru: "Планирование", en: "Planning" },
+      goals: { uz: "Maqsadlar", ru: "Цели", en: "Goals" },
       ai: { uz: "AI", ru: "AI", en: "AI" },
+      more: { uz: "Ko'proq", ru: "Ещё", en: "More" },
     };
     return labels[key]?.[lang] || labels[key]?.en || key;
   };
@@ -48,92 +50,53 @@ export const BottomNav = memo<BottomNavProps>(({ onAddClick }) => {
     if (screen === "home") return "home";
     if (screen === "transactions") return "transactions";
     if (["ai", "debt-assessment", "cash-flow", "net-worth", "investments"].includes(screen)) return "ai";
-    // Planning tab: more, goals, limits, analytics, accounts, reports, subscriptions, recurring, bill-split, envelopes, debt-payoff, settings
-    if (["more", "goals", "limits", "analytics", "accounts", "reports", "subscriptions", "recurring", "bill-split", "envelopes", "debt-payoff", "settings"].includes(screen)) return "more";
-    return "home";
+    return "more";
   };
 
   const activeNav = getActiveNav(activeScreen);
 
   return (
     <nav className="bottom-nav">
-      <div className="flex items-center justify-around px-2 py-2">
-        {/* Home */}
-        {(() => {
-          const item = NAV_ITEMS[0];
+      <div className="flex items-center justify-around px-4 py-2">
+        {/* Left nav items */}
+        {NAV_ITEMS.slice(0, 2).map((item) => {
           const Icon = item.icon;
-          const isActive = "home" === activeNav;
+          const isActive = item.id === activeNav;
           return (
             <button
               key={item.id}
-              onClick={() => setActiveScreen("home")}
+              onClick={() => setActiveScreen(item.id)}
               className={`bottom-nav-item ${isActive ? 'active' : ''}`}
             >
               <Icon className="bottom-nav-item-icon" />
               <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
             </button>
           );
-        })()}
+        })}
 
-        {/* Activity */}
-        {(() => {
-          const item = NAV_ITEMS[1];
-          const Icon = item.icon;
-          const isActive = "transactions" === activeNav;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveScreen("transactions")}
-              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon className="bottom-nav-item-icon" />
-              <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
-            </button>
-          );
-        })()}
-
-        {/* Premium Floating Add Button */}
+        {/* Center Add Button */}
         <button
           onClick={onAddClick}
-          className="w-14 h-14 -mt-6 rounded-[1.25rem] bg-primary text-primary-foreground flex items-center justify-center shadow-elevated active:opacity-80 transition-opacity"
-          aria-label="Add transaction"
+          className="w-14 h-14 -mt-6 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg active:opacity-80 transition-opacity"
         >
           <Plus className="w-7 h-7" />
         </button>
 
-        {/* AI */}
-        {(() => {
-          const item = NAV_ITEMS[2];
+        {/* Right nav items */}
+        {NAV_ITEMS.slice(2).map((item) => {
           const Icon = item.icon;
-          const isActive = "ai" === activeNav;
+          const isActive = item.id === activeNav;
           return (
             <button
               key={item.id}
-              onClick={() => setActiveScreen("ai")}
+              onClick={() => setActiveScreen(item.id)}
               className={`bottom-nav-item ${isActive ? 'active' : ''}`}
             >
               <Icon className="bottom-nav-item-icon" />
               <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
             </button>
           );
-        })()}
-
-        {/* Planning */}
-        {(() => {
-          const item = NAV_ITEMS[3];
-          const Icon = item.icon;
-          const isActive = "more" === activeNav || ["goals", "limits", "analytics", "accounts", "reports", "subscriptions", "recurring", "bill-split", "envelopes", "debt-payoff", "settings"].includes(activeScreen);
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveScreen("more")}
-              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon className="bottom-nav-item-icon" />
-              <span className="bottom-nav-item-label">{getLabel(item.labelKey)}</span>
-            </button>
-          );
-        })()}
+        })}
       </div>
     </nav>
   );
