@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 // Lazy load screens for better performance
 const TransactionsScreen = lazy(() => import("@/components/TransactionsScreen").then(m => ({ default: m.TransactionsScreen })));
 const AnalyticsScreen = lazy(() => import("@/components/AnalyticsScreen"));
-const AIScreen = lazy(() => import("@/components/AIScreen"));
+const AIScreen = lazy(() => import("@/components/AIScreen").then(m => ({ default: m.AIScreen || m.default })));
 const LimitsScreen = lazy(() => import("@/components/LimitsScreen").then(m => ({ default: m.LimitsScreen })));
 const GoalsScreen = lazy(() => import("@/components/GoalsScreen"));
 const RecurringScreen = lazy(() => import("@/components/RecurringScreen"));

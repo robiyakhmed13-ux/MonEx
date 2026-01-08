@@ -10,7 +10,8 @@ import { FinancePlannerModal } from "./FinancePlannerModal";
 import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
 import { 
   RefreshCw, ArrowDown, ArrowUp, Plus,
-  ChevronUp, ChevronDown, X, Check, TrendingUp, Pencil
+  ChevronUp, ChevronDown, X, Check, TrendingUp, Pencil,
+  MessageCircle, ChevronRight
 } from "lucide-react";
 
 // Animations: fade-in, slide-up only (iOS-approved)
@@ -23,7 +24,8 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
   const { 
     t, lang, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
     limits, monthSpentByCategory, getCat, catLabel, addTransaction,
-    transactions, setActiveScreen, syncFromRemote, quickAdds
+    transactions, setActiveScreen, syncFromRemote, quickAdds,
+    isAuthenticated, profile
   } = useApp();
   
   // Calculate spending comparison
@@ -227,6 +229,57 @@ export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () =>
 
         {/* === AI Insights Widget === */}
         <AIInsightsWidget onOpenFullPanel={() => setShowAICopilot(true)} />
+
+        {/* === Telegram Integration Card === */}
+        {isAuthenticated && !profile?.telegram_id && (
+          <motion.button
+            initial={slideUp}
+            animate={slideUpTo}
+            transition={{ delay: 0.2, duration: 0.25 }}
+            onClick={() => setActiveScreen("settings")}
+            className="card-elevated w-full mb-6 flex items-center gap-4 active:opacity-80 bg-gradient-to-r from-[#0088cc]/5 to-[#0088cc]/10 border border-[#0088cc]/20"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#0088cc] flex items-center justify-center">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-body-medium text-foreground">
+                {lang === 'ru' ? 'Подключите Telegram' : lang === 'uz' ? 'Telegramni ulang' : 'Connect Telegram'}
+              </p>
+              <p className="text-caption">
+                {lang === 'ru' ? 'Добавляйте расходы через бота' : lang === 'uz' ? 'Bot orqali xarajat qo\'shing' : 'Add expenses via bot'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[#0088cc]" />
+          </motion.button>
+        )}
+
+        {/* Telegram Connected Card */}
+        {isAuthenticated && profile?.telegram_id && (
+          <motion.div
+            initial={slideUp}
+            animate={slideUpTo}
+            transition={{ delay: 0.2, duration: 0.25 }}
+            className="card-info mb-6 bg-[#0088cc]/5 border border-[#0088cc]/20"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#0088cc] flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-body-medium text-foreground">
+                  {lang === 'ru' ? 'Telegram подключён' : lang === 'uz' ? 'Telegram ulangan' : 'Telegram connected'}
+                </p>
+                <p className="text-caption">
+                  {profile.telegram_username ? `@${profile.telegram_username}` : `ID: ${profile.telegram_id}`}
+                </p>
+              </div>
+              <span className="chip chip-primary text-xs">
+                {lang === 'ru' ? 'Активно' : lang === 'uz' ? 'Faol' : 'Active'}
+              </span>
+            </div>
+          </motion.div>
+        )}
         
         {/* === Quick Actions (Action Card pattern) === */}
         <div className="grid grid-cols-2 gap-3 mb-6">
