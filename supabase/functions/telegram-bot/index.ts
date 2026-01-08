@@ -266,6 +266,65 @@ const getUserStats = async (telegramUserId: number) => {
   };
 };
 
+// Check if current time is between 22:00-06:00 (night mode)
+// Uses UTC time - ideally should use user's timezone
+const isNightTime = (): boolean => {
+  const now = new Date();
+  const hour = now.getUTCHours();
+  // Night time: 22:00 (22) to 06:00 (6) next day
+  return hour >= 22 || hour < 6;
+};
+
+// Remove emojis from text
+const removeEmojis = (text: string): string => {
+  // Remove common emoji patterns
+  return text
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Emoticons & Symbols
+    .replace(/[\u{2600}-\u{26FF}]/gu, '') // Miscellaneous Symbols
+    .replace(/[\u{2700}-\u{27BF}]/gu, '') // Dingbats
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Emoticons
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Transport & Map
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // Flags
+    .trim();
+};
+
+// Format balance message in night mode (calm, minimal, no emojis, no numbers unless necessary)
+const formatNightBalanceMessage = (stats: any, lang: string): string => {
+  const messages: Record<string, string> = {
+    uz: `Hozir tinch.
+Hammasi nazorat ostida.`,
+    ru: `Сейчас тихо.
+Всё под контролем.`,
+    en: `It's quiet now.
+Everything looks under control.`,
+  };
+  return messages[lang] || messages.en;
+};
+
+// Format warning message in night mode
+const formatNightWarningMessage = (warningType: string, lang: string): string => {
+  const messages: Record<string, string> = {
+    uz: `Hozir tinch.
+Eslatma: nazorat qiling.`,
+    ru: `Сейчас тихо.
+Напоминание: проверьте.`,
+    en: `It's quiet now.
+Reminder: check when you can.`,
+  };
+  return messages[lang] || messages.en;
+};
+
+// Send warning message with night mode support
+// This function can be used when implementing limit warnings or other alerts
+const sendWarningMessage = async (chatId: number, warningType: string, lang: string, normalMessage: string) => {
+  if (isNightTime()) {
+    const nightMessage = formatNightWarningMessage(warningType, lang);
+    await sendMessage(chatId, nightMessage);
+  } else {
+    await sendMessage(chatId, normalMessage);
+  }
+};
+
 // Get expense breakdown for a period
 const getExpenseBreakdown = async (telegramUserId: number, period: 'today' | 'week' | 'month' = 'today') => {
   const now = new Date();
@@ -323,71 +382,38 @@ const handleStart = async (chatId: number, user: any) => {
   const lang = user?.language_code || 'en';
   
   const messages: Record<string, string> = {
-    uz: `👋 Salom, ${firstName}!
+    uz: `Salom, ${firstName}.
 
-🏦 <b>MonEX</b> - moliyaviy yordamchingiz
+Men sizning pulingiz bilan bog'liq tinchlikni his qilishingizga yordam berish uchun shu yerdaman.
 
-📝 <b>Qanday foydalanish:</b>
-• Xabar yozing: <code>taxi 20000</code>
-• 🎤 Ovozli xabar yuboring
-• Yoki tugmalardan foydalaning
+MonEX sizning xarajatlaringiz va daromadlaringizni kuzatib boradi, shuning uchun sizga kerak emas.
 
-📊 <b>Buyruqlar:</b>
-/stats - Statistika
-/daily - Kunlik svodka
-/limit - Limitlar
-/goal - Maqsadlar
-/remind - Eslatmalar
-/help - Yordam
+Quyidagi tugmalardan foydalaning.`,
 
-💡 Misol: <code>kofe 15000</code> yoki <code>oylik 5m</code>`,
+    ru: `Привет, ${firstName}.
 
-    ru: `👋 Привет, ${firstName}!
+Я здесь, чтобы помочь вам чувствовать себя спокойно с вашими деньгами.
 
-🏦 <b>MonEX</b> - ваш финансовый помощник
+MonEX отслеживает ваши расходы и доходы, чтобы вам не пришлось.
 
-📝 <b>Как пользоваться:</b>
-• Напишите: <code>такси 20000</code>
-• 🎤 Отправьте голосовое сообщение
-• Или используйте кнопки
+Используйте кнопки ниже, чтобы начать.`,
 
-📊 <b>Команды:</b>
-/stats - Статистика
-/daily - Дневная сводка
-/limit - Лимиты
-/goal - Цели
-/remind - Напоминания
-/help - Помощь
+    en: `Hello, ${firstName}.
 
-💡 Пример: <code>кофе 15000</code> или <code>зарплата 5м</code>`,
+I'm here to help you feel calm about your money.
 
-    en: `👋 Hello, ${firstName}!
+MonEX keeps track of your spending and income, so you don't have to.
 
-🏦 <b>MonEX</b> - your financial assistant
-
-📝 <b>How to use:</b>
-• Send: <code>taxi 20000</code>
-• 🎤 Send a voice message
-• Or use the buttons
-
-📊 <b>Commands:</b>
-/stats - Statistics
-/daily - Daily summary
-/limit - Limits
-/goal - Goals
-/remind - Reminders
-/help - Help
-
-💡 Example: <code>coffee 15000</code> or <code>salary 5m</code>`,
+Use the buttons below to get started.`,
   };
 
   const keyboardByLang: Record<string, any> = {
     uz: {
       keyboard: [
         [{ text: '➕ Xarajat' }, { text: '💰 Daromad' }],
-        [{ text: '📊 Statistika' }, { text: '📅 Kunlik' }],
-        [{ text: '🎯 Maqsadlar' }, { text: '⚙️ Limitlar' }],
-        [{ text: '❓ Yordam' }],
+        [{ text: '📊 Bugun' }, { text: '💵 Mening pulim' }],
+        [{ text: '🎯 Maqsadlar' }, { text: '⚙️ Xarajatlar' }],
+        [{ text: '🔗 Ulash' }],
       ],
       resize_keyboard: true,
       persistent: true,
@@ -395,9 +421,9 @@ const handleStart = async (chatId: number, user: any) => {
     ru: {
       keyboard: [
         [{ text: '➕ Расход' }, { text: '💰 Доход' }],
-        [{ text: '📊 Статистика' }, { text: '📅 Сводка' }],
-        [{ text: '🎯 Цели' }, { text: '⚙️ Лимиты' }],
-        [{ text: '❓ Помощь' }],
+        [{ text: '📊 Сегодня' }, { text: '💵 Мои деньги' }],
+        [{ text: '🎯 Цели' }, { text: '⚙️ Траты' }],
+        [{ text: '🔗 Подключить' }],
       ],
       resize_keyboard: true,
       persistent: true,
@@ -405,9 +431,9 @@ const handleStart = async (chatId: number, user: any) => {
     en: {
       keyboard: [
         [{ text: '➕ Expense' }, { text: '💰 Income' }],
-        [{ text: '📊 Stats' }, { text: '📅 Daily' }],
-        [{ text: '🎯 Goals' }, { text: '⚙️ Limits' }],
-        [{ text: '❓ Help' }],
+        [{ text: '📊 Today' }, { text: '💵 My Money' }],
+        [{ text: '🎯 Goals' }, { text: '⚙️ Spending' }],
+        [{ text: '🔗 Connect' }],
       ],
       resize_keyboard: true,
       persistent: true,
@@ -438,8 +464,8 @@ Shunchaki gapiring: "Taksi uchun yigirma ming"
 • k, ming = ming (15k = 15,000)
 • m, mln = million (5m = 5,000,000)
 
-<b>Buyruqlar:</b>
-/stats - Bugungi statistika`,
+<b>Funksiyalar:</b>
+📊 Statistika tugmasi - Bugungi statistika`,
 
     ru: `📖 <b>Помощь</b>
 
@@ -459,8 +485,8 @@ Shunchaki gapiring: "Taksi uchun yigirma ming"
 • к, тысяч = тысяча (15к = 15,000)
 • м, млн = миллион (5м = 5,000,000)
 
-<b>Команды:</b>
-/stats - Статистика за сегодня`,
+<b>Функции:</b>
+📊 Кнопка Статистика - Статистика за сегодня`,
 
     en: `📖 <b>Help</b>
 
@@ -480,56 +506,175 @@ Just say: "Taxi twenty thousand"
 • k = thousand (15k = 15,000)
 • m = million (5m = 5,000,000)
 
-<b>Commands:</b>
-/stats - Today's statistics`,
+<b>Features:</b>
+📊 Stats button - Check today's statistics`,
   };
 
   await sendMessage(chatId, messages[lang] || messages.en);
+};
+
+// Generate meaningful daily stats insights
+const generateDailyInsights = async (telegramUserId: number, lang: string) => {
+  const stats = await getUserStats(telegramUserId);
+  const todayBreakdown = await getExpenseBreakdown(telegramUserId, 'today');
+  const weekBreakdown = await getExpenseBreakdown(telegramUserId, 'week');
+  
+  // Calculate average daily spending for the week
+  const daysInWeek = 7;
+  const avgDailyExpense = weekBreakdown.totalExpense / daysInWeek;
+  
+  // Find top category for today
+  const topCategory = todayBreakdown.top[0];
+  
+  // Determine insight based on spending patterns
+  if (stats.todayExpense === 0 && stats.todayIncome === 0) {
+    // No activity today
+    const messages: Record<string, { line1: string; line2: string }> = {
+      uz: { 
+        line1: "Bugun xarajat yo'q.",
+        line2: "Hammasi nazorat ostida."
+      },
+      ru: { 
+        line1: "Сегодня расходов нет.",
+        line2: "Всё под контролем."
+      },
+      en: { 
+        line1: "No spending today.",
+        line2: "Everything looks calm."
+      },
+    };
+    const msg = messages[lang] || messages.en;
+    return { line1: msg.line1, line2: msg.line2, showButton: false };
+  }
+  
+  // Compare today's spending with weekly average
+  const spendingRatio = avgDailyExpense > 0 ? stats.todayExpense / avgDailyExpense : 0;
+  
+  if (spendingRatio < 0.5) {
+    // Spending is much lower than average
+    const messages: Record<string, { line1: string; line2: string }> = {
+      uz: { 
+        line1: "Bugun xarajat odatdagidan past.",
+        line2: "Yaxshi ish qildingiz."
+      },
+      ru: { 
+        line1: "Сегодня расходы ниже обычного.",
+        line2: "Хорошая работа."
+      },
+      en: { 
+        line1: "Spending stayed calm today.",
+        line2: "You're doing great."
+      },
+    };
+    const msg = messages[lang] || messages.en;
+    return { line1: msg.line1, line2: msg.line2, showButton: false };
+  } else if (spendingRatio > 1.5) {
+    // Spending is higher than average
+    const categoryName = topCategory ? getCategoryName(topCategory.categoryId, lang) : '';
+    const messages: Record<string, { line1: string; line2: string; button: string }> = {
+      uz: { 
+        line1: "Bugun xarajat odatdagidan yuqori.",
+        line2: topCategory ? `${categoryName} ko'proq sarflandi.` : "Xarajatlar ko'paydi.",
+        button: "Tafsilotlarni ko'rsatishni xohlaysizmi?"
+      },
+      ru: { 
+        line1: "Сегодня расходы выше обычного.",
+        line2: topCategory ? `${categoryName} потрачено больше.` : "Расходы увеличились.",
+        button: "Показать детали?"
+      },
+      en: { 
+        line1: "Spending was higher than usual today.",
+        line2: topCategory ? `${categoryName} was higher than usual.` : "Expenses increased.",
+        button: "Want me to show details?"
+      },
+    };
+    const msg = messages[lang] || messages.en;
+    return { line1: msg.line1, line2: msg.line2, showButton: true, buttonText: msg.button };
+  } else if (topCategory && topCategory.spent > 0) {
+    // Normal spending, but highlight top category if it's notable
+    // Check if this category is significantly higher than other categories
+    const categoryName = getCategoryName(topCategory.categoryId, lang);
+    const secondCategory = todayBreakdown.top[1];
+    const isCategoryNotable = !secondCategory || topCategory.spent > secondCategory.spent * 1.5;
+    
+    if (isCategoryNotable) {
+      const messages: Record<string, { line1: string; line2: string; button: string }> = {
+        uz: { 
+          line1: "Bugun xarajatlar odatdagidek.",
+          line2: `${categoryName} ko'proq sarflandi.`,
+          button: "Kuzatib borishni xohlaysizmi?"
+        },
+        ru: { 
+          line1: "Сегодня расходы как обычно.",
+          line2: `${categoryName} потрачено больше.`,
+          button: "Хотите, чтобы я следил?"
+        },
+        en: { 
+          line1: "Spending stayed calm today.",
+          line2: `${categoryName} was higher than usual.`,
+          button: "Want me to keep an eye on it?"
+        },
+      };
+      const msg = messages[lang] || messages.en;
+      return { line1: msg.line1, line2: msg.line2, showButton: true, buttonText: msg.button };
+    }
+  }
+  
+  // Default calm message (fallback for normal spending without notable categories)
+  {
+    const messages: Record<string, { line1: string; line2: string }> = {
+      uz: { 
+        line1: "Bugun xarajatlar nazorat ostida.",
+        line2: "Hammasi yaxshi."
+      },
+      ru: { 
+        line1: "Сегодня расходы под контролем.",
+        line2: "Всё хорошо."
+      },
+      en: { 
+        line1: "Spending stayed calm today.",
+        line2: "Everything looks good."
+      },
+    };
+    const msg = messages[lang] || messages.en;
+    return { line1: msg.line1, line2: msg.line2, showButton: false };
+  }
 };
 
 // Handle /stats command
 const handleStats = async (chatId: number, telegramUserId: number, lang: string) => {
   const stats = await getUserStats(telegramUserId);
   
-  const messages: Record<string, string> = {
-    uz: `📊 <b>Statistika</b>
-
-<b>Bugun:</b>
-📤 Xarajat: ${formatNumber(stats.todayExpense)} so'm
-📥 Daromad: ${formatNumber(stats.todayIncome)} so'm
-
-<b>Bu oy:</b>
-📤 Xarajat: ${formatNumber(stats.monthExpense)} so'm
-📥 Daromad: ${formatNumber(stats.monthIncome)} so'm
-
-📝 Jami tranzaksiyalar: ${stats.count}`,
-
-    ru: `📊 <b>Статистика</b>
-
-<b>Сегодня:</b>
-📤 Расход: ${formatNumber(stats.todayExpense)} сум
-📥 Доход: ${formatNumber(stats.todayIncome)} сум
-
-<b>Этот месяц:</b>
-📤 Расход: ${formatNumber(stats.monthExpense)} сум
-📥 Доход: ${formatNumber(stats.monthIncome)} сум
-
-📝 Всего транзакций: ${stats.count}`,
-
-    en: `📊 <b>Statistics</b>
-
-<b>Today:</b>
-📤 Expense: ${formatNumber(stats.todayExpense)} UZS
-📥 Income: ${formatNumber(stats.todayIncome)} UZS
-
-<b>This month:</b>
-📤 Expense: ${formatNumber(stats.monthExpense)} UZS
-📥 Income: ${formatNumber(stats.monthIncome)} UZS
-
-📝 Total transactions: ${stats.count}`,
-  };
-
-  await sendMessage(chatId, messages[lang] || messages.en);
+  // Use night mode if it's between 22:00-06:00
+  if (isNightTime()) {
+    const nightMessage = formatNightBalanceMessage(stats, lang);
+    await sendMessage(chatId, nightMessage);
+    return;
+  }
+  
+  // Generate insights
+  const insights = await generateDailyInsights(telegramUserId, lang);
+  
+  // Build message (max 3 lines)
+  let message = insights.line1;
+  if (insights.line2) {
+    message += `\n${insights.line2}`;
+  }
+  
+  // Add optional suggestion button
+  let replyMarkup: any = undefined;
+  if (insights.showButton && insights.buttonText) {
+    replyMarkup = {
+      inline_keyboard: [[
+        { 
+          text: insights.buttonText, 
+          callback_data: 'stats_details' 
+        }
+      ]]
+    };
+  }
+  
+  await sendMessage(chatId, message, replyMarkup ? { reply_markup: replyMarkup } : undefined);
 };
 
 // Handle daily expense summary with period selection
@@ -543,16 +688,16 @@ const handleDailySummary = async (chatId: number, telegramUserId: number, lang: 
   };
 
   const header: Record<string, string> = {
-    uz: `📅 <b>${periodLabels[period][lang]} xarajatlar</b>\n\n📤 Jami: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Daromad: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
-    ru: `📅 <b>Расходы ${periodLabels[period][lang].toLowerCase()}</b>\n\n📤 Итого: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Доход: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
-    en: `📅 <b>${periodLabels[period][lang]} expenses</b>\n\n📤 Total: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Income: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
+    uz: `Here's how ${periodLabels[period][lang].toLowerCase()} looks.\n\n📤 Jami: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Daromad: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
+    ru: `Here's how ${periodLabels[period][lang].toLowerCase()} looks.\n\n📤 Итого: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Доход: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
+    en: `Here's how ${periodLabels[period][lang].toLowerCase()} looks.\n\n📤 Total: ${formatNumber(daily.totalExpense)} ${daily.currency}\n📥 Income: ${formatNumber(daily.totalIncome)} ${daily.currency}`,
   };
 
   if (!daily.top.length) {
     const empty: Record<string, string> = {
-      uz: header[lang] + `\n\n✅ Xarajat yo'q`,
-      ru: header[lang] + `\n\n✅ Расходов нет`,
-      en: header[lang] + `\n\n✅ No expenses`,
+      uz: header[lang] + `\n\nXarajat yo'q`,
+      ru: header[lang] + `\n\nРасходов нет`,
+      en: header[lang] + `\n\nNo expenses`,
     };
     await sendMessage(chatId, empty[lang] || empty.en);
     return;
@@ -591,15 +736,9 @@ const handleLimit = async (chatId: number, telegramUserId: number, lang: string)
   };
 
   const messages: Record<string, string> = {
-    uz: `⚙️ <b>Limit boshqaruvi</b>
-
-📊 Joriy limitlar:`,
-    ru: `⚙️ <b>Управление лимитами</b>
-
-📊 Текущие лимиты:`,
-    en: `⚙️ <b>Limit Management</b>
-
-📊 Current limits:`,
+    uz: `Joriy limitlar:`,
+    ru: `Текущие лимиты:`,
+    en: `Current limits:`,
   };
 
   let limitsText = '';
@@ -610,9 +749,9 @@ const handleLimit = async (chatId: number, telegramUserId: number, lang: string)
   }
 
   const footer: Record<string, string> = {
-    uz: `\n\n💡 Limit o'rnatish:\n<code>/limit taxi 150000</code>`,
-    ru: `\n\n💡 Установить лимит:\n<code>/limit taxi 150000</code>`,
-    en: `\n\n💡 Set a limit:\n<code>/limit taxi 150000</code>`,
+    uz: `\n\nLimit o'rnatish uchun quyidagi tugmalardan birini bosing`,
+    ru: `\n\nНажмите на одну из кнопок ниже, чтобы установить лимит`,
+    en: `\n\nTap a button below to set a limit`,
   };
 
   const keyboard = {
@@ -639,9 +778,9 @@ const handleGoal = async (chatId: number, telegramUserId: number, lang: string) 
   ];
 
   const messages: Record<string, string> = {
-    uz: `🎯 <b>Mening maqsadlarim</b>\n`,
-    ru: `🎯 <b>Мои цели</b>\n`,
-    en: `🎯 <b>My Goals</b>\n`,
+    uz: `Maqsadlar:\n`,
+    ru: `Цели:\n`,
+    en: `Goals:\n`,
   };
 
   let goalsText = '';
@@ -654,9 +793,9 @@ ${formatNumber(goal.current)} / ${formatNumber(goal.target)} UZS\n`;
   }
 
   const footer: Record<string, string> = {
-    uz: `\n💡 Yangi maqsad:\n<code>/goal Mashina 50000000</code>`,
-    ru: `\n💡 Новая цель:\n<code>/goal Машина 50000000</code>`,
-    en: `\n💡 New goal:\n<code>/goal Car 50000000</code>`,
+    uz: `\nYangi maqsad qo'shish uchun quyidagi tugmani bosing`,
+    ru: `\nНажмите кнопку ниже, чтобы добавить новую цель`,
+    en: `\nTap the button below to set a new goal`,
   };
 
   const keyboard = {
@@ -676,30 +815,21 @@ ${formatNumber(goal.current)} / ${formatNumber(goal.target)} UZS\n`;
 // Handle /remind command - Set reminders
 const handleRemind = async (chatId: number, telegramUserId: number, lang: string) => {
   const messages: Record<string, string> = {
-    uz: `⏰ <b>Eslatmalar</b>
-
-🔔 Faol eslatmalar:
+    uz: `Faol eslatmalar:
 • 📅 Har kuni 21:00 - Kunlik hisobot
 • 💡 Limit oshsa - Ogohlantirish
 
-💡 Eslatma qo'shish:
-<code>/remind 21:00 Kunlik xarajatlar</code>`,
-    ru: `⏰ <b>Напоминания</b>
-
-🔔 Активные напоминания:
+Eslatma qo'shish uchun quyidagi tugmalardan foydalaning`,
+    ru: `Активные напоминания:
 • 📅 Каждый день 21:00 - Дневной отчёт
 • 💡 Превышение лимита - Предупреждение
 
-💡 Добавить напоминание:
-<code>/remind 21:00 Проверить расходы</code>`,
-    en: `⏰ <b>Reminders</b>
-
-🔔 Active reminders:
+Используйте кнопки ниже, чтобы добавить напоминание`,
+    en: `Active reminders:
 • 📅 Daily at 21:00 - Daily report
 • 💡 Limit exceeded - Warning
 
-💡 Add reminder:
-<code>/remind 21:00 Check expenses</code>`,
+Use the buttons below to add a reminder`,
   };
 
   const keyboard = {
@@ -737,18 +867,25 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
     return;
   }
 
-  if (text === '📊 Statistika' || text === '📊 Статистика' || text === '📊 Stats') {
+  if (text === '📊 Bugun' || text === '📊 Сегодня' || text === '📊 Today') {
     await handleStats(chatId, telegramUserId, lang);
     return;
   }
 
-  if (text === '📅 Kunlik' || text === '📅 Сводка' || text === '📅 Daily') {
-    await handleDailySummary(chatId, telegramUserId, lang);
+  if (text === '💵 Mening pulim' || text === '💵 Мои деньги' || text === '💵 My Money') {
+    // Handle balance view - for now redirect to stats
+    await handleStats(chatId, telegramUserId, lang);
     return;
   }
 
-  if (text === '❓ Yordam' || text === '❓ Помощь' || text === '❓ Help') {
-    await handleHelp(chatId, lang);
+  if (text === '🔗 Ulash' || text === '🔗 Подключить' || text === '🔗 Connect') {
+    // Handle account linking
+    const linkMsgs: Record<string, string> = {
+      uz: '🔗 Hisobingizni ulash uchun quyidagi havolani bosing...',
+      ru: '🔗 Нажмите на ссылку ниже, чтобы подключить ваш аккаунт...',
+      en: '🔗 Tap the link below to connect your account...',
+    };
+    await sendMessage(chatId, linkMsgs[lang] || linkMsgs.en);
     return;
   }
 
@@ -759,7 +896,7 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   }
 
   // Handle limits button
-  if (text === '⚙️ Limitlar' || text === '⚙️ Лимиты' || text === '⚙️ Limits') {
+  if (text === '⚙️ Xarajatlar' || text === '⚙️ Траты' || text === '⚙️ Spending') {
     await handleLimit(chatId, telegramUserId, lang);
     return;
   }
@@ -768,11 +905,11 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   const parsed = await parseTransaction(text, lang);
   
   if (!parsed || parsed.error) {
-    const errorMsgs: Record<string, string> = {
-      uz: `❌ Tushunmadim. Masalan yozing: <code>taxi 20000</code>\n\nYoki ovozli xabar yuboring 🎤`,
-      ru: `❌ Не понял. Напишите например: <code>такси 20000</code>\n\nИли отправьте голосовое сообщение 🎤`,
-      en: `❌ Couldn't understand. Try: <code>taxi 20000</code>\n\nOr send a voice message 🎤`,
-    };
+      const errorMsgs: Record<string, string> = {
+        uz: `Tushunmadim. Masalan: <code>taxi 20000</code>\n\nYoki ovozli xabar 🎤`,
+        ru: `Не понял. Например: <code>такси 20000</code>\n\nИли голосовое 🎤`,
+        en: `Couldn't understand. Try: <code>taxi 20000</code>\n\nOr voice 🎤`,
+      };
     await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
     return;
   }
@@ -781,9 +918,9 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   const saved = await saveTransaction(telegramUserId, parsed);
   if (!saved) {
     const errorMsgs: Record<string, string> = {
-      uz: `❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.`,
-      ru: `❌ Произошла ошибка. Попробуйте ещё раз.`,
-      en: `❌ An error occurred. Please try again.`,
+      uz: `Xatolik yuz berdi. Qaytadan urinib ko'ring.`,
+      ru: `Произошла ошибка. Попробуйте ещё раз.`,
+      en: `An error occurred. Please try again.`,
     };
     await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
     return;
@@ -799,26 +936,191 @@ const handleTextMessage = async (chatId: number, text: string, user: any) => {
   };
 
   const confirmMsgs: Record<string, string> = {
-    uz: `✅ <b>Saqlandi!</b>
+    uz: `Got it.
 
-${typeEmoji} <b>Turi:</b> ${typeLabel[parsed.type][lang]}
-${emoji} <b>Kategoriya:</b> ${catName}
-💵 <b>Summa:</b> ${formatNumber(parsed.amount)} so'm`,
+${typeEmoji} ${typeLabel[parsed.type][lang]}
+${emoji} ${catName}
+💵 ${formatNumber(parsed.amount)} so'm`,
 
-    ru: `✅ <b>Сохранено!</b>
+    ru: `Got it.
 
-${typeEmoji} <b>Тип:</b> ${typeLabel[parsed.type][lang]}
-${emoji} <b>Категория:</b> ${catName}
-💵 <b>Сумма:</b> ${formatNumber(parsed.amount)} сум`,
+${typeEmoji} ${typeLabel[parsed.type][lang]}
+${emoji} ${catName}
+💵 ${formatNumber(parsed.amount)} сум`,
 
-    en: `✅ <b>Saved!</b>
+    en: `Got it.
 
-${typeEmoji} <b>Type:</b> ${typeLabel[parsed.type][lang]}
-${emoji} <b>Category:</b> ${catName}
-💵 <b>Amount:</b> ${formatNumber(parsed.amount)} UZS`,
+${typeEmoji} ${typeLabel[parsed.type][lang]}
+${emoji} ${catName}
+💵 ${formatNumber(parsed.amount)} UZS`,
   };
 
   await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
+};
+
+// Extract receipt data from photo using OpenAI Vision
+const extractReceiptData = async (imageBuffer: ArrayBuffer): Promise<any> => {
+  if (!OPENAI_API_KEY) {
+    return null;
+  }
+
+  try {
+    // Convert to base64
+    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Extract receipt data. Return ONLY valid JSON (no markdown):
+{
+  "description": "store or item name",
+  "amount": number,
+  "currency": "UZS"
+}`
+              },
+              {
+                type: 'image_url',
+                image_url: { url: `data:image/jpeg;base64,${base64Image}` }
+              }
+            ]
+          }
+        ],
+        max_tokens: 200
+      })
+    });
+
+    if (!response.ok) {
+      console.error('OpenAI Vision API error:', await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    if (!content) return null;
+
+    // Extract JSON from response
+    const cleaned = content.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) return null;
+    
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error('Receipt extraction error:', error);
+    return null;
+  }
+};
+
+// Handle photo message
+const handlePhotoMessage = async (chatId: number, photo: any[], user: any) => {
+  const lang = user?.language_code || 'uz';
+  const telegramUserId = user?.id;
+  
+  // Step 1: Immediate response
+  const initialMsgs: Record<string, string> = {
+    uz: 'Give me a second.',
+    ru: 'Give me a second.',
+    en: 'Give me a second.',
+  };
+  await sendMessage(chatId, initialMsgs[lang] || initialMsgs.en);
+
+  try {
+    // Get the largest photo
+    const largestPhoto = photo[photo.length - 1];
+    
+    // Get file path
+    const filePath = await getFile(largestPhoto.file_id);
+    if (!filePath) {
+      throw new Error('Could not get file path');
+    }
+
+    // Download image
+    const imageBuffer = await downloadFile(filePath);
+    
+    // Extract receipt data
+    const receiptData = await extractReceiptData(imageBuffer);
+    
+    if (!receiptData || !receiptData.amount) {
+      // Recognition failed - apologize and ask for manual input
+      const errorMsgs: Record<string, string> = {
+        uz: 'Kechirasiz, chekni o\'qiy olmadim. Summani qo\'lda kiriting.',
+        ru: 'Извините, не смог прочитать чек. Введите сумму вручную.',
+        en: 'Sorry, couldn\'t read the receipt. Please type the amount manually.',
+      };
+      await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+      return;
+    }
+
+    // Parse as transaction
+    const description = receiptData.description || 'Shopping';
+    const amount = receiptData.amount;
+    
+    // Try to parse description to get category
+    const parsed = await parseTransaction(`${description} ${amount}`, lang);
+    
+    if (!parsed || parsed.error) {
+      // Use default shopping category
+      const defaultParsed = {
+        type: 'expense',
+        categoryId: 'shopping',
+        amount: amount,
+        description: description,
+      };
+      
+      const saved = await saveTransaction(telegramUserId, defaultParsed);
+      if (!saved) {
+        throw new Error('Failed to save transaction');
+      }
+
+      // Confirmation message
+      const emoji = CATEGORY_EMOJIS['shopping'] || '🛍️';
+      const catName = getCategoryName('shopping', lang);
+      const confirmMsgs: Record<string, string> = {
+        uz: `${catName}\n💵 ${formatNumber(amount)} so'm\n\nQo'shildi.`,
+        ru: `${catName}\n💵 ${formatNumber(amount)} сум\n\nДобавлено.`,
+        en: `${catName}\n💵 ${formatNumber(amount)} UZS\n\nAdded.`,
+      };
+      await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
+      return;
+    }
+
+    // Save to database
+    const saved = await saveTransaction(telegramUserId, parsed);
+    if (!saved) {
+      throw new Error('Failed to save transaction');
+    }
+
+    // Confirmation message
+    const emoji = CATEGORY_EMOJIS[parsed.categoryId] || '📝';
+    const catName = getCategoryName(parsed.categoryId, lang);
+    const confirmMsgs: Record<string, string> = {
+      uz: `${catName}\n💵 ${formatNumber(parsed.amount)} so'm\n\nQo'shildi.`,
+      ru: `${catName}\n💵 ${formatNumber(parsed.amount)} сум\n\nДобавлено.`,
+      en: `${catName}\n💵 ${formatNumber(parsed.amount)} UZS\n\nAdded.`,
+    };
+    await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
+  } catch (error) {
+    console.error('Photo processing error:', error);
+    // Apologize and ask for manual input
+    const errorMsgs: Record<string, string> = {
+      uz: 'Kechirasiz, chekni o\'qiy olmadim. Summani qo\'lda kiriting.',
+      ru: 'Извините, не смог прочитать чек. Введите сумму вручную.',
+      en: 'Sorry, couldn\'t read the receipt. Please type the amount manually.',
+    };
+    await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
+  }
 };
 
 // Handle voice message
@@ -828,9 +1130,9 @@ const handleVoiceMessage = async (chatId: number, voice: any, user: any) => {
   
   // Send processing message
   const processingMsgs: Record<string, string> = {
-    uz: '🎤 Ovozli xabaringizni qayta ishlayman...',
-    ru: '🎤 Обрабатываю голосовое сообщение...',
-    en: '🎤 Processing your voice message...',
+    uz: '🎤 Qayta ishlayman...',
+    ru: '🎤 Обрабатываю...',
+    en: '🎤 Processing...',
   };
   await sendMessage(chatId, processingMsgs[lang] || processingMsgs.en);
 
@@ -855,9 +1157,9 @@ const handleVoiceMessage = async (chatId: number, voice: any, user: any) => {
     
     if (!parsed || parsed.error) {
       const errorMsgs: Record<string, string> = {
-        uz: `🎤 Eshitdim: "<i>${transcription}</i>"\n\n❌ Tranzaksiya tushunilmadi. Masalan ayting: "Taksi yigirma ming"`,
-        ru: `🎤 Услышал: "<i>${transcription}</i>"\n\n❌ Не удалось понять транзакцию. Например скажите: "Такси двадцать тысяч"`,
-        en: `🎤 Heard: "<i>${transcription}</i>"\n\n❌ Couldn't understand transaction. Try saying: "Taxi twenty thousand"`,
+        uz: `🎤 Eshitdim: "<i>${transcription}</i>"\n\nTranzaksiya tushunilmadi. Masalan: "Taksi yigirma ming"`,
+        ru: `🎤 Услышал: "<i>${transcription}</i>"\n\nНе удалось понять транзакцию. Например: "Такси двадцать тысяч"`,
+        en: `🎤 Heard: "<i>${transcription}</i>"\n\nCouldn't understand transaction. Try: "Taxi twenty thousand"`,
       };
       await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
       return;
@@ -877,19 +1179,19 @@ const handleVoiceMessage = async (chatId: number, voice: any, user: any) => {
     const successMsgs: Record<string, string> = {
       uz: `🎤 "<i>${transcription}</i>"
 
-✅ <b>Saqlandi!</b>
+Noted.
 ${typeEmoji} ${catName} ${emoji}
 💵 ${formatNumber(parsed.amount)} so'm`,
 
       ru: `🎤 "<i>${transcription}</i>"
 
-✅ <b>Сохранено!</b>
+Noted.
 ${typeEmoji} ${catName} ${emoji}
 💵 ${formatNumber(parsed.amount)} сум`,
 
       en: `🎤 "<i>${transcription}</i>"
 
-✅ <b>Saved!</b>
+Noted.
 ${typeEmoji} ${catName} ${emoji}
 💵 ${formatNumber(parsed.amount)} UZS`,
     };
@@ -898,9 +1200,9 @@ ${typeEmoji} ${catName} ${emoji}
   } catch (error) {
     console.error('Voice processing error:', error);
     const errorMsgs: Record<string, string> = {
-      uz: `❌ Ovozli xabarni qayta ishlashda xatolik. Iltimos, matn yozing.`,
-      ru: `❌ Ошибка обработки голосового сообщения. Пожалуйста, напишите текстом.`,
-      en: `❌ Error processing voice message. Please type your message.`,
+      uz: `Ovozli xabarni qayta ishlashda xatolik. Matn yozing.`,
+      ru: `Ошибка обработки голосового сообщения. Напишите текстом.`,
+      en: `Error processing voice message. Please type your message.`,
     };
     await sendMessage(chatId, errorMsgs[lang] || errorMsgs.en);
   }
@@ -943,13 +1245,18 @@ serve(async (req) => {
         await handleDailySummary(chatId, userId, lang, period);
       }
 
+      // Handle stats details callback
+      if (data === 'stats_details') {
+        await handleDailySummary(chatId, userId, lang, 'today');
+      }
+
       // Handle limit callbacks
       if (data?.startsWith('limit_')) {
         const category = data.replace('limit_', '');
         const confirmMsgs: Record<string, string> = {
-          uz: `⚙️ ${getCategoryName(category, lang)} limiti.\n\nLimit o'rnatish: <code>/limit ${category} 300000</code>`,
-          ru: `⚙️ Лимит ${getCategoryName(category, lang)}.\n\nУстановить лимит: <code>/limit ${category} 300000</code>`,
-          en: `⚙️ ${getCategoryName(category, lang)} limit.\n\nSet limit: <code>/limit ${category} 300000</code>`,
+          uz: `${getCategoryName(category, lang)} limiti.\n\nLimit o'rnatish uchun summa yozing. Masalan: <code>300000</code>`,
+          ru: `Лимит ${getCategoryName(category, lang)}.\n\nНапишите сумму для установки лимита. Например: <code>300000</code>`,
+          en: `${getCategoryName(category, lang)} limit.\n\nType the amount to set the limit. Example: <code>300000</code>`,
         };
         await sendMessage(chatId, confirmMsgs[lang] || confirmMsgs.en);
       }
@@ -959,16 +1266,16 @@ serve(async (req) => {
         const action = data.replace('goal_', '');
         if (action === 'new') {
           const msgs: Record<string, string> = {
-            uz: `🎯 Yangi maqsad yaratish:\n<code>/goal Mashina 50000000</code>`,
-            ru: `🎯 Создать новую цель:\n<code>/goal Машина 50000000</code>`,
-            en: `🎯 Create new goal:\n<code>/goal Car 50000000</code>`,
+            uz: `Yangi maqsad yaratish uchun maqsad nomi va summasini yozing.\n\nMisol: <code>Mashina 50000000</code>`,
+            ru: `Напишите название цели и сумму для создания новой цели.\n\nПример: <code>Машина 50000000</code>`,
+            en: `Type the goal name and amount to create a new goal.\n\nExample: <code>Car 50000000</code>`,
           };
           await sendMessage(chatId, msgs[lang] || msgs.en);
         } else if (action === 'deposit') {
           const msgs: Record<string, string> = {
-            uz: `💰 Maqsadga qo'shish:\n<code>/deposit Mashina 500000</code>`,
-            ru: `💰 Пополнить цель:\n<code>/deposit Машина 500000</code>`,
-            en: `💰 Add to goal:\n<code>/deposit Car 500000</code>`,
+            uz: `Maqsadga qo'shish uchun maqsad nomi va summasini yozing.\n\nMisol: <code>Mashina 500000</code>`,
+            ru: `Напишите название цели и сумму для пополнения.\n\nПример: <code>Машина 500000</code>`,
+            en: `Type the goal name and amount to add funds.\n\nExample: <code>Car 500000</code>`,
           };
           await sendMessage(chatId, msgs[lang] || msgs.en);
         }
@@ -978,9 +1285,9 @@ serve(async (req) => {
       if (data?.startsWith('remind_')) {
         const type = data.replace('remind_', '');
         const msgs: Record<string, string> = {
-          uz: `✅ Eslatma o'rnatildi: ${type === 'daily_21' ? 'Har kuni 21:00' : type === 'weekly' ? 'Har hafta' : 'Har oy'}`,
-          ru: `✅ Напоминание установлено: ${type === 'daily_21' ? 'Каждый день 21:00' : type === 'weekly' ? 'Каждую неделю' : 'Каждый месяц'}`,
-          en: `✅ Reminder set: ${type === 'daily_21' ? 'Daily at 21:00' : type === 'weekly' ? 'Weekly' : 'Monthly'}`,
+          uz: `Noted. ${type === 'daily_21' ? 'Har kuni 21:00' : type === 'weekly' ? 'Har hafta' : 'Har oy'}`,
+          ru: `Noted. ${type === 'daily_21' ? 'Каждый день 21:00' : type === 'weekly' ? 'Каждую неделю' : 'Каждый месяц'}`,
+          en: `Noted. ${type === 'daily_21' ? 'Daily at 21:00' : type === 'weekly' ? 'Weekly' : 'Monthly'}`,
         };
         await sendMessage(chatId, msgs[lang] || msgs.en);
       }
@@ -997,7 +1304,14 @@ serve(async (req) => {
     const user = message.from;
     const text = message.text;
     const voice = message.voice;
+    const photo = message.photo;
     const lang = user?.language_code || 'uz';
+
+    // Handle photo messages
+    if (photo && photo.length > 0) {
+      await handlePhotoMessage(chatId, photo, user);
+      return new Response('OK', { status: 200 });
+    }
 
     // Handle voice messages
     if (voice) {
@@ -1028,9 +1342,9 @@ serve(async (req) => {
             await handleTextMessage(chatId, addText, user);
           } else {
             const promptMsgs: Record<string, string> = {
-              uz: '📝 Yozing: <code>/add taxi 20000</code>',
-              ru: '📝 Напишите: <code>/add такси 20000</code>',
-              en: '📝 Type: <code>/add taxi 20000</code>',
+              uz: '📝 Xarajat yoki daromad qo\'shish uchun summa va kategoriyani yozing.\n\nMisol: <code>taxi 20000</code> yoki ovozli xabar yuboring 🎤',
+              ru: '📝 Напишите сумму и категорию для добавления расхода или дохода.\n\nПример: <code>такси 20000</code> или отправьте голосовое сообщение 🎤',
+              en: '📝 Type the amount and category to add an expense or income.\n\nExample: <code>taxi 20000</code> or send a voice message 🎤',
             };
             await sendMessage(chatId, promptMsgs[lang] || promptMsgs.en);
           }
@@ -1045,7 +1359,12 @@ serve(async (req) => {
           await handleRemind(chatId, user?.id, lang);
           break;
         default:
-          await handleHelp(chatId, lang);
+          const unknownCommandMsgs: Record<string, string> = {
+            uz: `Tushunmadim. Quyidagi tugmalardan foydalaning.`,
+            ru: `Не понял. Используйте кнопки ниже.`,
+            en: `Not sure what you meant. Try tapping a button below.`,
+          };
+          await sendMessage(chatId, unknownCommandMsgs[lang] || unknownCommandMsgs.en);
       }
     } else if (text) {
       // Handle regular text
