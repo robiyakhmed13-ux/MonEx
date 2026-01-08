@@ -1,490 +1,475 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+import React, { useCallback, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useApp } from "@/context/AppContext";
+import { formatUZS, clamp, todayISO, safeJSON } from "@/lib/storage";
+import { VoiceInput } from "./VoiceInput";
+import { CategoryIcon } from "./CategoryIcon";
+import { AICopilotPanel } from "./AICopilotPanel";
+import { AIInsightsWidget } from "./AIInsightsWidget";
+import { FinancePlannerModal } from "./FinancePlannerModal";
+import { BudgetSimulatorModal } from "./BudgetSimulatorModal";
+import { 
+  RefreshCw, ArrowDown, ArrowUp, Plus,
+  ChevronUp, ChevronDown, X, Check, TrendingUp, Pencil
+} from "lucide-react";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+// Animations: fade-in, slide-up only (iOS-approved)
+const fadeIn = { opacity: 0 };
+const fadeInTo = { opacity: 1 };
+const slideUp = { opacity: 0, y: 8 };
+const slideUpTo = { opacity: 1, y: 0 };
 
-/* 
- * MONEX DESIGN SYSTEM
- * Based on Apple HIG + Revolut principles
- * Rules: Calm, Clean, Consistent
- */
+export const HomeScreen: React.FC<{ onAddExpense: () => void; onAddIncome: () => void }> = ({ onAddExpense, onAddIncome }) => {
+  const { 
+    t, lang, tgUser, balance, todayExp, todayInc, weekSpend, monthSpend, 
+    limits, monthSpentByCategory, getCat, catLabel, addTransaction,
+    transactions, setActiveScreen, syncFromRemote, quickAdds
+  } = useApp();
+  
+  // Calculate spending comparison
+  const { lastWeekSpend, weekChange } = useMemo(() => {
+    const today = new Date();
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    
+    const lastWeekStartStr = lastWeekStart.toISOString().slice(0, 10);
+    const lastWeekEndStr = lastWeekEnd.toISOString().slice(0, 10);
+    
+    let lastWeek = 0;
+    transactions.forEach(tx => {
+      if (tx.amount < 0 && tx.date >= lastWeekStartStr && tx.date <= lastWeekEndStr) {
+        lastWeek += Math.abs(tx.amount);
+      }
+    });
+    
+    const change = lastWeek > 0 ? ((weekSpend - lastWeek) / lastWeek) * 100 : 0;
+    return { lastWeekSpend: lastWeek, weekChange: change };
+  }, [transactions, weekSpend]);
+  
+  // Quick add handler
+  const handleQuickAdd = useCallback(async (categoryId: string, amount: number) => {
+    const cat = getCat(categoryId);
+    const now = new Date();
+    await addTransaction({
+      type: "expense",
+      amount: -Math.abs(amount),
+      categoryId,
+      description: cat.uz || cat.en,
+      date: todayISO(),
+      time: now.toISOString().slice(11, 16),
+      source: "quick",
+    });
+  }, [getCat, addTransaction]);
+  
+  // Voice input handler
+  const handleVoiceTransaction = useCallback(async (data: { type: "expense" | "income"; categoryId: string; amount: number; description: string }) => {
+    const now = new Date();
+    await addTransaction({
+      type: data.type,
+      amount: data.type === "expense" ? -Math.abs(data.amount) : Math.abs(data.amount),
+      categoryId: data.categoryId,
+      description: data.description,
+      date: todayISO(),
+      time: now.toISOString().slice(11, 16),
+      source: "voice",
+    });
+  }, [addTransaction]);
 
-@layer base {
-  :root {
-    /* Core Colors - Neutral background with ONE accent */
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
-    
-    /* Card - Pure white for elevation */
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    
-    /* Primary - Single accent color */
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
-    
-    /* Secondary - Soft gray for backgrounds */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 9% 46%;
-    
-    /* Muted - For secondary text */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    
-    /* Accent - Subtle primary tint */
-    --accent: 217 91% 97%;
-    --accent-foreground: 217 91% 47%;
-    
-    /* Semantic Colors - Red = danger, Green = success ONLY */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --expense: 0 72% 51%;
-    --income: 142 76% 36%;
-    
-    /* Borders & Inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 50%;
-    
-    /* Radius - 16-20px as per design system */
-    --radius: 1rem;
-    --radius-lg: 1.25rem;
-    
-    /* Shadows - Very soft */
-    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-    --shadow-elevated: 0 4px 12px -2px rgb(0 0 0 / 0.06);
-    
-    /* Safe areas for mobile */
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    
-    /* Bottom navigation height constant */
-    --tab-bar-height: 88px;
-    
-    /* Spacing Scale (8, 12, 16, 24, 32 ONLY) */
-    --space-xs: 0.5rem;   /* 8px */
-    --space-sm: 0.75rem;  /* 12px */
-    --space-md: 1rem;     /* 16px */
-    --space-lg: 1.5rem;   /* 24px */
-    --space-xl: 2rem;     /* 32px */
-    
-    /* Typography - Strict hierarchy */
-    --text-large-title: 1.75rem; /* 28px - Screen purpose */
-    --text-title: 1.125rem;      /* 18px - Section name */
-    --text-body: 0.9375rem;      /* 15px - Content */
-    --text-caption: 0.8125rem;   /* 13px - Secondary info */
+  // Quick adds
+  const defaultQuickAdds = [
+    { id: "coffee", categoryId: "coffee", amount: 15000 },
+    { id: "restaurants", categoryId: "restaurants", amount: 35000 },
+    { id: "taxi", categoryId: "taxi", amount: 20000 },
+    { id: "shopping", categoryId: "shopping", amount: 100000 },
+  ];
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-  }
+  const [editingQuickAdd, setEditingQuickAdd] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [localQuickAdds, setLocalQuickAdds] = useState<typeof defaultQuickAdds>(() => {
+    const saved = safeJSON.get<typeof defaultQuickAdds>("hamyon_quickAdds", []);
+    return saved.length > 0 ? saved : quickAdds.length > 0 ? quickAdds : defaultQuickAdds;
+  });
 
-  .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 217 33% 15%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 217 33% 18%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 210 40% 98%;
-    --expense: 0 62% 55%;
-    --income: 142 70% 45%;
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 217 91% 60%;
-  }
-}
+  const handleSaveQuickAdd = (itemId: string) => {
+    const newAmount = parseInt(editAmount) || 0;
+    if (newAmount > 0) {
+      const updated = localQuickAdds.map(item => 
+        item.id === itemId ? { ...item, amount: newAmount } : item
+      );
+      setLocalQuickAdds(updated);
+      safeJSON.set("hamyon_quickAdds", updated);
+    }
+    setEditingQuickAdd(null);
+  };
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  html, body, #root {
-    @apply bg-background text-foreground antialiased;
-    height: 100%;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-tap-highlight-color: transparent;
-  }
+  const stepAmount = (delta: number) => {
+    const current = parseInt(editAmount) || 0;
+    const step = current >= 100000 ? 10000 : 5000;
+    setEditAmount(Math.max(1000, current + delta * step).toString());
+  };
 
-  body {
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-  }
+  // Modals
+  const [showAICopilot, setShowAICopilot] = useState(false);
+  const [showFinancePlanner, setShowFinancePlanner] = useState(false);
+  const [showBudgetSimulator, setShowBudgetSimulator] = useState(false);
 
-  #root {
-    overflow-x: hidden;
-    overflow-y: auto;
-    min-height: 100dvh;
-  }
+  // Refresh handler for pull-to-refresh
+  const handleRefresh = useCallback(async () => {
+    await syncFromRemote();
+  }, [syncFromRemote]);
   
-  /* Prevent iOS zoom */
-  input, textarea, select {
-    font-size: 16px !important;
-  }
-}
+  return (
+    <>
+    <div className="screen-container">
+      <div className="px-0">
+        
+        {/* === HEADER === */}
+        <header className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
+              {(tgUser?.first_name || "U").charAt(0)}
+            </div>
+            <div>
+              <p className="text-caption">{t.hello}</p>
+              <p className="text-body-medium text-foreground">{tgUser?.first_name || "User"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <VoiceInput onTransactionParsed={handleVoiceTransaction} />
+            <button 
+              onClick={syncFromRemote}
+              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:opacity-70"
+            >
+              <RefreshCw className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
+        </header>
+        
+        {/* === PRIMARY SECTION: Balance Card (Info Card pattern) === */}
+        <motion.div 
+          initial={slideUp}
+          animate={slideUpTo}
+          transition={{ duration: 0.25 }}
+          className="card-info mb-4"
+        >
+          <p className="text-caption mb-1">{t.balance}</p>
+          <div className="flex items-baseline gap-2">
+            <span className="card-info-number">{formatUZS(balance)}</span>
+            <span className="text-caption">UZS</span>
+          </div>
+        </motion.div>
+        
+        {/* === Today Summary (Two Info Cards) === */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <motion.div 
+            initial={slideUp}
+            animate={slideUpTo}
+            transition={{ delay: 0.05, duration: 0.25 }}
+            className="card-info"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
+                <ArrowDown className="w-3.5 h-3.5 text-destructive" />
+              </div>
+              <span className="text-caption">{t.expenses}</span>
+            </div>
+            <p className="text-title amount-expense">
+              {todayExp ? `-${formatUZS(todayExp)}` : "0"}
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            initial={slideUp}
+            animate={slideUpTo}
+            transition={{ delay: 0.1, duration: 0.25 }}
+            className="card-info"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-[hsl(var(--income))]/10 flex items-center justify-center">
+                <ArrowUp className="w-3.5 h-3.5 text-[hsl(var(--income))]" />
+              </div>
+              <span className="text-caption">{t.income}</span>
+            </div>
+            <p className="text-title amount-income">
+              {todayInc ? `+${formatUZS(todayInc)}` : "0"}
+            </p>
+          </motion.div>
+        </div>
+        
+        {/* === Week Insight (Insight Card pattern with icon) === */}
+        <motion.div
+          initial={slideUp}
+          animate={slideUpTo}
+          transition={{ delay: 0.15, duration: 0.25 }}
+          className="card-insight mb-6"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-body-medium text-foreground">{t.weekSpending}: {formatUZS(weekSpend)}</span>
+              {weekChange !== 0 && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  weekChange > 0 ? 'bg-destructive/10 text-destructive' : 'bg-[hsl(var(--income))]/10 text-[hsl(var(--income))]'
+                }`}>
+                  {weekChange > 0 ? '↑' : '↓'} {Math.abs(weekChange).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+        </motion.div>
 
-@layer components {
-  /* ================================
-   * CARD SYSTEM - Core of the design
-   * Rules: radius 16-20, padding 16, spacing 12-16, no borders
-   * ================================ */
-  
-  /* Info Card: Big number + small label */
-  .card-info {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
-    box-shadow: var(--shadow-card);
-  }
-  
-  .card-info-number {
-    font-size: var(--text-large-title);
-    font-weight: 600;
-    line-height: 1.2;
-    @apply text-foreground;
-  }
-  
-  .card-info-label {
-    font-size: var(--text-caption);
-    @apply text-muted-foreground mt-1;
-  }
-  
-  /* Insight Card: 1 sentence + optional emoji */
-  .card-insight {
-    @apply bg-card p-4 rounded-[var(--radius-lg)] flex items-center gap-3;
-    box-shadow: var(--shadow-card);
-  }
-  
-  .card-insight-text {
-    font-size: var(--text-body);
-    @apply text-foreground;
-  }
-  
-  /* Action Card: Short sentence + 1-2 buttons */
-  .card-action {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
-    box-shadow: var(--shadow-card);
-  }
-  
-  .card-action-text {
-    font-size: var(--text-body);
-    @apply text-foreground mb-3;
-  }
-  
-  .card-action-buttons {
-    @apply flex gap-2;
-  }
-  
-  /* Elevated card for primary content */
-  .card-elevated {
-    @apply bg-card p-4 rounded-[var(--radius-lg)];
-    box-shadow: var(--shadow-elevated);
-  }
-  
-  /* ================================
-   * TYPOGRAPHY HIERARCHY - Strict
-   * Large Title: 28px - Screen purpose
-   * Title: 18px - Section name
-   * Body: 15px - Content
-   * Caption: 13px - Secondary
-   * ================================ */
-  
-  .text-large-title {
-    font-size: var(--text-large-title);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-  }
-  
-  .text-title {
-    font-size: var(--text-title);
-    font-weight: 600;
-    line-height: 1.3;
-  }
-  
-  .text-body {
-    font-size: var(--text-body);
-    font-weight: 400;
-    line-height: 1.4;
-  }
-  
-  .text-body-medium {
-    font-size: var(--text-body);
-    font-weight: 500;
-    line-height: 1.4;
-  }
-  
-  .text-caption {
-    font-size: var(--text-caption);
-    font-weight: 400;
-    line-height: 1.4;
-    @apply text-muted-foreground;
-  }
-  
-  /* Big number - calm power */
-  .text-display {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-  
-  /* ================================
-   * SPACING - Use only 8, 12, 16, 24, 32
-   * ================================ */
-  
-  .gap-xs { gap: var(--space-xs); }
-  .gap-sm { gap: var(--space-sm); }
-  .gap-md { gap: var(--space-md); }
-  .gap-lg { gap: var(--space-lg); }
-  .gap-xl { gap: var(--space-xl); }
-  
-  .p-card { padding: var(--space-md); }
-  .mb-section { margin-bottom: var(--space-lg); }
-  
-  /* ================================
-   * BUTTONS - Clear, Short
-   * ================================ */
-  
-  .btn-primary {
-    @apply bg-primary text-primary-foreground font-medium px-4 py-2.5 rounded-xl;
-    @apply transition-opacity duration-150 active:opacity-80;
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary text-foreground font-medium px-4 py-2.5 rounded-xl;
-    @apply transition-opacity duration-150 active:opacity-80;
-  }
-  
-  .btn-ghost {
-    @apply text-muted-foreground font-medium px-4 py-2.5 rounded-xl;
-    @apply transition-opacity duration-150 active:opacity-60;
-  }
-  
-  /* ================================
-   * BOTTOM NAVIGATION
-   * Rules: Icon + label only, selected = subtle tint
-   * ================================ */
-  
-  .bottom-nav {
-    @apply fixed bottom-0 inset-x-0 z-50;
-    padding-bottom: max(var(--safe-area-bottom), 8px);
-    background: hsl(var(--card) / 0.98);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 -1px 0 hsl(var(--border) / 0.5);
-  }
-  
-  .bottom-nav-item {
-    @apply flex flex-col items-center gap-1 py-2 px-4;
-    @apply text-muted-foreground transition-colors duration-150;
-  }
-  
-  .bottom-nav-item.active {
-    @apply text-primary;
-  }
-  
-  .bottom-nav-item-icon {
-    @apply w-6 h-6;
-  }
-  
-  .bottom-nav-item-label {
-    font-size: 0.625rem;
-    font-weight: 500;
-  }
-  
-  /* ================================
-   * SCREEN LAYOUT
-   * Order: Large Title → Primary Section → Secondary → Empty Space
-   * ================================ */
-  
-  .screen-container {
-    @apply bg-background overflow-y-auto;
-    height: 100%;
-    min-height: 100dvh;
-    -webkit-overflow-scrolling: touch;
-    padding-top: max(var(--safe-area-top), 16px);
-    padding-left: var(--space-md);
-    padding-right: var(--space-md);
-    padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
-  }
-  
-  .screen-header {
-    padding-top: var(--space-md);
-    padding-bottom: var(--space-lg);
-  }
-  
-  .section-header {
-    @apply flex items-center justify-between mb-3;
-  }
-  
-  .section-title {
-    font-size: var(--text-title);
-    font-weight: 600;
-    @apply text-foreground;
-  }
-  
-  .section-action {
-    font-size: var(--text-caption);
-    font-weight: 500;
-    @apply text-primary;
-  }
-  
-  /* ================================
-   * PROGRESS BAR
-   * ================================ */
-  
-  .progress-bar {
-    @apply h-2 rounded-full bg-secondary overflow-hidden;
-  }
-  
-  .progress-fill {
-    @apply h-full rounded-full transition-all duration-300 ease-out;
-    background: hsl(var(--primary));
-  }
-  
-  .progress-fill-danger {
-    background: hsl(var(--destructive));
-  }
-  
-  .progress-fill-success {
-    background: hsl(var(--income));
-  }
-  
-  /* ================================
-   * SEMANTIC COLORS
-   * Red = danger only, Green = success only
-   * ================================ */
-  
-  .amount-expense {
-    color: hsl(var(--expense));
-  }
-  
-  .amount-income {
-    color: hsl(var(--income));
-  }
-  
-  /* ================================
-   * ANIMATIONS - iOS-approved only
-   * Fade in/out, Slide up/down, Micro tap feedback
-   * NO bounce, elastic, overshoot
-   * ================================ */
-  
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes slide-up {
-    from { transform: translateY(8px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-  
-  .animate-fade-in {
-    animation: fade-in 0.2s ease-out;
-  }
-  
-  .animate-slide-up {
-    animation: slide-up 0.25s ease-out;
-  }
-  
-  /* ================================
-   * MODAL
-   * ================================ */
-  
-  .modal-overlay {
-    @apply fixed inset-0 z-[100] bg-black/40;
-    backdrop-filter: blur(4px);
-  }
-  
-  .modal-content {
-    @apply bg-card rounded-t-[var(--radius-lg)] p-4;
-    box-shadow: var(--shadow-elevated);
-    max-height: 80vh;
-    overflow-y: auto;
-    padding-bottom: calc(var(--space-xl) + var(--safe-area-bottom));
-    margin-bottom: 0;
-  }
-  
-  /* Centered modal (for dialogs that need to be above bottom nav) */
-  .modal-centered {
-    @apply bg-card rounded-[var(--radius-lg)] p-4 mx-4;
-    box-shadow: var(--shadow-elevated);
-    max-height: 70vh;
-    overflow-y: auto;
-    margin-bottom: calc(100px + var(--safe-area-bottom));
-  }
-  
-  /* ================================
-   * UTILITIES
-   * ================================ */
-  
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  /* Category icon */
-  .category-icon {
-    @apply w-10 h-10 rounded-xl flex items-center justify-center text-base;
-  }
-  
-  /* List item with subtle tap */
-  .list-item {
-    @apply flex items-center gap-3 p-4 bg-card rounded-[var(--radius)];
-    box-shadow: var(--shadow-card);
-    @apply transition-opacity duration-100 active:opacity-80;
-  }
-  
-  /* Quick action */
-  .quick-action {
-    @apply flex flex-col items-center gap-2 p-4 bg-card rounded-[var(--radius)];
-    box-shadow: var(--shadow-card);
-    @apply transition-opacity duration-100 active:opacity-80;
-  }
-  
-  /* Input */
-  .input-clean {
-    @apply w-full px-4 py-3 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
-  }
-  
-  /* Chip */
-  .chip {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
-    @apply bg-secondary text-secondary-foreground;
-  }
-  
-  .chip-primary {
-    @apply bg-primary/10 text-primary;
-  }
-}
+        {/* === AI Insights Widget === */}
+        <AIInsightsWidget onOpenFullPanel={() => setShowAICopilot(true)} />
+        
+        {/* === Quick Actions (Action Card pattern) === */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <button
+            onClick={onAddExpense}
+            className="card-elevated flex items-center gap-3 active:opacity-80"
+          >
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <ArrowDown className="w-5 h-5 text-destructive" />
+            </div>
+            <span className="text-body-medium text-foreground">{t.addExpense}</span>
+          </button>
+          <button
+            onClick={onAddIncome}
+            className="card-elevated flex items-center gap-3 active:opacity-80"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[hsl(var(--income))]/10 flex items-center justify-center">
+              <ArrowUp className="w-5 h-5 text-[hsl(var(--income))]" />
+            </div>
+            <span className="text-body-medium text-foreground">{t.addIncome}</span>
+          </button>
+        </div>
+        
+        {/* === Budgets Section === */}
+        {limits.length > 0 && (
+          <section className="mb-6">
+            <div className="section-header">
+              <h2 className="section-title">{t.monthlyBudgets}</h2>
+              <button onClick={() => setActiveScreen("limits")} className="section-action">
+                {t.viewAll}
+              </button>
+            </div>
+            <div className="space-y-3">
+              {limits.slice(0, 3).map((lim, index) => {
+                const cat = getCat(lim.categoryId);
+                const spent = monthSpentByCategory(lim.categoryId);
+                const pct = lim.amount ? Math.round((spent / lim.amount) * 100) : 0;
+                const isOver = pct >= 100;
+                
+                return (
+                  <motion.div 
+                    key={lim.id}
+                    initial={slideUp}
+                    animate={slideUpTo}
+                    transition={{ delay: index * 0.05, duration: 0.2 }}
+                    className="card-info"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="category-icon"
+                          style={{ backgroundColor: `${cat.color}15` }}
+                        >
+                          <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                        </div>
+                        <span className="text-body-medium text-foreground">{catLabel(cat)}</span>
+                      </div>
+                      <span className={`text-body-medium ${isOver ? 'text-destructive' : 'text-foreground'}`}>
+                        {pct}%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div 
+                        className={`progress-fill ${isOver ? 'progress-fill-danger' : ''}`}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-caption">{formatUZS(spent)}</span>
+                      <span className="text-caption">{formatUZS(lim.amount)}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+        
+        {/* === Quick Add Section === */}
+        <section className="mb-6">
+          <div className="section-header">
+            <h2 className="section-title">{t.quickAdd}</h2>
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {localQuickAdds.map((item, i) => {
+              const cat = getCat(item.categoryId);
+              const isEditing = editingQuickAdd === item.id;
+              
+              return (
+                <div
+                  key={item.id}
+                  className="card-info min-w-[88px] relative"
+                >
+                  <AnimatePresence mode="wait">
+                    {isEditing ? (
+                      <motion.div
+                        key="edit"
+                        initial={fadeIn}
+                        animate={fadeInTo}
+                        exit={fadeIn}
+                        className="flex flex-col items-center"
+                      >
+                        <div className="flex items-center gap-1 mb-2">
+                          <button
+                            onClick={() => stepAmount(-1)}
+                            className="w-6 h-6 rounded bg-secondary flex items-center justify-center"
+                          >
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className="w-14 text-center text-xs bg-secondary rounded p-1"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => stepAmount(1)}
+                            className="w-6 h-6 rounded bg-secondary flex items-center justify-center"
+                          >
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingQuickAdd(null)}
+                            className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center"
+                          >
+                            <X className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                          <button
+                            onClick={() => handleSaveQuickAdd(item.id)}
+                            className="w-7 h-7 rounded-full bg-primary flex items-center justify-center"
+                          >
+                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="view"
+                        initial={fadeIn}
+                        animate={fadeInTo}
+                        exit={fadeIn}
+                        className="w-full flex flex-col items-center relative"
+                      >
+                        {/* Edit button - visible tap target */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingQuickAdd(item.id);
+                            setEditAmount(item.amount.toString());
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-secondary flex items-center justify-center z-10"
+                        >
+                          <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                        </button>
+                        
+                        {/* Main tap area - adds transaction */}
+                        <button
+                          onClick={() => handleQuickAdd(item.categoryId, item.amount)}
+                          className="w-full flex flex-col items-center active:opacity-70"
+                        >
+                          <div 
+                            className="category-icon mb-2"
+                            style={{ backgroundColor: `${cat.color}15` }}
+                          >
+                            <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{catLabel(cat)}</p>
+                          <p className="text-caption">{formatUZS(item.amount)}</p>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+            <button
+              onClick={onAddExpense}
+              className="card-info min-w-[88px] flex flex-col items-center justify-center border-2 border-dashed border-border active:opacity-70"
+              style={{ boxShadow: 'none' }}
+            >
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-2">
+                <Plus className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">{t.add}</p>
+            </button>
+          </div>
+        </section>
+        
+        {/* === Recent Transactions === */}
+        <section className="mb-6">
+          <div className="section-header">
+            <h2 className="section-title">{t.allTransactions}</h2>
+            <button onClick={() => setActiveScreen("transactions")} className="section-action">
+              {t.viewAll}
+            </button>
+          </div>
+          
+          {transactions.length === 0 ? (
+            <div className="card-info text-center py-8">
+              <p className="text-caption">{t.empty}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transactions.slice(0, 4).map((tx, index) => {
+                const cat = getCat(tx.categoryId);
+                return (
+                  <motion.div 
+                    key={tx.id}
+                    initial={slideUp}
+                    animate={slideUpTo}
+                    transition={{ delay: index * 0.03, duration: 0.2 }}
+                    className="list-item"
+                  >
+                    <div 
+                      className="category-icon"
+                      style={{ backgroundColor: `${cat.color}15` }}
+                    >
+                      <CategoryIcon categoryId={cat.id} className="w-5 h-5" style={{ color: cat.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body-medium text-foreground truncate">{tx.description}</p>
+                      <p className="text-caption">{tx.date}</p>
+                    </div>
+                    <p className={`text-body-medium ${tx.amount > 0 ? 'amount-income' : 'amount-expense'}`}>
+                      {tx.amount > 0 ? '+' : ''}{formatUZS(tx.amount)}
+                    </p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
+      </div>
+    </div>
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 100px;
-}
+    {/* Modals */}
+    <AICopilotPanel isOpen={showAICopilot} onClose={() => setShowAICopilot(false)} />
+    <FinancePlannerModal isOpen={showFinancePlanner} onClose={() => setShowFinancePlanner(false)} />
+    <BudgetSimulatorModal isOpen={showBudgetSimulator} onClose={() => setShowBudgetSimulator(false)} />
+    </>
+  );
+};
