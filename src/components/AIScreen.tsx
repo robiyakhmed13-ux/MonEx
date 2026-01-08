@@ -322,36 +322,66 @@ export const AIScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* Premium Insights Section - Only show if has insights */}
-      {insights.length > 0 && (
-        <section className="mb-card">
-          <div className="section-header">
-            <h2 className="section-title">{labels.insights}</h2>
-            <button 
-              onClick={analyzeFinances}
-              disabled={loading}
-              className="section-action flex items-center gap-1"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              {labels.refresh}
-            </button>
-          </div>
+      {/* Insights Section */}
+      <section className="mb-6">
+        <div className="section-header">
+          <h2 className="section-title">{labels.insights}</h2>
+          <button 
+            onClick={analyzeFinances}
+            disabled={loading}
+            className="section-action flex items-center gap-1"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {labels.refresh}
+          </button>
+        </div>
 
-          <div className="space-y-[14px]">
+        {loading ? (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="card-info py-12 flex flex-col items-center"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center mb-4"
+            >
+              <Brain className="w-7 h-7 text-primary-foreground" />
+            </motion.div>
+            <p className="text-caption">{labels.analyzing}</p>
+          </motion.div>
+        ) : error ? (
+          <div className="card-info py-8 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+              <AlertTriangle className="w-6 h-6 text-destructive" />
+            </div>
+            <p className="text-body-medium text-destructive">{labels.errorMsg}</p>
+            <p className="text-caption mt-1">{error}</p>
+          </div>
+        ) : insights.length === 0 ? (
+          <div className="card-info py-8 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-[hsl(var(--income))]/10 flex items-center justify-center mb-3">
+              <Trophy className="w-6 h-6 text-[hsl(var(--income))]" />
+            </div>
+            <p className="text-body-medium text-foreground">{labels.noInsights}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
             <AnimatePresence mode="popLayout">
-              {insights.filter(i => i.severity === 'critical' || i.severity === 'high').slice(0, 3).map((insight, index) => (
+              {insights.map((insight, index) => (
                 <motion.div
                   key={`${insight.type}-${index}`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ delay: index * 0.03, duration: 0.2, ease: "easeOut" }}
+                  transition={{ delay: index * 0.05 }}
                   className={`card-info ${SEVERITY_COLORS[insight.severity]}`}
                 >
                   <div className="flex gap-3">
                     <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
                       insight.severity === 'critical' ? 'bg-destructive/20' :
                       insight.severity === 'high' ? 'bg-orange-500/20' :
+                      insight.severity === 'medium' ? 'bg-amber-500/20' :
                       'bg-secondary'
                     } ${SEVERITY_ICON_COLORS[insight.severity]}`}>
                       {INSIGHT_ICONS[insight.type] || <Zap className="w-5 h-5" />}
@@ -371,7 +401,7 @@ export const AIScreen: React.FC = () => {
                             e.stopPropagation();
                             handleActionClick(insight.action, insight.actionLabel);
                           }}
-                          className="mt-2 text-xs text-primary font-medium flex items-center gap-1 active:opacity-70"
+                          className="mt-2 text-xs text-primary font-medium flex items-center gap-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded px-1 -ml-1 transition-colors hover:underline relative z-10 active:opacity-70 touch-manipulation"
                           role="button"
                           aria-label={insight.actionLabel}
                           type="button"
@@ -386,18 +416,8 @@ export const AIScreen: React.FC = () => {
               ))}
             </AnimatePresence>
           </div>
-        </section>
-      )}
-      
-      {/* Quiet state - if no insights, show minimal message */}
-      {!loading && !error && insights.length === 0 && (
-        <div className="card-info py-8 flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full bg-[hsl(var(--income))]/10 flex items-center justify-center mb-3">
-            <Trophy className="w-6 h-6 text-[hsl(var(--income))]" />
-          </div>
-          <p className="text-body-medium text-foreground">{labels.noInsights}</p>
-        </div>
-      )}
+        )}
+      </section>
 
       {/* Last Updated */}
       {!loading && !error && lastAnalyzed && (
