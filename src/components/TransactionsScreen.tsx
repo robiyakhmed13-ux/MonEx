@@ -54,12 +54,15 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
         </div>
       </header>
       
-      {/* Premium Filter - iOS-style segmented control */}
+      {/* Filter Chips */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-1">
         {[
           { k: "all", label: t.all },
           { k: "expense", label: t.expense },
           { k: "income", label: t.incomeType },
+          { k: "today", label: t.today },
+          { k: "week", label: t.week },
+          { k: "month", label: t.month },
         ].map((x) => (
           <button
             key={x.k}
@@ -75,29 +78,6 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
         ))}
       </div>
       
-      {/* Time Filters - Secondary row */}
-      {filter === "all" && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-1">
-          {[
-            { k: "today", label: t.today },
-            { k: "week", label: t.week },
-            { k: "month", label: t.month },
-          ].map((x) => (
-            <button
-              key={x.k}
-              onClick={() => setFilter(x.k)}
-              className={`px-3 py-1.5 rounded-lg whitespace-nowrap text-caption transition-opacity active:opacity-70 ${
-                filter === x.k
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-muted-foreground"
-              }`}
-            >
-              {x.label}
-            </button>
-          ))}
-        </div>
-      )}
-      
       {/* Primary Section: Transaction List */}
       {filtered.length === 0 ? (
         <div className="card-info text-center py-12">
@@ -107,17 +87,17 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
           <p className="text-body text-muted-foreground">{t.empty}</p>
         </div>
       ) : (
-            <div className="space-y-[14px]">
-              {filtered.map((tx, index) => {
-                const cat = getCat(tx.categoryId);
-                return (
-                  <motion.div 
-                    key={tx.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.02, duration: 0.2, ease: "easeOut" }}
-                    className="list-item"
-                  >
+        <div className="space-y-3">
+          {filtered.map((tx, index) => {
+            const cat = getCat(tx.categoryId);
+            return (
+              <motion.div 
+                key={tx.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.02, duration: 0.2 }}
+                className="card-info"
+              >
                 <div className="flex items-center gap-3">
                   <div 
                     className="category-icon"
@@ -135,8 +115,8 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ onEditTr
                     </p>
                   </div>
                 </div>
-                {/* Actions - Premium inline */}
-                <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                {/* Actions */}
+                <div className="flex gap-2 mt-3 pt-3 border-t border-border">
                   <button 
                     onClick={() => onEditTransaction(tx.id)}
                     className="flex-1 py-2 rounded-xl bg-secondary text-body-medium text-foreground active:opacity-70"
