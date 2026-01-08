@@ -210,19 +210,19 @@ export const AddTransactionModal = memo(({ isOpen, onClose, editId, initialType 
           {/* Category Grid */}
           <div className="mb-6">
             <label className="text-caption text-muted-foreground font-medium mb-3 block">{t.category}</label>
-            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto no-scrollbar">
+            <div className="grid grid-cols-4 gap-3 max-h-52 overflow-y-auto no-scrollbar p-1">
               {cats.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setCategoryId(c.id)}
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1.5 transition-all ${
+                  className={`p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${
                     categoryId === c.id
-                      ? "bg-accent ring-2 ring-primary scale-105"
+                      ? "bg-accent ring-2 ring-primary scale-[1.02]"
                       : "bg-secondary hover:bg-muted"
                   }`}
                 >
-                  <span className="text-xl">{c.emoji}</span>
-                  <span className="text-2xs text-center truncate w-full text-muted-foreground">{catLabel(c)}</span>
+                  <span className="text-2xl">{c.emoji}</span>
+                  <span className="text-xs text-center truncate w-full text-muted-foreground font-medium">{catLabel(c)}</span>
                 </button>
               ))}
             </div>
